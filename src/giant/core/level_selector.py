@@ -55,8 +55,9 @@ class LevelSelectorProtocol(Protocol):
             region: Requested crop in Level-0 coordinates.
             metadata: WSI metadata containing pyramid level information.
             target_size: Target long-side in pixels (default: 1000).
-            bias: Oversampling bias (default: 0.85). Lower values prefer
-                coarser levels; higher values prefer finer levels.
+            bias: Oversampling bias (default: 0.85). Values below 1.0 bias
+                toward selecting finer levels (more oversampling), reducing
+                blur from upsampling.
 
         Returns:
             SelectedLevel containing the optimal level index and downsample factor.

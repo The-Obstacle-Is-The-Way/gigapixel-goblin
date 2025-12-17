@@ -219,55 +219,30 @@ class TestPyramidLevelSelectorTieBreaker:
 
     def test_tiebreaker_prefers_finer_level(self) -> None:
         """Test tie-breaker selects finer level (smaller k) when equidistant."""
-        # Create metadata where two levels are equidistant from target_native
-        # target_native = 1000 / 0.85 ≈ 1176.47
-        # We need L[k1] and L[k2] such that |L[k1] - 1176.47| == |L[k2] - 1176.47|
-        # Example: L=1076 and L=1277 are both ~100 away from 1176.47
-
-        # With region long_side=2153 and ds=[1, 2]:
-        # L0 = 2153/1 = 2153
-        # L1 = 2153/2 = 1076.5
-        # target_native = 1176.47
-        # diff0 = |2153 - 1176.47| = 976.53
-        # diff1 = |1076.5 - 1176.47| = 99.97
-        # Not a tie, L1 wins
-
-        # Let's construct a proper tie scenario:
-        # Need Lk1 = target_native - d and Lk2 = target_native + d
-        # target_native = 1176.47
-        # If d = 100: need levels giving 1076 and 1277
-        # With region = 2553, ds = [2, 2.377]: L = [1276.5, 1073.9]
-
-        # For a true tie, we'd need very specific values
-        # Let's test that given equal distances, the finer level is chosen
-        # We'll verify this behavior in the implementation by checking the algorithm
-
-        # Simpler test: just verify finer level wins when diffs are very close
         metadata = WSIMetadata(
             path="/path/to/slide.svs",
-            width=50000,
-            height=40000,
-            level_count=3,
+            width=8000,
+            height=6000,
+            level_count=2,
             level_dimensions=(
-                (50000, 40000),
-                (25000, 20000),
-                (12500, 10000),
+                (8000, 6000),
+                (4000, 3000),
             ),
-            level_downsamples=(1.0, 2.0, 4.0),
+            level_downsamples=(1.0, 2.0),
             vendor="aperio",
             mpp_x=0.25,
             mpp_y=0.25,
         )
 
-        # With target_native ≈ 1176 and region long_side = 2352:
-        # L0 = 2352, L1 = 1176, L2 = 588
-        # L1 is exact match, should be selected
-        region = Region(x=0, y=0, width=2352, height=2000)
+        # target_native = target_size / bias = 1500 / 0.5 = 3000
+        # size_at_level: L0=4000, L1=2000 -> both are exactly 1000px away from 3000
+        # Tie-breaker must prefer the finer level (k=0).
+        region = Region(x=0, y=0, width=4000, height=3000)
         selector = PyramidLevelSelector()
-        result = selector.select_level(region, metadata, target_size=1000)
+        result = selector.select_level(region, metadata, target_size=1500, bias=0.5)
 
-        # L1 = 1176 matches target_native almost exactly
-        assert result.level == 1
+        assert result.level == 0
+        assert result.downsample == 1.0
 
 
 # --- Test Custom Parameters ---
@@ -307,21 +282,36 @@ class TestPyramidLevelSelectorCustomParams:
 
         assert result.level == 1
 
-    def test_low_bias_prefers_coarser(
-        self, selector: PyramidLevelSelector, standard_metadata: WSIMetadata
+    def test_lower_bias_tends_to_select_finer_level(
+        self, selector: PyramidLevelSelector
     ) -> None:
-        """Test lower bias values prefer coarser levels (higher target_native)."""
-        region = Region(x=0, y=0, width=20000, height=16000)  # Long side = 20000
+        """Test that smaller bias tends to select finer levels (more oversampling)."""
+        metadata = WSIMetadata(
+            path="/path/to/slide.svs",
+            width=3000,
+            height=2000,
+            level_count=3,
+            level_dimensions=(
+                (3000, 2000),
+                (2000, 1333),
+                (1500, 1000),
+            ),
+            level_downsamples=(1.0, 1.5, 2.0),
+            vendor="aperio",
+            mpp_x=0.25,
+            mpp_y=0.25,
+        )
+        region = Region(x=0, y=0, width=1500, height=1000)  # Long side = 1500
 
-        # With bias=0.5: target_native = 1000/0.5 = 2000
-        # Levels: ds=[1, 4, 16] → L=[20000, 5000, 1250]
-        # Closest to 2000: L1=5000 (diff=3000), L2=1250 (diff=750)
-        # L2 is closer at 1250, 1250 >= 1000 → select L2
-        result = selector.select_level(
-            region, standard_metadata, target_size=1000, bias=0.5
+        default_bias_result = selector.select_level(
+            region, metadata, target_size=1000, bias=0.85
+        )
+        low_bias_result = selector.select_level(
+            region, metadata, target_size=1000, bias=0.5
         )
 
-        assert result.level == 2
+        assert default_bias_result.level == 1
+        assert low_bias_result.level == 0
 
 
 # --- Test Edge Cases ---
