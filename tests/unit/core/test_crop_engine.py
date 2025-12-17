@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import base64
 from io import BytesIO
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,8 +24,48 @@ from giant.core.level_selector import PyramidLevelSelector, SelectedLevel
 from giant.geometry import Region
 from giant.wsi.types import WSIMetadata
 
-if TYPE_CHECKING:
-    pass
+_DUMMY_BASE64 = "dGVzdA=="
+
+
+class _FakeImage:
+    """A lightweight stand-in for PIL.Image.Image for property tests.
+
+    Avoids allocating huge image buffers while still exercising the resize
+    math in CropEngine (width/height/size and resize calls).
+    """
+
+    def __init__(self, size: tuple[int, int]) -> None:
+        self._size = size
+        self.width, self.height = size
+
+    @property
+    def size(self) -> tuple[int, int]:
+        return self._size
+
+    def resize(
+        self,
+        size: tuple[int, int],
+        resample: Image.Resampling = Image.Resampling.NEAREST,
+        **_: object,
+    ) -> _FakeImage:
+        assert resample == Image.Resampling.LANCZOS
+        return _FakeImage(size)
+
+
+class _NoEncodeCropEngine(CropEngine):
+    """CropEngine variant that skips JPEG encoding for fast property tests."""
+
+    def _encode_base64_jpeg(self, image: Image.Image, quality: int) -> str:
+        return _DUMMY_BASE64
+
+
+def _fake_read_region(
+    location: tuple[int, int],
+    level: int,
+    size: tuple[int, int],
+) -> _FakeImage:
+    del location, level
+    return _FakeImage(size)
 
 
 # --- Fixtures ---
@@ -310,6 +349,26 @@ class TestCropEngineResizeMath:
         # Both sides scale equally: 2000 → 500
         assert result.image.size == (500, 500)
 
+    def test_resize_uses_lanczos_resampling(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_level_selector: MagicMock,
+    ) -> None:
+        """Test that resizing uses LANCZOS resampling."""
+        mock_level_selector.select_level.return_value = SelectedLevel(
+            level=0, downsample=1.0
+        )
+        engine = CropEngine(reader=mock_wsi_reader, level_selector=mock_level_selector)
+
+        # Force a resize (downsample) path.
+        region = Region(x=0, y=0, width=2000, height=1000)
+        image = Image.new("RGB", (2000, 1000))
+        mock_wsi_reader.read_region.side_effect = lambda location, level, size: image
+
+        with patch.object(image, "resize", wraps=image.resize) as mock_resize:
+            engine.crop(region, target_size=500)
+            assert mock_resize.call_args.kwargs["resample"] == Image.Resampling.LANCZOS
+
     def test_resize_extreme_landscape_aspect_ratio(
         self,
         mock_wsi_reader: MagicMock,
@@ -487,6 +546,59 @@ class TestCropEngineBase64:
         assert "\n" not in result.base64_content
 
 
+# --- Test Input Validation ---
+
+
+class TestCropEngineValidation:
+    """Tests for input parameter validation."""
+
+    def test_rejects_jpeg_quality_below_1(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_level_selector: MagicMock,
+    ) -> None:
+        """Test crop() rejects jpeg_quality below 1."""
+        engine = CropEngine(reader=mock_wsi_reader, level_selector=mock_level_selector)
+        region = Region(x=0, y=0, width=1000, height=1000)
+        with pytest.raises(ValueError, match="jpeg_quality must be"):
+            engine.crop(region, target_size=1000, jpeg_quality=0)
+
+    def test_rejects_jpeg_quality_above_100(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_level_selector: MagicMock,
+    ) -> None:
+        """Test crop() rejects jpeg_quality above 100."""
+        engine = CropEngine(reader=mock_wsi_reader, level_selector=mock_level_selector)
+        region = Region(x=0, y=0, width=1000, height=1000)
+        with pytest.raises(ValueError, match="jpeg_quality must be"):
+            engine.crop(region, target_size=1000, jpeg_quality=101)
+
+    def test_accepts_jpeg_quality_boundary_1(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_level_selector: MagicMock,
+    ) -> None:
+        """Test crop() accepts jpeg_quality=1 (minimum valid)."""
+        engine = CropEngine(reader=mock_wsi_reader, level_selector=mock_level_selector)
+        region = Region(x=0, y=0, width=10000, height=8000)
+        # Should not raise
+        result = engine.crop(region, target_size=1000, jpeg_quality=1)
+        assert result is not None
+
+    def test_accepts_jpeg_quality_boundary_100(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_level_selector: MagicMock,
+    ) -> None:
+        """Test crop() accepts jpeg_quality=100 (maximum valid)."""
+        engine = CropEngine(reader=mock_wsi_reader, level_selector=mock_level_selector)
+        region = Region(x=0, y=0, width=10000, height=8000)
+        # Should not raise
+        result = engine.crop(region, target_size=1000, jpeg_quality=100)
+        assert result is not None
+
+
 # --- Test Edge Cases ---
 
 
@@ -586,14 +698,12 @@ class TestCropEngineProperties:
             mpp_x=0.25,
             mpp_y=0.25,
         )
-        mock_reader.read_region.side_effect = lambda location, level, size: Image.new(
-            "RGB", size
-        )
+        mock_reader.read_region.side_effect = _fake_read_region
 
         mock_selector = MagicMock()
         mock_selector.select_level.return_value = SelectedLevel(level=0, downsample=1.0)
 
-        engine = CropEngine(reader=mock_reader, level_selector=mock_selector)
+        engine = _NoEncodeCropEngine(reader=mock_reader, level_selector=mock_selector)
 
         region = Region(x=0, y=0, width=region_width, height=region_height)
         result = engine.crop(region, target_size=target_size)
@@ -636,14 +746,12 @@ class TestCropEngineProperties:
             mpp_x=0.25,
             mpp_y=0.25,
         )
-        mock_reader.read_region.side_effect = lambda location, level, size: Image.new(
-            "RGB", size
-        )
+        mock_reader.read_region.side_effect = _fake_read_region
 
         mock_selector = MagicMock()
         mock_selector.select_level.return_value = SelectedLevel(level=0, downsample=1.0)
 
-        engine = CropEngine(reader=mock_reader, level_selector=mock_selector)
+        engine = _NoEncodeCropEngine(reader=mock_reader, level_selector=mock_selector)
 
         region = Region(x=0, y=0, width=region_width, height=region_height)
         result = engine.crop(region, target_size=target_size)
@@ -655,45 +763,6 @@ class TestCropEngineProperties:
         # Allow 3% tolerance for rounding
         # Constrained inputs prevent extreme edge cases
         assert result_aspect == pytest.approx(original_aspect, rel=0.03)
-
-    @given(
-        target_size=st.integers(min_value=100, max_value=2000),
-    )
-    @settings(max_examples=50, deadline=None)
-    def test_base64_is_decodable(
-        self,
-        target_size: int,
-    ) -> None:
-        """Verify base64 content is always valid and decodable."""
-        mock_reader = MagicMock()
-        mock_reader.get_metadata.return_value = WSIMetadata(
-            path="/path/to/slide.svs",
-            width=100000,
-            height=80000,
-            level_count=1,
-            level_dimensions=((100000, 80000),),
-            level_downsamples=(1.0,),
-            vendor="aperio",
-            mpp_x=0.25,
-            mpp_y=0.25,
-        )
-        mock_reader.read_region.side_effect = lambda location, level, size: Image.new(
-            "RGB", size
-        )
-
-        mock_selector = MagicMock()
-        mock_selector.select_level.return_value = SelectedLevel(level=0, downsample=1.0)
-
-        engine = CropEngine(reader=mock_reader, level_selector=mock_selector)
-
-        region = Region(x=0, y=0, width=5000, height=4000)
-        result = engine.crop(region, target_size=target_size)
-
-        # Should decode without error
-        decoded = base64.b64decode(result.base64_content)
-        # Should be valid image
-        img = Image.open(BytesIO(decoded))
-        assert img.format == "JPEG"
 
 
 # --- Test CropEngineProtocol ---

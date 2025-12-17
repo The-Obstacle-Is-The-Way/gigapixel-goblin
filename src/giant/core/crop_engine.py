@@ -18,16 +18,16 @@ from __future__ import annotations
 import base64
 from dataclasses import dataclass
 from io import BytesIO
-from typing import TYPE_CHECKING
 
 from PIL import Image
 
 from giant.core.level_selector import LevelSelectorProtocol, PyramidLevelSelector
 from giant.geometry import Region
-from giant.wsi.types import WSIReaderProtocol
+from giant.wsi.types import WSIReaderProtocol, size_at_level
 
-if TYPE_CHECKING:
-    pass
+# JPEG quality bounds (PIL accepts 1-100)
+_JPEG_QUALITY_MIN = 1
+_JPEG_QUALITY_MAX = 100
 
 
 @dataclass(frozen=True)
@@ -123,7 +123,16 @@ class CropEngine:
             The algorithm invariant is preserved: we only downsample (or 1:1)
             to reach target_size, never upsample, unless the region is smaller
             than target_size at Level-0.
+
+        Raises:
+            ValueError: If jpeg_quality is not in range 1-100.
         """
+        if not _JPEG_QUALITY_MIN <= jpeg_quality <= _JPEG_QUALITY_MAX:
+            raise ValueError(
+                f"jpeg_quality must be {_JPEG_QUALITY_MIN}-{_JPEG_QUALITY_MAX}, "
+                f"got {jpeg_quality}"
+            )
+
         # Step 1: Get metadata and select optimal level
         metadata = self._reader.get_metadata()
         selected = self._level_selector.select_level(
@@ -131,13 +140,14 @@ class CropEngine:
         )
 
         # Step 2: Calculate size at selected level and read
-        size_at_level = self._compute_size_at_level(
-            region.width, region.height, selected.downsample
+        # Using size_at_level utility ensures min 1px per dimension
+        region_size_at_level = size_at_level(
+            (region.width, region.height), selected.downsample
         )
         raw_image = self._reader.read_region(
             location=(region.x, region.y),
             level=selected.level,
-            size=size_at_level,
+            size=region_size_at_level,
         )
 
         # Step 3: Resize to target dimensions (never upsample)
@@ -152,27 +162,6 @@ class CropEngine:
             original_region=region,
             read_level=selected.level,
             scale_factor=scale_factor,
-        )
-
-    def _compute_size_at_level(
-        self,
-        width: int,
-        height: int,
-        downsample: float,
-    ) -> tuple[int, int]:
-        """Compute the region size at a specific pyramid level.
-
-        Args:
-            width: Region width in Level-0 pixels.
-            height: Region height in Level-0 pixels.
-            downsample: Downsample factor of the target level.
-
-        Returns:
-            (width, height) tuple in target level pixels.
-        """
-        return (
-            int(width / downsample),
-            int(height / downsample),
         )
 
     def _resize_to_target(
