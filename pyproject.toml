@@ -92,6 +92,9 @@ target-version = "py311"
 select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
 ignore = []
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["PLR2004"]  # Allow magic numbers in tests
+
 [tool.ruff.format]
 quote-style = "double"
 

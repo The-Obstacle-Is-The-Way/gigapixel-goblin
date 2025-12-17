@@ -13,10 +13,12 @@ The specifications are designed to be implemented in sequential order, building 
 | [Spec-03](./spec-03-coordinates.md) | Coordinate System & Geometry | Ready | Spec-02 |
 | [Spec-04](./spec-04-level-selection.md) | Pyramid Level Selection Algorithm | Ready | Spec-02, Spec-03 |
 | [Spec-05](./spec-05-cropping.md) | Image Cropping & Resampling Pipeline | Ready | Spec-04 |
+| **[Spec-05.5](./spec-05.5-wsi-integration-checkpoint.md)** | **🛑 WSI Integration Checkpoint** | **PAUSE** | Spec-02 → Spec-05 |
 | [Spec-06](./spec-06-llm-provider.md) | LLM Provider Abstraction | Ready | Spec-01 |
 | [Spec-07](./spec-07-navigation-prompt.md) | Navigation Prompt Engineering | Ready | Spec-06, Spec-03 |
 | [Spec-08](./spec-08-context-manager.md) | Conversation Context Manager | Ready | Spec-03, Spec-06 |
-| [Spec-09](./spec-09-giant-agent.md) | GIANT Agent Core Loop | Ready | Spec-05, Spec-07, Spec-08 |
+| **[Spec-08.5](./spec-08.5-llm-integration-checkpoint.md)** | **🛑 LLM Integration Checkpoint** | **PAUSE** | Spec-06 → Spec-08 |
+| [Spec-09](./spec-09-giant-agent.md) | GIANT Agent Core Loop | Ready | Spec-05.5, Spec-08.5 |
 | [Spec-10](./spec-10-evaluation.md) | Evaluation & Benchmarking Framework | Ready | Spec-09 |
 | [Spec-11](./spec-11-clam-integration.md) | CLAM Integration (Optional) | Ready | Spec-02 |
 | [Spec-12](./spec-12-cli-api.md) | CLI & API Surface | Ready | Spec-09, Spec-10, Spec-11 |
@@ -54,16 +56,30 @@ graph TD
     S03 --> S07[Spec-07: Prompting]
     S03 --> S08[Spec-08: Context]
     S04 --> S05[Spec-05: Cropping]
-    S06 --> S03[Uses Region type]
     S06 --> S07
     S06 --> S08
-    S05 --> S09[Spec-09: GIANT Agent]
-    S07 --> S09
-    S08 --> S09
+    S05 --> S055[🛑 Spec-05.5: WSI Checkpoint]
+    S08 --> S085[🛑 Spec-08.5: LLM Checkpoint]
+    S055 --> S09[Spec-09: GIANT Agent]
+    S085 --> S09
     S09 --> S10[Spec-10: Eval]
     S09 --> S12[Spec-12: CLI]
     S10 --> S12
     S11 --> S12[Patch baseline mode]
+
+    style S055 fill:#ff6b6b,stroke:#333,stroke-width:3px
+    style S085 fill:#ff6b6b,stroke:#333,stroke-width:3px
 ```
 
-**Critical Path:** Spec-01 → Spec-02 → Spec-03 → Spec-04 → Spec-05 → Spec-09 → Spec-12
+**Critical Path:** Spec-01 → Spec-02 → ... → Spec-05 → **🛑 Spec-05.5** → Spec-06 → ... → Spec-08 → **🛑 Spec-08.5** → Spec-09 → Spec-12
+
+## Integration Checkpoints
+
+These are **mandatory pause points** before proceeding:
+
+| Checkpoint | Purpose | Duration | Cost |
+|------------|---------|----------|------|
+| **Spec-05.5** | Verify WSI pipeline works end-to-end with real `.svs` files | 2-4 hours | Free |
+| **Spec-08.5** | Verify LLM pipeline works with real API calls | 2-4 hours | ~$2-5 |
+
+**DO NOT skip these checkpoints.** Debugging issues in the agent loop (Spec-09) is 10x harder than catching them here.
