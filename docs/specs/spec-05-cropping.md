@@ -12,7 +12,7 @@ This specification implements the `CropRegion(W, at, S)` function defined in Alg
 - [ ] `crop` method accepts `Region` (L0) and `target_size` (S).
 - [ ] Uses `PyramidLevelSelector` to pick the optimal read level.
 - [ ] Reads the region using `WSIReader.read_region`.
-- [ ] Resizes the resulting image to have the long side exactly equal to `S` (preserving aspect ratio) using `PIL.Image.Resampling.LANCZOS`.
+- [ ] Downsamples the resulting image so the long side equals `S` (preserving aspect ratio) using `PIL.Image.Resampling.LANCZOS` (never upsample; if the read image is already ≤ `S`, return it unchanged).
 - [ ] Returns a `CroppedImage` object containing the PIL image and its Base64 representation.
 - [ ] Performance: Does not load full slide into memory.
 - [ ] (Optional) Disk-backed caching (via `diskcache`) can memoize crops across runs (GIANT×N / benchmarks).
@@ -44,13 +44,15 @@ class CroppedImage:
     - `height_at_level = region.height / downsample[level_idx]`
     - These must be cast to `int`.
 3.  **Resize:**
-    - Calculate new dimensions maintaining aspect ratio such that `max(new_w, new_h) == target_size`.
+    - If the read crop’s long side is **greater than** `target_size`, downsample to new dimensions maintaining aspect ratio such that `max(new_w, new_h) == target_size`.
+    - Never upsample: if the read crop’s long side is **≤** `target_size`, return it unchanged.
     - `image.resize((new_w, new_h), resample=Image.Resampling.LANCZOS)`.
 4.  **Encode:** Convert to Base64 (JPEG format, quality=85 default).
 
 ### Edge Cases
 - **Aspect Ratio:** The region might be extremely wide or tall. The resize logic must handle this.
 - **Rounding Errors:** When converting L0 dimension to Level-k dimension, flooring might lose a pixel. This is generally acceptable for LMM context, but we should be consistent.
+- **Small Regions:** If the crop is smaller than `S` even at Level-0, do not upsample; return the native-resolution crop as-is.
 
 ### Optional: Crop Cache (diskcache)
 For long benchmarks and majority-vote runs, enable an on-disk cache to avoid recomputing identical crops.
