@@ -7,6 +7,34 @@ and .env files.
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class ConfigError(Exception):
+    """Raised when required configuration is missing or invalid.
+
+    This exception provides clear, actionable error messages when
+    configuration values required by a specific operation are not set.
+
+    Example:
+        >>> settings.require_openai_key()
+        ConfigError: OPENAI_API_KEY not configured.
+        Set it in .env file or OPENAI_API_KEY environment variable.
+    """
+
+    def __init__(self, key_name: str, env_var: str) -> None:
+        """Initialize configuration error.
+
+        Args:
+            key_name: Human-readable name of the missing key.
+            env_var: Environment variable name to set.
+        """
+        self.key_name = key_name
+        self.env_var = env_var
+        message = (
+            f"{key_name} not configured. "
+            f"Set it in .env file or {env_var} environment variable."
+        )
+        super().__init__(message)
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables or .env file."""
 
@@ -51,6 +79,54 @@ class Settings(BaseSettings):
 
     # Budget Guardrails
     DEFAULT_BUDGET_USD: float = 0.0  # 0 = no budget limit
+
+    def require_openai_key(self) -> str:
+        """Get OpenAI API key, raising ConfigError if not set.
+
+        Use this method when making OpenAI API calls to get a clear error
+        message instead of cryptic authentication failures.
+
+        Returns:
+            The OpenAI API key string.
+
+        Raises:
+            ConfigError: If OPENAI_API_KEY is not configured.
+        """
+        if self.OPENAI_API_KEY is None:
+            raise ConfigError("OpenAI API key", "OPENAI_API_KEY")
+        return self.OPENAI_API_KEY
+
+    def require_anthropic_key(self) -> str:
+        """Get Anthropic API key, raising ConfigError if not set.
+
+        Use this method when making Anthropic API calls to get a clear error
+        message instead of cryptic authentication failures.
+
+        Returns:
+            The Anthropic API key string.
+
+        Raises:
+            ConfigError: If ANTHROPIC_API_KEY is not configured.
+        """
+        if self.ANTHROPIC_API_KEY is None:
+            raise ConfigError("Anthropic API key", "ANTHROPIC_API_KEY")
+        return self.ANTHROPIC_API_KEY
+
+    def require_huggingface_token(self) -> str:
+        """Get HuggingFace token, raising ConfigError if not set.
+
+        Use this method when accessing gated HuggingFace repositories
+        to get a clear error message instead of auth failures.
+
+        Returns:
+            The HuggingFace token string.
+
+        Raises:
+            ConfigError: If HUGGINGFACE_TOKEN is not configured.
+        """
+        if self.HUGGINGFACE_TOKEN is None:
+            raise ConfigError("HuggingFace token", "HUGGINGFACE_TOKEN")
+        return self.HUGGINGFACE_TOKEN
 
 
 # Singleton instance for import convenience

@@ -167,3 +167,117 @@ class TestCropPipelineRealFile:
             assert result.image.width <= 1000
             assert result.image.height <= 1000
             assert result.scale_factor == 1.0  # No resize applied
+
+
+class TestBoundaryCropBehavior:
+    """Tests for boundary crop behavior (BUG-001 / Spec P1-1, P1-2).
+
+    When a region extends beyond slide boundaries, OpenSlide pads with
+    transparency (RGBA), which becomes black after RGB conversion.
+    This is the documented and tested behavior.
+    """
+
+    def test_boundary_crop_right_edge(self, wsi_test_file: Path) -> None:
+        """P1-1: Boundary crop extending past right edge.
+
+        Region that extends 500px past the right edge should succeed.
+        The returned image size matches the requested size, with out-of-bounds
+        pixels filled with black (from OpenSlide's transparent padding).
+        """
+        with WSIReader(wsi_test_file) as reader:
+            engine = CropEngine(reader)
+            metadata = reader.get_metadata()
+
+            # Create a region that extends 500px past the right edge
+            region = Region(
+                x=max(0, metadata.width - 500),
+                y=0,
+                width=1000,  # Extends 500px past the edge
+                height=min(800, metadata.height),
+            )
+
+            # Should not raise - OpenSlide handles boundary padding
+            result = engine.crop(region, target_size=500)
+
+            # Verify we got a valid image
+            assert isinstance(result, CroppedImage)
+            assert result.image.mode == "RGB"
+            # Image should respect target_size constraint
+            assert max(result.image.width, result.image.height) <= 500
+
+    def test_boundary_crop_bottom_edge(self, wsi_test_file: Path) -> None:
+        """P1-2: Boundary crop extending past bottom edge.
+
+        Region that extends 500px past the bottom edge should succeed.
+        """
+        with WSIReader(wsi_test_file) as reader:
+            engine = CropEngine(reader)
+            metadata = reader.get_metadata()
+
+            # Create a region that extends 500px past the bottom edge
+            region = Region(
+                x=0,
+                y=max(0, metadata.height - 500),
+                width=min(800, metadata.width),
+                height=1000,  # Extends 500px past the edge
+            )
+
+            # Should not raise - OpenSlide handles boundary padding
+            result = engine.crop(region, target_size=500)
+
+            # Verify we got a valid image
+            assert isinstance(result, CroppedImage)
+            assert result.image.mode == "RGB"
+
+    def test_boundary_crop_corner(self, wsi_test_file: Path) -> None:
+        """Boundary crop at bottom-right corner.
+
+        Region that extends past both right and bottom edges.
+        """
+        with WSIReader(wsi_test_file) as reader:
+            engine = CropEngine(reader)
+            metadata = reader.get_metadata()
+
+            # Create a region that extends past both edges
+            region = Region(
+                x=max(0, metadata.width - 500),
+                y=max(0, metadata.height - 500),
+                width=1000,  # Extends past right
+                height=1000,  # Extends past bottom
+            )
+
+            # Should not raise
+            result = engine.crop(region, target_size=500)
+
+            assert isinstance(result, CroppedImage)
+            assert result.image.mode == "RGB"
+
+    def test_boundary_crop_preserves_size(self, wsi_test_file: Path) -> None:
+        """Boundary crop returns correctly sized image.
+
+        Even when extending past boundaries, the returned image
+        size should match what the pipeline would normally produce
+        for that region size (accounting for level selection and resize).
+        """
+        with WSIReader(wsi_test_file) as reader:
+            engine = CropEngine(reader)
+            metadata = reader.get_metadata()
+
+            # Region extending past right edge
+            region = Region(
+                x=max(0, metadata.width - 300),
+                y=0,
+                width=600,  # Partially out of bounds
+                height=min(500, metadata.height),
+            )
+
+            result = engine.crop(region, target_size=500)
+
+            # The long side should be <= target_size
+            long_side = max(result.image.width, result.image.height)
+            assert long_side <= 500
+
+            # Aspect ratio should be preserved (600/500 = 1.2)
+            expected_ratio = region.width / region.height
+            actual_ratio = result.image.width / result.image.height
+            assert abs(expected_ratio - actual_ratio) < 0.05

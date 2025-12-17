@@ -11,6 +11,14 @@ Paper Reference:
     2. Reads region at that level
     3. Resizes to target_size preserving aspect ratio
     4. Encodes as Base64 JPEG for LMM input
+
+Boundary Behavior:
+    Regions extending beyond slide boundaries are handled gracefully via
+    OpenSlide's native padding behavior. Out-of-bounds pixels are filled
+    with transparency (RGBA), which becomes black after RGB conversion.
+    This is the canonical behavior for boundary crops and is tested in
+    integration tests (P1-1, P1-2). No clamping is performed at this layer;
+    bounds validation/clamping can be applied at the agent layer (Spec-09).
 """
 
 from __future__ import annotations

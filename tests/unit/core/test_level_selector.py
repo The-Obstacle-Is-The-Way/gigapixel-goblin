@@ -211,6 +211,122 @@ class TestPyramidLevelSelectorStandardCases:
         assert result.downsample == 1.0
 
 
+class TestSingleLevelSlideEdgeCases:
+    """Comprehensive tests for single-level slide behavior (BUG-005)."""
+
+    @pytest.fixture
+    def single_level_metadata(self) -> WSIMetadata:
+        """Create single-level (no pyramid) metadata."""
+        return WSIMetadata(
+            path="/path/to/slide.tiff",
+            width=10000,
+            height=8000,
+            level_count=1,
+            level_dimensions=((10000, 8000),),
+            level_downsamples=(1.0,),
+            vendor="generic",
+            mpp_x=None,
+            mpp_y=None,
+        )
+
+    def test_single_level_very_small_region(
+        self, single_level_metadata: WSIMetadata
+    ) -> None:
+        """Test single-level with region smaller than target."""
+        selector = PyramidLevelSelector()
+        region = Region(x=0, y=0, width=100, height=80)  # Much smaller than 1000
+        result = selector.select_level(region, single_level_metadata, target_size=1000)
+
+        # Must return level 0 (the only option)
+        assert result.level == 0
+        assert result.downsample == 1.0
+
+    def test_single_level_very_large_region(
+        self, single_level_metadata: WSIMetadata
+    ) -> None:
+        """Test single-level with region larger than target."""
+        selector = PyramidLevelSelector()
+        region = Region(x=0, y=0, width=8000, height=6000)  # Much larger than 1000
+        result = selector.select_level(region, single_level_metadata, target_size=1000)
+
+        # Must return level 0 (the only option)
+        assert result.level == 0
+        assert result.downsample == 1.0
+
+    def test_single_level_various_target_sizes(
+        self, single_level_metadata: WSIMetadata
+    ) -> None:
+        """Test single-level behavior with various target sizes."""
+        selector = PyramidLevelSelector()
+        region = Region(x=0, y=0, width=5000, height=4000)
+
+        for target_size in [100, 500, 1000, 2000, 5000]:
+            result = selector.select_level(
+                region, single_level_metadata, target_size=target_size
+            )
+            assert result.level == 0
+            assert result.downsample == 1.0
+
+    def test_single_level_various_biases(
+        self, single_level_metadata: WSIMetadata
+    ) -> None:
+        """Test single-level behavior with various bias values."""
+        selector = PyramidLevelSelector()
+        region = Region(x=0, y=0, width=5000, height=4000)
+
+        for bias in [0.5, 0.7, 0.85, 0.9, 1.0]:
+            result = selector.select_level(
+                region, single_level_metadata, target_size=1000, bias=bias
+            )
+            assert result.level == 0
+            assert result.downsample == 1.0
+
+    def test_single_level_full_slide_region(
+        self, single_level_metadata: WSIMetadata
+    ) -> None:
+        """Test single-level with full-slide region."""
+        selector = PyramidLevelSelector()
+        # Request the entire slide
+        region = Region(x=0, y=0, width=10000, height=8000)
+        result = selector.select_level(region, single_level_metadata, target_size=1000)
+
+        assert result.level == 0
+        assert result.downsample == 1.0
+
+    def test_single_level_minimum_region(
+        self, single_level_metadata: WSIMetadata
+    ) -> None:
+        """Test single-level with 1x1 pixel region."""
+        selector = PyramidLevelSelector()
+        region = Region(x=0, y=0, width=1, height=1)
+        result = selector.select_level(region, single_level_metadata, target_size=1000)
+
+        assert result.level == 0
+        assert result.downsample == 1.0
+
+    def test_single_level_no_mpp_handling(self) -> None:
+        """Test single-level slide without MPP metadata."""
+        # Many generic TIFFs don't have MPP info
+        metadata = WSIMetadata(
+            path="/path/to/slide.tiff",
+            width=5000,
+            height=4000,
+            level_count=1,
+            level_dimensions=((5000, 4000),),
+            level_downsamples=(1.0,),
+            vendor="generic",
+            mpp_x=None,  # No MPP info
+            mpp_y=None,
+        )
+
+        selector = PyramidLevelSelector()
+        region = Region(x=0, y=0, width=2000, height=1600)
+        result = selector.select_level(region, metadata, target_size=1000)
+
+        assert result.level == 0
+        assert result.downsample == 1.0
+
+
 # --- Test Tie-Breaker Logic ---
 
 

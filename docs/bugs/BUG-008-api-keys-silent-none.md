@@ -2,7 +2,7 @@
 
 ## Severity: P3 (Low Priority) - DevEx / Future Spec-06
 
-## Status: Open (Implement when providers/CLI land)
+## Status: Fixed - require_*_key() methods added
 
 ## Description
 
@@ -86,3 +86,63 @@ def __init__(self, **kwargs):
 
 - Unit test: Verify clear error when API key needed but missing
 - Unit test: Verify warning logged when keys not set at startup
+
+## Resolution
+
+**Implemented**: Option A (validate at the provider boundary)
+
+Added `ConfigError` exception and `require_*_key()` methods to `Settings` class:
+
+### New Code
+
+```python
+# src/giant/config.py
+
+class ConfigError(Exception):
+    """Raised when required configuration is missing or invalid."""
+    def __init__(self, key_name: str, env_var: str) -> None:
+        self.key_name = key_name
+        self.env_var = env_var
+        message = (
+            f"{key_name} not configured. "
+            f"Set it in .env file or {env_var} environment variable."
+        )
+        super().__init__(message)
+
+class Settings(BaseSettings):
+    # ... existing settings ...
+
+    def require_openai_key(self) -> str:
+        """Get OpenAI API key, raising ConfigError if not set."""
+        if self.OPENAI_API_KEY is None:
+            raise ConfigError("OpenAI API key", "OPENAI_API_KEY")
+        return self.OPENAI_API_KEY
+
+    def require_anthropic_key(self) -> str:
+        """Get Anthropic API key, raising ConfigError if not set."""
+        if self.ANTHROPIC_API_KEY is None:
+            raise ConfigError("Anthropic API key", "ANTHROPIC_API_KEY")
+        return self.ANTHROPIC_API_KEY
+
+    def require_huggingface_token(self) -> str:
+        """Get HuggingFace token, raising ConfigError if not set."""
+        if self.HUGGINGFACE_TOKEN is None:
+            raise ConfigError("HuggingFace token", "HUGGINGFACE_TOKEN")
+        return self.HUGGINGFACE_TOKEN
+```
+
+### Tests Added
+
+`tests/unit/test_config.py`:
+- `TestConfigError` - message format, attributes
+- `TestRequireMethods` - 6 tests covering when keys are set/missing
+
+### Usage (Spec-06+)
+
+```python
+from giant.config import settings
+
+# Before making API calls:
+api_key = settings.require_openai_key()  # Raises ConfigError if not set
+client = openai.OpenAI(api_key=api_key)
+```
