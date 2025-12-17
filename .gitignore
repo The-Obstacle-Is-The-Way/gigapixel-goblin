@@ -182,9 +182,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#  Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #  that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#  and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#  and can be added to the global gitignore or merged into this file. However, if you prefer,
 #  you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 
@@ -219,10 +219,10 @@ __marimo__/
 .Trashes
 
 # Literature & large files (PDFs, converted markdown)
-_literature/
+/_literature/
 
 # Downloaded data (WSIs are huge)
-data/
+/data/
 *.svs
 *.ndpi
 *.mrxs
@@ -231,17 +231,18 @@ data/
 !tests/fixtures/*.tiff
 
 # Benchmark results (generated)
-results/
-trajectories/
+/results/
+/trajectories/
 *.trajectory.json
 
 # Model cache
-.cache/
-models/
+/.cache/
+/models/
 
 # Mutation testing
-.mutmut-cache/
-mutmut-results/
+/.mutmut-cache/
+/mutmut-results/
+/mutants/
 
 # Local secrets (beyond .env)
 .secrets/

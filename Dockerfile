@@ -9,12 +9,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN pip install --no-cache-dir uv==0.9.18
 
 COPY pyproject.toml uv.lock /app/
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY src /app/src
 
-ENTRYPOINT ["uv", "run", "giant"]
+RUN uv sync --frozen --no-dev
+
+ENTRYPOINT ["giant"]

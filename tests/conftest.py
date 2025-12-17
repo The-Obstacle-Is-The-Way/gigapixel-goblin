@@ -1,6 +1,5 @@
 """Shared pytest fixtures and configuration."""
 
-import os
 from collections.abc import Iterator
 from typing import Any
 
@@ -28,32 +27,6 @@ def test_settings() -> Settings:
         LOG_LEVEL="DEBUG",
         LOG_FORMAT="console",
     )
-
-
-@pytest.fixture
-def env_override() -> Iterator[dict[str, str]]:
-    """Fixture to temporarily set environment variables.
-
-    Usage:
-        def test_something(env_override):
-            os.environ.update(env_override)
-            env_override["MY_VAR"] = "value"
-            # ... test code ...
-    """
-    original_env: dict[str, str | None] = {}
-    overrides: dict[str, str] = {}
-
-    yield overrides
-
-    # Restore original environment
-    for key in overrides:
-        if key in original_env:
-            if original_env[key] is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = original_env[key]
-        else:
-            os.environ.pop(key, None)
 
 
 @pytest.fixture

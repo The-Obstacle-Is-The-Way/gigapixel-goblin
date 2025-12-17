@@ -82,7 +82,8 @@ dependencies = [
     # CLI (Dec 2025: v0.20.0)
     "typer>=0.20.0",
     # Numerics
-    "numpy>=2.3.5",
+    # NOTE: `opencv-python` 4.12.0.88 pins NumPy <2.3.0
+    "numpy>=2.2.6,<2.3.0",
     "pillow>=12.0.0",
     # LLM APIs
     "anthropic>=0.75.0",
@@ -211,25 +212,25 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-    
+
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
     HUGGINGFACE_TOKEN: str | None = None
     LOG_LEVEL: str = "INFO"
-    
+
     # Paper Parameters
     WSI_LONG_SIDE_TARGET: int = 1000  # S parameter
     MAX_ITERATIONS: int = 20  # T parameter
     OVERSAMPLING_BIAS: float = 0.85
     THUMBNAIL_SIZE: int = 1024  # Paper baseline
-    
+
     # Baselines
     PATCH_SIZE: int = 224
     PATCH_COUNT: int = 30
-    
+
     # Evaluation
     BOOTSTRAP_REPLICATES: int = 1000
-    
+
     # Image Generation
     JPEG_QUALITY: int = 85
     # Per-provider image sizes (paper uses 500px for Claude due to pricing)
@@ -510,7 +511,7 @@ repos:
 ### `.github/pull_request_template.md`
 ```markdown
 ## Summary
-- 
+-
 
 ## Test Plan
 - [ ] `make check`
@@ -611,9 +612,11 @@ WORKDIR /app
 RUN pip install --no-cache-dir uv==0.9.18
 
 COPY pyproject.toml uv.lock /app/
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY src /app/src
+
+RUN uv sync --frozen --no-dev
 
 ENTRYPOINT ["giant"]
 ```

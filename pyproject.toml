@@ -17,59 +17,60 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
 ]
 dependencies = [
-    # Core WSI handling
-    "openslide-python>=1.3.1",
-    "openslide-bin>=4.0.0.6",
+    # Core WSI handling (Dec 2025: v1.4.3)
+    "openslide-python>=1.4.3",
+    "openslide-bin>=4.0.0.10",
     # Config & validation
-    "pydantic>=2.10.0",
-    "pydantic-settings>=2.6.0",
-    "structlog>=24.4.0",
-    # CLI
-    "typer>=0.15.0",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.12.0",
+    "structlog>=25.5.0",
+    # CLI (Dec 2025: v0.20.0)
+    "typer>=0.20.0",
     # Numerics
-    "numpy>=2.0.0,<2.3.0",
-    "pillow>=11.0.0",
+    # NOTE: `opencv-python` 4.12.0.88 pins NumPy <2.3.0.
+    "numpy>=2.2.6,<2.3.0",
+    "pillow>=12.0.0",
     # LLM APIs
-    "anthropic>=0.40.0",
-    "openai>=1.58.0",
-    "tenacity>=9.0.0",
-    "httpx>=0.28.0",
-    # Data & HuggingFace
-    "datasets>=3.2.0",
-    "huggingface_hub>=0.27.0",
+    "anthropic>=0.75.0",
+    "openai>=2.13.0",
+    "tenacity>=9.1.2",
+    "httpx>=0.28.1",
+    # Data & HuggingFace (Dec 2025: datasets v4.4.1)
+    "datasets>=4.4.1",
+    "huggingface_hub>=1.2.3",
     # Computer Vision (for CLAM-style segmentation)
-    "opencv-python>=4.10.0",
-    "scipy>=1.14.0",
-    "scikit-image>=0.24.0",
+    "opencv-python>=4.12.0.88",
+    "scipy>=1.16.3",
+    "scikit-image>=0.25.2",
     # Caching (persistent crop/metadata cache)
     "diskcache>=5.6.3",
     # Rate limiting for concurrent API calls
     "aiolimiter>=1.2.1",
     # DevEx
-    "rich>=13.9.0",
-    "tqdm>=4.67.0",
+    "rich>=14.2.0",
+    "tqdm>=4.67.1",
 ]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3.0",
-    "pytest-cov>=6.0.0",
-    "pytest-sugar>=1.0.0",
-    "pytest-xdist>=3.5.0",
-    "pytest-asyncio>=0.24.0",
-    "pytest-randomly>=3.16.0",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-sugar>=1.1.1",
+    "pytest-xdist>=3.8.0",
+    "pytest-asyncio>=1.3.0",
+    "pytest-randomly>=4.0.1",
     "pytest-watch>=4.2.0",
-    "pytest-timeout>=2.3.1",
-    "pytest-benchmark>=5.1.0",
-    "mutmut>=3.2.0",
-    "hypothesis>=6.120.0",
+    "pytest-timeout>=2.4.0",
+    "pytest-benchmark>=5.2.3",
+    "mutmut>=3.4.0",
+    "hypothesis>=6.148.7",
     "respx>=0.22.0",
-    "tifffile>=2024.12.0",
-    "polyfactory>=2.18.0",
-    "faker>=33.0.0",
-    "mypy>=1.13.0",
-    "ruff>=0.8.0",
-    "pre-commit>=4.0.0",
+    "tifffile>=2025.12.12",
+    "polyfactory>=3.1.0",
+    "faker>=38.2.0",
+    "mypy>=1.19.1",
+    "ruff>=0.14.9",
+    "pre-commit>=4.5.1",
     "types-Pillow>=10.2.0.20240822",
 ]
 
@@ -102,7 +103,7 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 
 [tool.pytest.ini_options]
-minversion = "8.0"
+minversion = "9.0"
 testpaths = ["tests"]
 addopts = "-ra"
 markers = ["cost: live API tests (opt-in, may spend money)"]

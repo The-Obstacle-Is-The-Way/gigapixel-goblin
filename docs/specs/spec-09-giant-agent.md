@@ -42,7 +42,7 @@ class RunResult(BaseModel):
     - Create `ContextManager`.
     - Generate a 1024px Thumbnail + Axis Guides (`spec-03`, paper baseline uses 1024×1024 thumbnails).
     - Add Thumbnail to Context (Turn 0).
-    
+
 2.  **Navigation Loop** (t = 1 to T−1):
     - **Prompt:** `messages = context_manager.get_messages()`.
     - **LLM Call:** `response = await llm_provider.generate_response(messages)`.

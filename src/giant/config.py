@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "console"  # "console" or "json"
 
-    # Paper Parameters (from arXiv:2501.15257)
+    # Paper Parameters (GIANT)
     WSI_LONG_SIDE_TARGET: int = 1000  # S parameter - crop target size
     MAX_ITERATIONS: int = 20  # T parameter - max navigation steps
     OVERSAMPLING_BIAS: float = 0.85  # Bias for larger crop sizes
