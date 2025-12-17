@@ -9,7 +9,7 @@
 This document corrects an overstated claim from the Spec-05.5 checkpoint.
 
 What is **true**:
-- We currently have **no integration tests** that exercise the real OpenSlide stack against a real WSI file in CI (tracked as **BUG-004**).
+- We have opt-in integration tests, but CI typically does **not** exercise the real OpenSlide stack unless a real test slide is provided (tracked as **BUG-004**).
 
 What is **not true**:
 - The test suite is not “100% mocked”.

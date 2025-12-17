@@ -42,7 +42,7 @@ Edge cases that will cause subtle bugs in production.
 |----|------|---------------|----------|--------|
 | P1-1 | **Boundary crop (right edge)** | Crop region extending past slide width | Graceful handling (clamp or pad) | [ ] |
 | P1-2 | **Boundary crop (bottom edge)** | Crop region extending past slide height | Graceful handling (clamp or pad) | [ ] |
-| P1-3 | **Tiny region (< target_size)** | Request 100x100 L0 region with target_size=1000 | Upsampled correctly, no artifacts | [ ] |
+| P1-3 | **Tiny region (< target_size)** | Request 100x100 L0 region with target_size=1000 | Returns native resolution unchanged (never upsample) | [ ] |
 | P1-4 | **Huge region (entire slide)** | Request full slide dimensions | Falls back to thumbnail or errors gracefully | [ ] |
 | P1-5 | **Non-square aspect ratio** | Crop 1000x100 region | Maintains aspect ratio in output | [ ] |
 | P1-6 | **Missing MPP metadata** | Open slide without mpp-x/mpp-y properties | `mpp_x=None`, no crashes | [ ] |

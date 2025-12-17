@@ -4,7 +4,7 @@ These tests require real WSI files. They are skipped if no test file is availabl
 
 Test files can be provided via:
 1. WSI_TEST_FILE environment variable pointing to a local .svs file
-2. Automatic download of OpenSlide test data (if DOWNLOAD_TEST_WSI=1)
+2. A local file placed under tests/integration/wsi/data/
 
 The CMU-1-Small-Region.svs file (~10MB) is recommended for CI:
     https://openslide.cs.cmu.edu/download/openslide-testdata/Aperio/CMU-1-Small-Region.svs

@@ -2,7 +2,7 @@
 
 ## Severity: P2 (Medium Priority) - Spec-05.5 Doc Mismatch
 
-## Status: Open - Requires Doc Update
+## Status: Fixed (pending merge)
 
 ## Description
 
@@ -38,15 +38,15 @@ The LMM receives native resolution data, which is more accurate than interpolate
 
 ### Recommendation
 
-Keep current implementation (paper-faithful) and update Spec-05.5 P1-3 expected behavior:
+Resolved by keeping the current implementation (paper-faithful) and updating Spec-05.5 P1-3 expected behavior:
 
 **Current:** "Upsampled correctly, no artifacts"
 **Updated:** "Returns native resolution unchanged (never upsample per Spec-05 / paper)"
 
 ### Code Location
 
-- `src/giant/core/crop_engine.py:167-211` - `_resize_to_target()`
-- `docs/specs/spec-05.5-wsi-integration-checkpoint.md:43` - P1-3 test
+- `src/giant/core/crop_engine.py` - `CropEngine._resize_to_target()`
+- `docs/specs/spec-05.5-wsi-integration-checkpoint.md` - P1-3 test
 
 ### Testing Required
 

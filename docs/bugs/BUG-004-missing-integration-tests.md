@@ -2,11 +2,11 @@
 
 ## Severity: P0 (Critical)
 
-## Status: Fixed (PR pending)
+## Status: Fixed (pending merge)
 
 ## Description
 
-The codebase has **no integration tests** with real WSI files committed yet. This means:
+Without integration tests that use a real WSI file, we cannot validate the real OpenSlide stack end-to-end. This matters because:
 
 1. OpenSlide integration is untested in CI
 2. Vendor-specific behaviors are unknown
@@ -31,7 +31,10 @@ All P0 tests require real SVS files:
 tests/
 ├── unit/           # Extensive unit tests (mocks used where appropriate)
 └── integration/
-    └── wsi/        # Directory exists, but currently contains no tests
+    └── wsi/        # Opt-in integration tests (skipped unless test file available)
+        ├── conftest.py
+        ├── test_wsi_reader.py
+        └── test_crop_pipeline.py
 ```
 
 ### Expected State (from Spec-05.5)
@@ -65,14 +68,16 @@ Mark integration tests with `@pytest.mark.integration` and skip in CI unless tes
 
 ### Proposed Fix
 
-1. Add tests under the existing `tests/integration/wsi/` directory
-2. Add `conftest.py` with fixtures that:
+Implemented on `fix/spec-05.5-p0-p1-bugs` (pending merge):
+
+1. Added tests under `tests/integration/wsi/`
+2. Added `conftest.py` fixtures that:
    - Check for `WSI_TEST_FILE` env var
    - Skip tests if no test file available
-   - Download small test file if configured
-3. Implement P0 tests using real `WSIReader`
-4. Add `@pytest.mark.integration` marker
-5. Add CI step to run integration tests (optional)
+   - Optionally use a local file under `tests/integration/wsi/data/`
+3. Implemented P0 tests using real `WSIReader` and crop pipeline
+4. Marked tests with `@pytest.mark.integration`
+5. CI wiring remains optional (can be added once a small, public test slide strategy is chosen)
 
 ### Impact
 

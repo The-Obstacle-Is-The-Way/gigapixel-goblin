@@ -22,7 +22,7 @@ from giant.core.crop_engine import CropEngine, CroppedImage
 from giant.core.level_selector import PyramidLevelSelector
 from giant.geometry import Region
 from giant.wsi import WSIReader
-from giant.wsi.types import size_at_level
+from giant.wsi.types import level0_to_level, level_to_level0, size_at_level
 
 pytestmark = pytest.mark.integration
 
@@ -51,6 +51,7 @@ class TestCropPipelineRealFile:
             assert result.read_level >= 0
             assert result.read_level < metadata.level_count
             assert result.scale_factor > 0
+            assert result.scale_factor <= 1.0  # Never upsample
 
             # Verify image
             assert result.image.mode == "RGB"
@@ -91,37 +92,25 @@ class TestCropPipelineRealFile:
             region_long_side_at_level = max(
                 size_at_level((region.width, region.height), selected.downsample)
             )
-            # Should be in reasonable range of target (with bias)
-            assert region_long_side_at_level >= 1000 * 0.5  # At least half
-            # And not wildly over
-            if metadata.level_count > 1:
-                # Multi-level slides should not read at full resolution
-                # unless the region is already small
-                if region.width >= 5000 or region.height >= 5000:
-                    # Large regions should use some downsampling
-                    pass  # Can't assert specific level, depends on slide
+            # For regions larger than the target at L0, the selector should avoid
+            # undershooting.
+            if max(region.width, region.height) >= 1000:
+                assert region_long_side_at_level >= 1000
 
     def test_coordinate_roundtrip(self, wsi_test_file: Path) -> None:
-        """P0-5: Coordinates are preserved through the pipeline."""
+        """P0-5: Coordinate roundtrip stays within ±downsample."""
         with WSIReader(wsi_test_file) as reader:
-            engine = CropEngine(reader)
             metadata = reader.get_metadata()
 
-            # Use specific coordinates
-            region = Region(
-                x=1000,
-                y=2000,
-                width=min(3000, metadata.width - 1000),
-                height=min(2000, metadata.height - 2000),
-            )
+            x = min(12345, max(0, metadata.width - 1))
+            y = min(67890, max(0, metadata.height - 1))
+            coord_level0 = (x, y)
 
-            result = engine.crop(region, target_size=500)
-
-            # Original region should be preserved
-            assert result.original_region.x == 1000
-            assert result.original_region.y == 2000
-            assert result.original_region.width == region.width
-            assert result.original_region.height == region.height
+            for downsample in metadata.level_downsamples:
+                coord_level = level0_to_level(coord_level0, downsample)
+                roundtrip = level_to_level0(coord_level, downsample)
+                assert abs(roundtrip[0] - coord_level0[0]) <= downsample
+                assert abs(roundtrip[1] - coord_level0[1]) <= downsample
 
     def test_aspect_ratio_preserved(self, wsi_test_file: Path) -> None:
         """Aspect ratio is preserved after resize."""

@@ -2,7 +2,7 @@
 
 ## Severity: P1 (High Priority)
 
-## Status: Fixed (PR pending)
+## Status: Fixed (pending merge)
 
 ## Description
 
@@ -15,12 +15,14 @@ The `CropEngine.crop()` method has no protection against extremely large region 
 ### Current Behavior
 
 ```python
-# In crop_engine.py - No size limit check
-raw_image = self._reader.read_region(
-    location=(region.x, region.y),
-    level=selected.level,
-    size=region_size_at_level,
+# In crop_engine.py - Guardrail prevents extreme reads
+region_size_at_level = size_at_level(
+    (region.width, region.height), selected.downsample
 )
+if max(region_size_at_level) > effective_max:
+    raise ValueError(
+        "Region too large ... Use a smaller region or get_thumbnail() ..."
+    )
 ```
 
 `openslide.read_region` allocates an **RGBA** buffer (4 bytes/pixel) for `w*h` pixels *before* any resizing. `WSIReader.read_region()` then converts RGBA → RGB, which can transiently duplicate memory.
@@ -43,25 +45,19 @@ The level selector will usually pick a coarse level to keep the crop near the bi
 
 ### Proposed Fix
 
-Add a configurable maximum read dimension check:
+Implemented: configurable maximum read dimension check.
 
 ```python
-# Constants
-_MAX_READ_DIMENSION = 10000  # Max pixels per dimension for safety
+_DEFAULT_MAX_READ_DIMENSION = 10000
 
-def crop(self, region: Region, ...) -> CroppedImage:
-    # ... level selection ...
-
-    region_size_at_level = size_at_level(
-        (region.width, region.height), selected.downsample
-    )
-
-    # NEW: Safety check for huge regions
-    if max(region_size_at_level) > _MAX_READ_DIMENSION:
+def crop(..., max_read_dimension: int | None = None) -> CroppedImage:
+    # ...
+    effective_max = _DEFAULT_MAX_READ_DIMENSION if max_read_dimension is None else max_read_dimension
+    if effective_max > 0 and max(region_size_at_level) > effective_max:
         raise ValueError(
-            f"Region too large: {region_size_at_level}. "
-            f"Maximum dimension is {_MAX_READ_DIMENSION}px. "
-            f"Use get_thumbnail() for full-slide overview."
+            f"Region too large: {w}x{h} pixels at level {selected.level} "
+            f"exceeds maximum dimension {effective_max}px. "
+            "Use a smaller region or get_thumbnail() for full-slide overview."
         )
 ```
 
@@ -89,6 +85,10 @@ if (region.width == metadata.width and
 
 ### Testing Required
 
-- Unit test: Request entire slide dimensions, verify error/fallback
-- Unit test: Request moderately large region (5000x5000), verify success
-- Memory profiling test: Verify peak memory stays bounded
+Implemented:
+
+- Unit tests verify:
+  - default rejection (>10000px at selected level)
+  - custom limit via `max_read_dimension`
+  - disabling via `max_read_dimension=0` (for property tests)
+  - error message includes actual dimensions

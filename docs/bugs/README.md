@@ -4,7 +4,7 @@
 
 This directory tracks bugs discovered during the Spec-05.5 Integration Checkpoint deep audit.
 
-The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional unit-testing strategy to keep tests fast, deterministic, and free of large binary WSI files. The main validated gap is that we currently have **no integration tests** that exercise the real OpenSlide stack against a real WSI file.
+The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional unit-testing strategy to keep tests fast, deterministic, and free of large binary WSI files. Integration tests now exist to exercise the real OpenSlide stack against a real WSI file, and are **skipped by default** unless a test slide is provided.
 
 ## Bug Index
 
@@ -12,20 +12,20 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed** |
+| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed (pending merge)** |
 
 ### P1 - High Priority (Could Crash / OOM)
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | **Fixed** |
+| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | **Fixed (pending merge)** |
 
 ### P2 - Medium Priority (Correctness / Spec-05.5 Doc Gaps)
 
 | ID | Title | Status |
 |----|-------|--------|
 | [BUG-005](./BUG-005-single-level-slide-untested.md) | Single-Level Slide Behavior Untested | Open |
-| [BUG-002](./BUG-002-spec-contradiction-upsample-small-regions.md) | Spec-05.5 Contradicts Spec-05 on Upsampling | Open (Doc) |
+| [BUG-002](./BUG-002-spec-contradiction-upsample-small-regions.md) | Spec-05.5 Contradicts Spec-05 on Upsampling | **Fixed (pending merge)** |
 
 ### P3 - Low Priority (DevEx / Future-Proofing)
 
@@ -41,11 +41,11 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 ## Key Findings
 
-### 1. Missing integration coverage (BUG-004)
+### 1. Real OpenSlide integration coverage exists (BUG-004)
 
-- `tests/integration/wsi/` exists but contains no tests.
-- CI does not currently exercise `openslide.OpenSlide(...)` against a real WSI file.
-- Recommendation: add opt-in integration tests gated by `WSI_TEST_FILE` (or a small downloaded OpenSlide test slide).
+- `tests/integration/wsi/` contains opt-in integration tests that exercise the real OpenSlide stack.
+- By default these tests are skipped unless `WSI_TEST_FILE` points to a real slide (or a small local test slide exists under `tests/integration/wsi/data/`).
+- Recommendation: run these tests at least once locally before starting Spec-06, and optionally wire them into CI using a small public test slide.
 
 ### 2. Unit tests are valuable (not “100% mocked”)
 
@@ -55,7 +55,7 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 ### 3. Largest real runtime risk is memory blowups (BUG-003)
 
 - `openslide.read_region` allocates an RGBA buffer of `w*h` pixels; extremely large region requests can OOM.
-- Mitigation: add a max pixel budget / fallback-to-thumbnail policy at the crop layer (or in `WSIReader`) before calling OpenSlide.
+- Mitigation implemented: `CropEngine.crop()` enforces a configurable maximum read dimension to prevent extreme allocations; future work can refine this to a pixel-budget-based limit or thumbnail fallback policy.
 
 ## Severity Definitions
 
@@ -68,12 +68,12 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 ### MUST FIX Before Spec-06
 
-1. **BUG-004**: Add opt-in integration tests with a real WSI file
-2. **BUG-003**: Add huge-region protection / pixel budget
+1. **BUG-004**: Add opt-in integration tests with a real WSI file (**done**; run once locally)
+2. **BUG-003**: Add huge-region protection / pixel budget (**done**; dimension guard)
 
 ### SHOULD FIX Before Spec-06
 
-3. **BUG-002**: Update Spec-05.5 P1-3 to match paper/spec-05 (no upsample)
+3. **BUG-002**: Update Spec-05.5 P1-3 to match paper/spec-05 (no upsample) (**done**)
 
 ### CAN DEFER
 
