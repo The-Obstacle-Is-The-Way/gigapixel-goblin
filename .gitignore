@@ -205,3 +205,46 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ===================
+# GIANT Project Specific
+# ===================
+
+# macOS artifacts
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Literature & large files (PDFs, converted markdown)
+_literature/
+
+# Downloaded data (WSIs are huge)
+data/
+*.svs
+*.ndpi
+*.mrxs
+*.tiff
+*.tif
+!tests/fixtures/*.tiff
+
+# Benchmark results (generated)
+results/
+trajectories/
+*.trajectory.json
+
+# Model cache
+.cache/
+models/
+
+# Mutation testing
+.mutmut-cache/
+mutmut-results/
+
+# Local secrets (beyond .env)
+.secrets/
+credentials.json
+*.pem
+*.key
