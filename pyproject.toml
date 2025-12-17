@@ -28,7 +28,7 @@ dependencies = [
     "typer>=0.20.0",
     # Numerics
     # NOTE: `opencv-python` 4.12.0.88 pins NumPy <2.3.0.
-    "numpy>=2.2.6,<2.3.0",
+    "numpy>=2.2.6,<2.4.0",
     "pillow>=12.0.0",
     # LLM APIs
     "anthropic>=0.75.0",
