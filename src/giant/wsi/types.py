@@ -147,6 +147,19 @@ class WSIReaderProtocol(Protocol):
 # Coordinate transformation utilities
 
 
+def _validate_downsample(downsample: float) -> None:
+    """Validate that downsample factor is positive.
+
+    Args:
+        downsample: Downsample factor to validate.
+
+    Raises:
+        ValueError: If downsample is not positive.
+    """
+    if downsample <= 0:
+        raise ValueError(f"Downsample factor must be positive, got {downsample}")
+
+
 def level0_to_level(
     coord: tuple[int, int],
     downsample: float,
@@ -159,7 +172,11 @@ def level0_to_level(
 
     Returns:
         (x, y) coordinates in the target level's space.
+
+    Raises:
+        ValueError: If downsample is not positive.
     """
+    _validate_downsample(downsample)
     x, y = coord
     return (int(x / downsample), int(y / downsample))
 
@@ -176,7 +193,11 @@ def level_to_level0(
 
     Returns:
         (x, y) coordinates in Level-0 space.
+
+    Raises:
+        ValueError: If downsample is not positive.
     """
+    _validate_downsample(downsample)
     x, y = coord
     return (int(x * downsample), int(y * downsample))
 
@@ -193,7 +214,11 @@ def size_at_level(
 
     Returns:
         (width, height) in the target level's pixels.
+
+    Raises:
+        ValueError: If downsample is not positive.
     """
+    _validate_downsample(downsample)
     w, h = size
     return (max(1, int(w / downsample)), max(1, int(h / downsample)))
 
@@ -210,6 +235,10 @@ def size_to_level0(
 
     Returns:
         (width, height) in Level-0 pixels.
+
+    Raises:
+        ValueError: If downsample is not positive.
     """
+    _validate_downsample(downsample)
     w, h = size
     return (int(w * downsample), int(h * downsample))

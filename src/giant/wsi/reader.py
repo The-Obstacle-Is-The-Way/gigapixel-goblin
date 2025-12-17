@@ -75,7 +75,7 @@ class WSIReader:
         # Validate file exists
         if not self._path.exists():
             raise WSIOpenError(
-                f"File not found: {self._path}",
+                "File not found",
                 path=self._path,
             )
 

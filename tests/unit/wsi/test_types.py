@@ -188,3 +188,47 @@ class TestCoordinateTransformEdgeCases:
         # Some slides have non-power-of-2 downsamples like 3.999...
         result = level0_to_level((1000, 1000), downsample=3.99)
         assert result == (250, 250)
+
+
+class TestDownsampleValidation:
+    """Tests for downsample factor validation in transform utilities."""
+
+    def test_level0_to_level_rejects_zero_downsample(self) -> None:
+        """Test that level0_to_level raises ValueError for zero downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got 0"):
+            level0_to_level((100, 100), downsample=0.0)
+
+    def test_level0_to_level_rejects_negative_downsample(self) -> None:
+        """Test that level0_to_level raises ValueError for negative downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got -1"):
+            level0_to_level((100, 100), downsample=-1.0)
+
+    def test_level_to_level0_rejects_zero_downsample(self) -> None:
+        """Test that level_to_level0 raises ValueError for zero downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got 0"):
+            level_to_level0((100, 100), downsample=0.0)
+
+    def test_level_to_level0_rejects_negative_downsample(self) -> None:
+        """Test that level_to_level0 raises ValueError for negative downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got -2"):
+            level_to_level0((100, 100), downsample=-2.0)
+
+    def test_size_at_level_rejects_zero_downsample(self) -> None:
+        """Test that size_at_level raises ValueError for zero downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got 0"):
+            size_at_level((100, 100), downsample=0.0)
+
+    def test_size_at_level_rejects_negative_downsample(self) -> None:
+        """Test that size_at_level raises ValueError for negative downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got -0.5"):
+            size_at_level((100, 100), downsample=-0.5)
+
+    def test_size_to_level0_rejects_zero_downsample(self) -> None:
+        """Test that size_to_level0 raises ValueError for zero downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got 0"):
+            size_to_level0((100, 100), downsample=0.0)
+
+    def test_size_to_level0_rejects_negative_downsample(self) -> None:
+        """Test that size_to_level0 raises ValueError for negative downsample."""
+        with pytest.raises(ValueError, match=r"must be positive.*got -10"):
+            size_to_level0((100, 100), downsample=-10.0)
