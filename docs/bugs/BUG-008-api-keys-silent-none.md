@@ -1,12 +1,12 @@
 # BUG-008: API Keys Are Silently None - No Validation
 
-## Severity: P1 (High Priority)
+## Severity: P3 (Low Priority) - DevEx / Future Spec-06
 
-## Status: Open
+## Status: Open (Implement when providers/CLI land)
 
 ## Description
 
-API keys in `config.py` default to `None` with no validation that they're set before use. When LLM calls are made, the system will fail with confusing errors instead of failing fast with a clear message.
+API keys in `config.py` default to `None`. This is a reasonable default (not every command needs every key), but once LLM provider implementations (Spec-06) or CLI commands (Spec-12) require a key, we should raise a clear, GIANT-specific error at the **use site**.
 
 ### Current Code
 
@@ -31,19 +31,15 @@ client = openai.OpenAI(api_key=settings.OPENAI_API_KEY)  # api_key=None
 response = client.chat.completions.create(...)  # Cryptic auth error
 ```
 
-The user sees:
-```
-openai.AuthenticationError: No API key provided.
-```
+Today, this is not a runtime bug because LLM providers are not implemented yet. The future improvement is to raise something like:
 
-Instead of:
 ```
 giant.ConfigError: OPENAI_API_KEY not set. Set it in .env or environment.
 ```
 
 ### Expected Behavior
 
-**Option A: Fail Fast at Startup**
+**Option A: Validate at the provider boundary (recommended)**
 ```python
 @field_validator("OPENAI_API_KEY")
 @classmethod
@@ -61,7 +57,7 @@ def require_openai_key(self) -> str:
     return self.OPENAI_API_KEY
 ```
 
-**Option B: Validate at Import (stricter)**
+**Option B: Warn at startup (optional)**
 ```python
 def __init__(self, **kwargs):
     super().__init__(**kwargs)
@@ -83,9 +79,8 @@ def __init__(self, **kwargs):
 
 ### Impact
 
-- Confusing errors for users who forgot to set API keys
-- No clear guidance on what to set and where
-- Production debugging nightmare
+- Minor DevEx friction: users may hit provider-SDK auth errors instead of GIANT’s own actionable message.
+- Not a production correctness issue as long as we validate before making paid API calls.
 
 ### Testing Required
 

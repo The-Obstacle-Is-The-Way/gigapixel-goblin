@@ -1,12 +1,12 @@
 # BUG-010: MPP (Microns Per Pixel) Is Nullable With No Guards
 
-## Severity: P2 (Medium Priority) - Time Bomb
+## Severity: P3 (Low Priority) - Future-Proofing
 
-## Status: Open
+## Status: Open (Only relevant once MPP is used)
 
 ## Description
 
-`WSIMetadata.mpp_x` and `mpp_y` are `float | None` to handle slides without calibration data. However, there are NO guards in the codebase to check for `None` before using these values. Any future code that uses MPP for physical distance calculations will crash.
+`WSIMetadata.mpp_x` and `mpp_y` are `float | None` to support slides without calibration data. This is correct. Today, no production code uses MPP values, so there is no active bug — this is a reminder to handle `None` safely once physical-unit features are implemented.
 
 ### Current Code
 
@@ -33,7 +33,7 @@ def measure_physical_size(region: Region, metadata: WSIMetadata) -> float:
 
 ### Current Usage
 
-The current codebase doesn't use MPP for calculations, so this is dormant. But it's a guaranteed crash when:
+The current codebase doesn't use MPP for calculations. It becomes relevant when:
 1. Physical measurements are added (Spec-XX)
 2. User opens a slide without MPP data (common for TIFF files)
 3. Code tries to multiply by `None`
@@ -79,9 +79,7 @@ def measure_physical_size(region: Region, metadata: WSIMetadata) -> float | None
 
 ### Impact
 
-- Silent None propagation until crash
-- Crashes on uncalibrated slides
-- No clear error message about missing calibration
+- Future correctness risk if physical-unit features assume MPP is always present.
 
 ### Code Location
 
@@ -90,7 +88,7 @@ def measure_physical_size(region: Region, metadata: WSIMetadata) -> float | None
 
 ### Mitigation
 
-Add a helper method to WSIMetadata:
+When physical measurements are implemented, add a helper method to WSIMetadata (or a dedicated measurement service) to centralize the guard:
 
 ```python
 def get_mpp(self) -> tuple[float, float]:

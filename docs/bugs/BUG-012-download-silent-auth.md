@@ -1,12 +1,12 @@
 # BUG-012: HuggingFace Download Silently Uses No Auth
 
-## Severity: P2 (Medium Priority)
+## Severity: P3 (Low Priority) - DevEx
 
 ## Status: Open
 
 ## Description
 
-The `download_multipathqa_metadata()` function silently proceeds without authentication when `HUGGINGFACE_TOKEN` is not set. For public repos this works, but for private/gated repos it fails with a confusing error.
+`download_multipathqa_metadata()` proceeds without authentication when `HUGGINGFACE_TOKEN` is not set. For public repos this is correct; for private/gated repos it will fail with an auth error from `huggingface_hub`.
 
 ### Current Code
 
@@ -52,9 +52,7 @@ def download_multipathqa_metadata(...) -> Path:
 
 ### Impact
 
-- Confusing errors for gated datasets
-- No feedback about auth status
-- Users don't know to set token
+- Minor DevEx: when a dataset becomes gated, users may not realize they need `HUGGINGFACE_TOKEN` until an auth error occurs.
 
 ### Code Location
 

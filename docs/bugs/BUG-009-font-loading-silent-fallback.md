@@ -1,6 +1,6 @@
 # BUG-009: Font Loading Has Silent Fallback - No Warning
 
-## Severity: P2 (Medium Priority)
+## Severity: P3 (Low Priority) - DevEx
 
 ## Status: Open
 
@@ -51,9 +51,7 @@ def _get_font(self) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 ### Impact
 
-- Poor overlay quality with no explanation
-- User debugging why text looks pixelated
-- No actionable feedback to fix the issue
+- Cosmetic/DevEx: overlay labels may look pixelated with no indication why.
 
 ### Code Location
 

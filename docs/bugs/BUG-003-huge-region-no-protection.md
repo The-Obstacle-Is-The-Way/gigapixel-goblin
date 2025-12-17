@@ -23,14 +23,19 @@ raw_image = self._reader.read_region(
 )
 ```
 
-For a 100,000 x 80,000 pixel slide at Level-0:
-- Uncompressed RGB: `100000 * 80000 * 3 = 24 GB`
+`openslide.read_region` allocates an **RGBA** buffer (4 bytes/pixel) for `w*h` pixels *before* any resizing. `WSIReader.read_region()` then converts RGBA → RGB, which can transiently duplicate memory.
 
-Even at Level-2 (16x downsample), reading a full slide:
-- Size: `6250 x 5000 = 31.25 million pixels`
-- Uncompressed: `~94 MB`
+For a 100,000 × 80,000 pixel slide at Level-0:
+- Uncompressed RGBA: `100000 * 80000 * 4 ≈ 32 GB` (plus overhead)
 
-The level selector may pick Level-2 for `target_size=1000`, but the read still allocates significant memory before resize.
+Even at 16× downsample (if that’s the coarsest available), reading a full slide:
+- Size: `6250 × 5000 = 31.25M pixels`
+- Uncompressed RGBA: `~125 MB` (plus overhead)
+
+The level selector will usually pick a coarse level to keep the crop near the biased target size, but **worst cases exist**:
+- Slides with few pyramid levels (small max downsample)
+- Single-level slides (`level_count=1`)
+- Very large regions (near full-slide) combined with small max downsample
 
 ### Expected Behavior (from Spec-05.5)
 

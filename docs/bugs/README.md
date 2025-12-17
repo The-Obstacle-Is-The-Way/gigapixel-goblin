@@ -4,76 +4,58 @@
 
 This directory tracks bugs discovered during the Spec-05.5 Integration Checkpoint deep audit.
 
-**CRITICAL FINDING: The test suite is fundamentally broken.** 287 tests pass but only verify mock interactions, not real behavior. Zero integration tests exist.
+The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional unit-testing strategy to keep tests fast, deterministic, and free of large binary WSI files. The main validated gap is that we currently have **no integration tests** that exercise the real OpenSlide stack against a real WSI file.
 
 ## Bug Index
 
-### P0 - Critical (Blocks Progress)
+### P0 - Critical (Blocks Spec-06)
 
 | ID | Title | Status |
 |----|-------|--------|
 | [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | Open |
-| [BUG-007](./BUG-007-entire-test-suite-mocked.md) | **Entire Test Suite Is Mocked - Zero Real Behavior Tests** | Open |
 
-### P1 - High Priority (Will Cause Production Bugs)
+### P1 - High Priority (Could Crash / OOM)
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-001](./BUG-001-boundary-crop-no-handling.md) | Boundary Crop Has No Graceful Handling | Open |
-| [BUG-002](./BUG-002-spec-contradiction-upsample-small-regions.md) | Spec Contradiction - Small Region Upsampling | Open (Design Decision) |
-| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Has No Memory Protection | Open |
-| [BUG-008](./BUG-008-api-keys-silent-none.md) | API Keys Are Silently None - No Validation | Open |
-| [BUG-011](./BUG-011-unused-geometry-validator.md) | GeometryValidator Exists But Is Never Used | Open |
+| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | Open |
 
-### P2 - Medium Priority (Edge Cases)
+### P2 - Medium Priority (Correctness / Spec-05.5 Doc Gaps)
 
 | ID | Title | Status |
 |----|-------|--------|
 | [BUG-005](./BUG-005-single-level-slide-untested.md) | Single-Level Slide Behavior Untested | Open |
-| [BUG-006](./BUG-006-coordinate-overflow-potential.md) | Potential Coordinate Overflow | Open |
-| [BUG-009](./BUG-009-font-loading-silent-fallback.md) | Font Loading Has Silent Fallback - No Warning | Open |
-| [BUG-010](./BUG-010-mpp-nullable-no-guards.md) | MPP (Microns Per Pixel) Is Nullable With No Guards | Open |
-| [BUG-012](./BUG-012-download-silent-auth.md) | HuggingFace Download Silently Uses No Auth | Open |
+| [BUG-002](./BUG-002-spec-contradiction-upsample-small-regions.md) | Spec-05.5 Contradicts Spec-05 on Upsampling | Open (Doc) |
+
+### P3 - Low Priority (DevEx / Future-Proofing)
+
+| ID | Title | Status |
+|----|-------|--------|
+| [BUG-001](./BUG-001-boundary-crop-no-handling.md) | Boundary Behavior Not Explicitly Specified (Pad vs Clamp) | Open (Policy) |
+| [BUG-007](./BUG-007-entire-test-suite-mocked.md) | Prior “bogus tests” claim was inaccurate (see doc) | Closed (Doc corrected) |
+| [BUG-008](./BUG-008-api-keys-silent-none.md) | Missing “required key” guardrails at use sites | Open (Spec-06/CLI) |
+| [BUG-009](./BUG-009-font-loading-silent-fallback.md) | Font Loading Falls Back Silently | Open (DevEx) |
+| [BUG-010](./BUG-010-mpp-nullable-no-guards.md) | Optional MPP Needs Helper/Guards When Used | Open (Future) |
+| [BUG-011](./BUG-011-unused-geometry-validator.md) | GeometryValidator Is Staged for Spec-09 (Not Dead) | Open (Deferred) |
+| [BUG-012](./BUG-012-download-silent-auth.md) | HF Download Auth Behavior Not Surfaced | Open (DevEx) |
 
 ## Key Findings
 
-### 1. Tests Are Bogus (BUG-007)
+### 1. Missing integration coverage (BUG-004)
 
-```
-287 tests pass, but ZERO test real behavior.
+- `tests/integration/wsi/` exists but contains no tests.
+- CI does not currently exercise `openslide.OpenSlide(...)` against a real WSI file.
+- Recommendation: add opt-in integration tests gated by `WSI_TEST_FILE` (or a small downloaded OpenSlide test slide).
 
-test_reader.py: 100% mocked - only tests mock.assert_called()
-test_crop_engine.py: 100% mocked - only tests mock.assert_called()
+### 2. Unit tests are valuable (not “100% mocked”)
 
-The comment says "Integration tests in tests/integration/"
-but that directory DOES NOT EXIST.
-```
+- Many tests exercise real behavior (level selection math, geometry primitives/transforms/validation, PIL resizing + JPEG/Base64 encoding).
+- Mocking OpenSlide in unit tests is appropriate; integration tests should cover the real stack (BUG-004).
 
-### 2. Dead Code (BUG-011)
+### 3. Largest real runtime risk is memory blowups (BUG-003)
 
-```
-GeometryValidator: 155 lines of production code
-test_validators.py: 268 lines of tests
-
-Usage in production code: ZERO
-```
-
-### 3. Silent Failures
-
-| Location | Issue |
-|----------|-------|
-| `config.py` | API keys silently None |
-| `download.py` | HF token silently None |
-| `overlay.py` | Font fallback silent |
-| `crop_engine.py` | No bounds validation |
-
-### 4. Time Bombs
-
-| Issue | Trigger |
-|-------|---------|
-| MPP is nullable | Physical measurement code added |
-| No bounds check | LLM requests edge region |
-| No memory guard | LLM requests full slide |
+- `openslide.read_region` allocates an RGBA buffer of `w*h` pixels; extremely large region requests can OOM.
+- Mitigation: add a max pixel budget / fallback-to-thumbnail policy at the crop layer (or in `WSIReader`) before calling OpenSlide.
 
 ## Severity Definitions
 
@@ -86,21 +68,16 @@ Usage in production code: ZERO
 
 ### MUST FIX Before Spec-06
 
-1. **BUG-007**: Acknowledge test suite limitations, add real integration tests
-2. **BUG-004**: Set up integration test infrastructure
-3. **BUG-001**: Add boundary crop handling (integrate existing `clamp_region`)
-4. **BUG-011**: Either integrate GeometryValidator or document why unused
+1. **BUG-004**: Add opt-in integration tests with a real WSI file
+2. **BUG-003**: Add huge-region protection / pixel budget
 
 ### SHOULD FIX Before Spec-06
 
-5. **BUG-003**: Add huge region protection
-6. **BUG-008**: Add API key validation with clear errors
-7. **BUG-002**: Make design decision on upsampling, update spec
+3. **BUG-002**: Update Spec-05.5 P1-3 to match paper/spec-05 (no upsample)
 
 ### CAN DEFER
 
-- **BUG-005, BUG-006**: Document as known limitations
-- **BUG-009, BUG-010, BUG-012**: Low risk, add logging
+- **BUG-001, BUG-005, BUG-008, BUG-009, BUG-010, BUG-011, BUG-012**: Non-blocking (policy/DevEx/future-proofing)
 
 ## Audit Methodology
 

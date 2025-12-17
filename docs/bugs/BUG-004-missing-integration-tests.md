@@ -6,7 +6,7 @@
 
 ## Description
 
-The codebase has **zero integration tests** with real WSI files. All 287 tests use mocks. This means:
+The codebase has **no integration tests** with real WSI files committed yet. This means:
 
 1. OpenSlide integration is untested in CI
 2. Vendor-specific behaviors are unknown
@@ -29,8 +29,9 @@ All P0 tests require real SVS files:
 
 ```text
 tests/
-├── unit/           # 287 tests, all mocked
-└── integration/    # Does not exist
+├── unit/           # Extensive unit tests (mocks used where appropriate)
+└── integration/
+    └── wsi/        # Directory exists, but currently contains no tests
 ```
 
 ### Expected State (from Spec-05.5)
@@ -64,7 +65,7 @@ Mark integration tests with `@pytest.mark.integration` and skip in CI unless tes
 
 ### Proposed Fix
 
-1. Create `tests/integration/wsi/` directory structure
+1. Add tests under the existing `tests/integration/wsi/` directory
 2. Add `conftest.py` with fixtures that:
    - Check for `WSI_TEST_FILE` env var
    - Skip tests if no test file available

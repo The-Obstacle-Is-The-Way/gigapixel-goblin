@@ -1,17 +1,17 @@
 # BUG-011: GeometryValidator Exists But Is Never Used
 
-## Severity: P1 (High Priority) - Dead Code
+## Severity: P3 (Low Priority) - Staged for Spec-09
 
-## Status: Open
+## Status: Open (Deferred until Spec-09)
 
 ## Description
 
-The codebase has a fully implemented `GeometryValidator` class with `validate()` and `clamp_region()` methods, but **it is never used anywhere in the production code**. The crop pipeline passes unvalidated regions directly to OpenSlide.
+`GeometryValidator` is currently unused in production code, but this is intentional: Spec-09 explicitly places bbox validation in the agent loop (“strict by default; clamp only as an explicit, test-covered recovery path”). Until Spec-09 is implemented, `GeometryValidator` is a staged utility.
 
 ### The Unused Code
 
 ```python
-# src/giant/geometry/validators.py - 155 lines of dead code
+# src/giant/geometry/validators.py - staged utility (used by Spec-09)
 class GeometryValidator:
     def validate(self, region: Region, bounds: Size, *, strict: bool = True) -> bool:
         """Validate that a region is within bounds."""
@@ -50,35 +50,32 @@ grep -r "GeometryValidator" src/
 
 ### Why This Is Bad
 
-1. **Code exists, tests exist, but nothing uses it**
-2. **Boundary bugs**: Invalid regions passed to OpenSlide
-3. **Wasted effort**: 155 lines of code + 268 lines of tests = 0 value
-4. **Documentation lie**: The docstring says "should only be used when explicitly chosen by the agent's error-recovery policy (Spec-09)" but Spec-09 doesn't exist yet
+This is scaffolding for Spec-09. The tests are still valuable because:
+1. They lock down bounds semantics before the LLM loop arrives.
+2. They provide a known-correct component for error recovery once the agent is built.
 
-### The Disconnect
+### The Disconnect (Expected Until Spec-09)
 
 | Component | Status |
 |-----------|--------|
 | `GeometryValidator` class | ✓ Implemented |
 | `GeometryValidator` tests | ✓ 26 tests pass |
 | `CropEngine` uses validator | ✗ Never integrated |
-| Agent error recovery (Spec-09) | ✗ Not implemented |
+| Agent error recovery (Spec-09) | ✗ Not implemented (yet) |
 
 ### Impact
 
-- Invalid regions crash or behave unexpectedly
-- Useful code sits unused
-- Tests verify dead code
+- Until Spec-09 is implemented, invalid bbox handling lives in OpenSlide’s padding behavior (out-of-bounds pixels → transparent → black after RGB conversion).
+- Once Spec-09 lands, `GeometryValidator` becomes the single source of truth for bounds validation and recovery policy.
 
 ### Code Location
 
-- `src/giant/geometry/validators.py` - Dead code
-- `src/giant/core/crop_engine.py` - Missing integration
-- `tests/unit/geometry/test_validators.py` - Tests for dead code
+- `src/giant/geometry/validators.py` - Staged validation/clamping utility
+- `docs/specs/spec-09-giant-agent.md` - Defines how it’s used (strict by default)
+- `tests/unit/geometry/test_validators.py` - Unit tests for bounds semantics
 
 ### Fix Required
 
 Either:
-1. **Integrate now**: Add validation/clamping to `CropEngine.crop()`
-2. **Remove dead code**: Delete validators.py until Spec-09
-3. **Mark as future**: Add `# TODO(spec-09): Integrate with error recovery`
+1. **Leave as-is** (recommended): integrate in Spec-09 as designed.
+2. **Document the staging**: keep this as a known “will be used by Spec-09” utility.

@@ -1,12 +1,12 @@
 # BUG-001: Boundary Crop Has No Graceful Handling
 
-## Severity: P1 (High Priority)
+## Severity: P3 (Low Priority) - Policy/Documentation
 
-## Status: Open
+## Status: Open (Policy decision)
 
 ## Description
 
-The `CropEngine.crop()` method does not validate that the requested region is within slide bounds. When a region extends beyond the slide boundary (right edge or bottom edge), the behavior is undefined - it relies entirely on OpenSlide's behavior.
+`CropEngine.crop()` does not clamp crop regions to slide bounds. If a region extends beyond the slide boundary, behavior is delegated to OpenSlide.
 
 ### Related Spec Tests
 - **P1-1**: Boundary crop (right edge)
@@ -23,10 +23,7 @@ raw_image = self._reader.read_region(
 )
 ```
 
-OpenSlide behavior for out-of-bounds reads varies by vendor and may:
-- Return black/transparent pixels for OOB areas (Aperio)
-- Return partial image
-- Raise an exception
+OpenSlide’s documented behavior for out-of-bounds reads is to return a full tile and pad any out-of-bounds pixels with transparency (RGBA). Since `WSIReader.read_region()` converts the returned image to RGB, padded pixels become black in the final crop.
 
 ### Expected Behavior (from Spec-05.5)
 
@@ -34,17 +31,25 @@ OpenSlide behavior for out-of-bounds reads varies by vendor and may:
 1. **Clamp** the region to slide bounds before reading, OR
 2. **Pad** the result with a consistent background color
 
+Current behavior already satisfies the “pad” option (black padding after RGBA→RGB conversion).
+
 ### Code Location
 
 `src/giant/core/crop_engine.py:102-165` - `crop()` method
 
 ### Existing Infrastructure
 
-The codebase already has `GeometryValidator.clamp_region()` in `src/giant/geometry/validators.py:92-140` which can clamp regions to bounds. This is currently **unused** in the crop pipeline.
+The codebase already has `GeometryValidator.clamp_region()` in `src/giant/geometry/validators.py`, but Spec-09 places bounds validation at the agent layer (strict by default; clamp only as an explicit recovery path).
 
 ### Proposed Fix
 
-Integrate `GeometryValidator.clamp_region()` into `CropEngine.crop()`:
+Document and decide the policy explicitly:
+
+- **Option A (keep current)**: Accept OpenSlide padding (black after conversion) and document it as the canonical behavior for out-of-bounds regions.
+- **Option B (agent-level strict validation)**: In Spec-09, validate crops with `GeometryValidator.validate(...)` and re-prompt the LLM on invalid regions.
+- **Option C (agent-level clamp recovery)**: In Spec-09, clamp only as an explicit, test-covered recovery path.
+
+If we decide to clamp inside the crop pipeline (Option D), integrate `GeometryValidator.clamp_region()` into `CropEngine.crop()`:
 
 ```python
 def crop(
@@ -65,13 +70,9 @@ def crop(
 
 ### Impact
 
-- LLM requests for regions at slide edges will fail unpredictably
-- Agent loop may get stuck on boundary regions
-- Error messages will be confusing (vendor-specific)
+- Without explicit documentation, engineers may assume out-of-bounds crops are errors or “undefined”.
+- If we want strict bounds semantics, the policy belongs in Spec-09 (agent loop), not necessarily inside `CropEngine`.
 
 ### Testing Required
 
-- Unit test: Crop region extending past right edge
-- Unit test: Crop region extending past bottom edge
-- Unit test: Crop region entirely outside bounds
-- Integration test with real SVS file at boundary
+- Integration test (real file): Crop region extending past right/bottom edge and assert output size is preserved and padded area is black.
