@@ -38,8 +38,10 @@ def get_test_wsi_path() -> Path | None:
     # Option 2: Check for pre-downloaded test file in test data directory
     test_data_dir = Path(__file__).parent / "data"
     if test_data_dir.exists():
-        for svs_file in test_data_dir.glob("*.svs"):
-            return svs_file
+        # Check all supported WSI extensions
+        for ext in (".svs", ".ndpi", ".tiff", ".tif"):
+            for wsi_file in test_data_dir.glob(f"*{ext}"):
+                return wsi_file
 
     return None
 

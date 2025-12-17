@@ -124,7 +124,8 @@ class CropEngine:
             max_read_dimension: Maximum allowed dimension (width or height) for
                 the read operation, in pixels. If the region at the selected
                 level exceeds this, a ValueError is raised to prevent OOM.
-                Defaults to 10000 if not specified. Set to 0 to disable the check.
+                Defaults to 10000 if not specified. Set to 0 (or negative) to
+                disable the check.
 
         Returns:
             CroppedImage containing the processed image and metadata.

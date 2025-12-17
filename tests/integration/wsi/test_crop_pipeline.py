@@ -162,8 +162,8 @@ class TestCropPipelineRealFile:
             result = engine.crop(region, target_size=1000)
 
             # Should return at native size (no upsample)
-            # The image size should be approximately the region size
-            # (may be slightly different due to level selection)
+            # Level selector chooses Level-0 for small regions, so image
+            # size equals region size and no resize is applied
             assert result.image.width <= 1000
             assert result.image.height <= 1000
             assert result.scale_factor == 1.0  # No resize applied

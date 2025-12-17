@@ -18,6 +18,7 @@ import pytest
 from PIL import Image
 
 from giant.wsi import WSIReader
+from giant.wsi.exceptions import WSIReadError
 from giant.wsi.types import WSIMetadata
 
 pytestmark = pytest.mark.integration
@@ -110,12 +111,16 @@ class TestWSIReaderRealFile:
 
     def test_context_manager_cleanup(self, wsi_test_file: Path) -> None:
         """Verify context manager properly closes the slide."""
-        reader = WSIReader(wsi_test_file)
-        reader.open()
-        assert reader._slide is not None
+        with WSIReader(wsi_test_file) as reader:
+            # Verify reader works inside context
+            metadata = reader.get_metadata()
+            assert metadata is not None
+            assert metadata.width > 0
 
-        reader.close()
-        assert reader._slide is None
+        # After exiting context, slide should be closed
+        # Attempting to read should fail with WSIReadError
+        with pytest.raises(WSIReadError):
+            reader.read_region((0, 0), level=0, size=(10, 10))
 
     def test_multiple_regions_same_slide(self, wsi_test_file: Path) -> None:
         """Verify multiple regions can be read from the same slide."""
