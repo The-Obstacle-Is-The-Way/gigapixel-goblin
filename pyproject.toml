@@ -1,0 +1,124 @@
+[project]
+name = "giant"
+version = "0.1.0"
+description = "Gigapixel Image Agent for Navigating Tissue"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "GIANT Team" }]
+keywords = ["pathology", "wsi", "llm", "agent", "gigapixel"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+dependencies = [
+    # Core WSI handling
+    "openslide-python>=1.3.1",
+    "openslide-bin>=4.0.0.6",
+    # Config & validation
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "structlog>=24.4.0",
+    # CLI
+    "typer>=0.15.0",
+    # Numerics
+    "numpy>=2.0.0,<2.3.0",
+    "pillow>=11.0.0",
+    # LLM APIs
+    "anthropic>=0.40.0",
+    "openai>=1.58.0",
+    "tenacity>=9.0.0",
+    "httpx>=0.28.0",
+    # Data & HuggingFace
+    "datasets>=3.2.0",
+    "huggingface_hub>=0.27.0",
+    # Computer Vision (for CLAM-style segmentation)
+    "opencv-python>=4.10.0",
+    "scipy>=1.14.0",
+    "scikit-image>=0.24.0",
+    # Caching (persistent crop/metadata cache)
+    "diskcache>=5.6.3",
+    # Rate limiting for concurrent API calls
+    "aiolimiter>=1.2.1",
+    # DevEx
+    "rich>=13.9.0",
+    "tqdm>=4.67.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    "pytest-sugar>=1.0.0",
+    "pytest-xdist>=3.5.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-randomly>=3.16.0",
+    "pytest-watch>=4.2.0",
+    "pytest-timeout>=2.3.1",
+    "pytest-benchmark>=5.1.0",
+    "mutmut>=3.2.0",
+    "hypothesis>=6.120.0",
+    "respx>=0.22.0",
+    "tifffile>=2024.12.0",
+    "polyfactory>=2.18.0",
+    "faker>=33.0.0",
+    "mypy>=1.13.0",
+    "ruff>=0.8.0",
+    "pre-commit>=4.0.0",
+    "types-Pillow>=10.2.0.20240822",
+]
+
+[project.scripts]
+giant = "giant.cli.main:app"
+
+[build-system]
+requires = ["hatchling>=1.28.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/giant"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
+ignore = []
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["cost: live API tests (opt-in, may spend money)"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.coverage.run]
+branch = true
+source = ["giant"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
+
+[tool.mutmut]
+paths_to_mutate = ["src/giant"]
+pytest_add_cli_args = ["-q"]
+pytest_add_cli_args_test_selection = ["tests/unit"]

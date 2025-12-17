@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a problem in GIANT
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include error messages and a short description.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide a minimal repro if possible.
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: GIANT version
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
