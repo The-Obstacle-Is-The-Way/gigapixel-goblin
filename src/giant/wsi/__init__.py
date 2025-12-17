@@ -36,7 +36,6 @@ from giant.wsi.types import (
 )
 
 __all__ = [
-    # Exceptions
     "SUPPORTED_EXTENSIONS",
     "WSIError",
     "WSIMetadata",
@@ -44,7 +43,6 @@ __all__ = [
     "WSIReadError",
     "WSIReader",
     "WSIReaderProtocol",
-    # Coordinate transforms
     "level0_to_level",
     "level_to_level0",
     "size_at_level",

@@ -272,6 +272,10 @@ class WSIReader:
 
         Returns:
             Best matching level index.
+
+        Note:
+            Delegates to OpenSlide which handles edge cases internally.
+            For values <= 0, OpenSlide returns level 0.
         """
         return self._slide.get_best_level_for_downsample(downsample)
 
