@@ -2,7 +2,7 @@
 
 ## Severity: P1 (High Priority)
 
-## Status: Open
+## Status: Fixed (PR pending)
 
 ## Description
 

@@ -2,7 +2,7 @@
 
 ## Severity: P0 (Critical)
 
-## Status: Open
+## Status: Fixed (PR pending)
 
 ## Description
 

@@ -12,13 +12,13 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | Open |
+| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed** |
 
 ### P1 - High Priority (Could Crash / OOM)
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | Open |
+| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | **Fixed** |
 
 ### P2 - Medium Priority (Correctness / Spec-05.5 Doc Gaps)
 
