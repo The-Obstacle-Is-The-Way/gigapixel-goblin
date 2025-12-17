@@ -599,6 +599,118 @@ class TestCropEngineValidation:
         assert result is not None
 
 
+# --- Test Huge Region Protection (BUG-003 Fix) ---
+
+
+class TestCropEngineHugeRegionProtection:
+    """Tests for memory protection against huge region requests."""
+
+    def test_rejects_region_exceeding_default_limit(
+        self,
+        mock_wsi_reader: MagicMock,
+    ) -> None:
+        """Test crop() rejects regions exceeding default 10000px limit."""
+        # Single-level slide so region is read at full resolution
+        mock_wsi_reader.get_metadata.return_value = WSIMetadata(
+            path="/path/to/slide.svs",
+            width=100000,
+            height=80000,
+            level_count=1,
+            level_dimensions=((100000, 80000),),
+            level_downsamples=(1.0,),
+            vendor="aperio",
+            mpp_x=0.25,
+            mpp_y=0.25,
+        )
+        engine = CropEngine(reader=mock_wsi_reader)
+
+        # Request region of 15000x12000 at single-level slide = read at full size
+        region = Region(x=0, y=0, width=15000, height=12000)
+        with pytest.raises(ValueError, match="Region too large"):
+            engine.crop(region, target_size=1000)
+
+    def test_accepts_region_within_default_limit(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_level_selector: MagicMock,
+    ) -> None:
+        """Test crop() accepts regions within default 10000px limit."""
+        engine = CropEngine(reader=mock_wsi_reader, level_selector=mock_level_selector)
+        region = Region(x=0, y=0, width=10000, height=8000)
+        # Should not raise
+        result = engine.crop(region, target_size=1000)
+        assert result is not None
+
+    def test_custom_max_read_dimension(
+        self,
+        mock_wsi_reader: MagicMock,
+    ) -> None:
+        """Test crop() respects custom max_read_dimension."""
+        mock_wsi_reader.get_metadata.return_value = WSIMetadata(
+            path="/path/to/slide.svs",
+            width=100000,
+            height=80000,
+            level_count=1,
+            level_dimensions=((100000, 80000),),
+            level_downsamples=(1.0,),
+            vendor="aperio",
+            mpp_x=0.25,
+            mpp_y=0.25,
+        )
+        engine = CropEngine(reader=mock_wsi_reader)
+
+        # 5001px region should fail with max_read_dimension=5000
+        region = Region(x=0, y=0, width=5001, height=4000)
+        with pytest.raises(ValueError, match="Region too large"):
+            engine.crop(region, target_size=1000, max_read_dimension=5000)
+
+    def test_disable_protection_with_zero(
+        self,
+        mock_wsi_reader: MagicMock,
+    ) -> None:
+        """Test crop() allows any size when max_read_dimension=0."""
+        mock_wsi_reader.get_metadata.return_value = WSIMetadata(
+            path="/path/to/slide.svs",
+            width=100000,
+            height=80000,
+            level_count=1,
+            level_dimensions=((100000, 80000),),
+            level_downsamples=(1.0,),
+            vendor="aperio",
+            mpp_x=0.25,
+            mpp_y=0.25,
+        )
+        mock_wsi_reader.read_region.side_effect = _fake_read_region
+        engine = _NoEncodeCropEngine(reader=mock_wsi_reader)
+
+        # 50000px region should succeed with protection disabled
+        region = Region(x=0, y=0, width=50000, height=40000)
+        result = engine.crop(region, target_size=1000, max_read_dimension=0)
+        assert result is not None
+
+    def test_error_message_includes_dimensions(
+        self,
+        mock_wsi_reader: MagicMock,
+    ) -> None:
+        """Test error message includes the actual region dimensions."""
+        mock_wsi_reader.get_metadata.return_value = WSIMetadata(
+            path="/path/to/slide.svs",
+            width=100000,
+            height=80000,
+            level_count=1,
+            level_dimensions=((100000, 80000),),
+            level_downsamples=(1.0,),
+            vendor="aperio",
+            mpp_x=0.25,
+            mpp_y=0.25,
+        )
+        engine = CropEngine(reader=mock_wsi_reader)
+
+        region = Region(x=0, y=0, width=15000, height=12000)
+        with pytest.raises(ValueError, match=r"15000x12000 pixels"):
+            engine.crop(region, target_size=1000)
+
+
 # --- Test Edge Cases ---
 
 
@@ -706,7 +818,8 @@ class TestCropEngineProperties:
         engine = _NoEncodeCropEngine(reader=mock_reader, level_selector=mock_selector)
 
         region = Region(x=0, y=0, width=region_width, height=region_height)
-        result = engine.crop(region, target_size=target_size)
+        # Disable max_read_dimension for property tests (we use fake images)
+        result = engine.crop(region, target_size=target_size, max_read_dimension=0)
 
         original_long_side = max(region_width, region_height)
         result_long_side = max(result.image.width, result.image.height)

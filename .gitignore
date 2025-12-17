@@ -223,6 +223,7 @@ __marimo__/
 
 # Downloaded data (WSIs are huge)
 /data/
+/tests/integration/wsi/data/
 *.svs
 *.ndpi
 *.mrxs

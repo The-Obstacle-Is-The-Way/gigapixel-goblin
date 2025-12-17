@@ -29,6 +29,11 @@ from giant.wsi.types import WSIReaderProtocol, size_at_level
 _JPEG_QUALITY_MIN = 1
 _JPEG_QUALITY_MAX = 100
 
+# Maximum pixel dimension for safety (prevents OOM on huge region requests)
+# 10000 x 10000 RGBA = 400MB; this is a reasonable default upper bound.
+# Can be overridden via max_read_dimension parameter in crop().
+_DEFAULT_MAX_READ_DIMENSION = 10000
+
 
 @dataclass(frozen=True)
 class CroppedImage:
@@ -105,6 +110,7 @@ class CropEngine:
         target_size: int = 1000,
         bias: float = 0.85,
         jpeg_quality: int = 85,
+        max_read_dimension: int | None = None,
     ) -> CroppedImage:
         """Extract, resize, and encode a region from the WSI.
 
@@ -115,6 +121,11 @@ class CropEngine:
             target_size: Target long-side in pixels (default: 1000).
             bias: Oversampling bias for level selection (default: 0.85).
             jpeg_quality: JPEG encoding quality 1-100 (default: 85).
+            max_read_dimension: Maximum allowed dimension (width or height) for
+                the read operation, in pixels. If the region at the selected
+                level exceeds this, a ValueError is raised to prevent OOM.
+                Defaults to 10000 if not specified. Set to 0 (or negative) to
+                disable the check.
 
         Returns:
             CroppedImage containing the processed image and metadata.
@@ -126,6 +137,7 @@ class CropEngine:
 
         Raises:
             ValueError: If jpeg_quality is not in range 1-100.
+            ValueError: If region at selected level exceeds max_read_dimension.
         """
         if not _JPEG_QUALITY_MIN <= jpeg_quality <= _JPEG_QUALITY_MAX:
             raise ValueError(
@@ -144,6 +156,23 @@ class CropEngine:
         region_size_at_level = size_at_level(
             (region.width, region.height), selected.downsample
         )
+
+        # Memory safety: reject regions that would allocate too much memory
+        # Use default if not specified; 0 disables the check
+        effective_max = (
+            _DEFAULT_MAX_READ_DIMENSION
+            if max_read_dimension is None
+            else max_read_dimension
+        )
+        max_dim = max(region_size_at_level)
+        if effective_max > 0 and max_dim > effective_max:
+            w, h = region_size_at_level
+            raise ValueError(
+                f"Region too large: {w}x{h} pixels at level {selected.level} "
+                f"exceeds maximum dimension {effective_max}px. "
+                f"Use a smaller region or get_thumbnail() for full-slide overview."
+            )
+
         raw_image = self._reader.read_region(
             location=(region.x, region.y),
             level=selected.level,
