@@ -4,8 +4,6 @@ import pytest
 
 from giant.config import Settings
 
-# ruff: noqa: PLR2004  # Magic value comparisons are fine in tests
-
 
 class TestSettings:
     """Tests for the Settings class."""
