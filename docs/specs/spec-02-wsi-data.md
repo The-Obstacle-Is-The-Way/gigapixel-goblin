@@ -98,11 +98,11 @@ tests/unit/wsi/
 class WSIReader:
     def __init__(self, path: str | Path):
         """Opens a WSI file."""
-    
+
     def read_region(self, location: Tuple[int, int], level: int, size: Tuple[int, int]) -> Image.Image:
         """
         Reads a region from the WSI.
-        
+
         Args:
             location: (x, y) tuple of top-left corner in LEVEL-0 coordinates.
             level: The pyramid level to read from.
