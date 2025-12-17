@@ -134,6 +134,56 @@ class TestAxisGuideGenerator:
         )
         assert overlay.size == (64, 64)
 
+    def test_generate_rejects_zero_thumbnail_width(
+        self, generator: AxisGuideGenerator
+    ) -> None:
+        """Test generate raises ValueError for zero thumbnail width."""
+        with pytest.raises(ValueError, match="thumbnail_size must be positive"):
+            generator.generate(
+                thumbnail_size=(0, 100),
+                slide_dimensions=(1000, 1000),
+            )
+
+    def test_generate_rejects_zero_thumbnail_height(
+        self, generator: AxisGuideGenerator
+    ) -> None:
+        """Test generate raises ValueError for zero thumbnail height."""
+        with pytest.raises(ValueError, match="thumbnail_size must be positive"):
+            generator.generate(
+                thumbnail_size=(100, 0),
+                slide_dimensions=(1000, 1000),
+            )
+
+    def test_generate_rejects_zero_slide_width(
+        self, generator: AxisGuideGenerator
+    ) -> None:
+        """Test generate raises ValueError for zero slide width."""
+        with pytest.raises(ValueError, match="slide_dimensions must be positive"):
+            generator.generate(
+                thumbnail_size=(100, 100),
+                slide_dimensions=(0, 1000),
+            )
+
+    def test_generate_rejects_zero_slide_height(
+        self, generator: AxisGuideGenerator
+    ) -> None:
+        """Test generate raises ValueError for zero slide height."""
+        with pytest.raises(ValueError, match="slide_dimensions must be positive"):
+            generator.generate(
+                thumbnail_size=(100, 100),
+                slide_dimensions=(1000, 0),
+            )
+
+    def test_generate_rejects_negative_dimensions(
+        self, generator: AxisGuideGenerator
+    ) -> None:
+        """Test generate raises ValueError for negative dimensions."""
+        with pytest.raises(ValueError, match="thumbnail_size must be positive"):
+            generator.generate(
+                thumbnail_size=(-100, 100),
+                slide_dimensions=(1000, 1000),
+            )
+
 
 class TestAxisGuideGeneratorLinePositions:
     """Tests for axis guide line positioning."""
@@ -149,14 +199,15 @@ class TestAxisGuideGeneratorLinePositions:
             slide_dimensions=(50000, 40000),
         )
         # Check pixels on expected line positions
-        # Line at x=100 should have non-zero alpha in line color area
-        for y in range(0, 400, 50):  # Sample along the line
-            pixel = overlay.getpixel((100, y))
-            # Should have alpha > 0 (line or label drawn)
-            # This is a weak test but avoids font-specific issues
-            if isinstance(pixel, tuple) and len(pixel) == 4:
-                # Just verify the image was modified at expected positions
-                pass
+        # At least one pixel along each expected vertical line should be drawn
+        for expected_x in [100, 200, 300, 400]:
+            line_has_pixels = False
+            for y in range(0, 400, 20):  # Sample along the line
+                pixel = overlay.getpixel((expected_x, y))
+                if isinstance(pixel, tuple) and len(pixel) == 4 and pixel[3] > 0:
+                    line_has_pixels = True
+                    break
+            assert line_has_pixels, f"No pixels drawn at vertical line x={expected_x}"
 
     def test_horizontal_line_positions(self) -> None:
         """Test horizontal lines are evenly spaced."""
@@ -168,11 +219,15 @@ class TestAxisGuideGeneratorLinePositions:
             thumbnail_size=(400, 500),
             slide_dimensions=(40000, 50000),
         )
-        # Similar verification approach
-        for x in range(0, 400, 50):
-            pixel = overlay.getpixel((x, 100))
-            if isinstance(pixel, tuple) and len(pixel) == 4:
-                pass
+        # At least one pixel along each expected horizontal line should be drawn
+        for expected_y in [100, 200, 300, 400]:
+            line_has_pixels = False
+            for x in range(0, 400, 20):  # Sample along the line
+                pixel = overlay.getpixel((x, expected_y))
+                if isinstance(pixel, tuple) and len(pixel) == 4 and pixel[3] > 0:
+                    line_has_pixels = True
+                    break
+            assert line_has_pixels, f"No pixels drawn at horizontal line y={expected_y}"
 
 
 class TestAxisGuideGeneratorCoordinateLabels:

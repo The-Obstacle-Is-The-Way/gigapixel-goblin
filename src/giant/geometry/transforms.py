@@ -56,7 +56,7 @@ def point_level0_to_level(point: Point, downsample: float) -> Point:
         ValueError: If downsample is not positive.
     """
     transformed = level0_to_level(point.to_tuple(), downsample)
-    return Point(x=transformed[0], y=transformed[1])
+    return Point.from_tuple(transformed)
 
 
 def point_level_to_level0(point: Point, downsample: float) -> Point:
@@ -73,7 +73,7 @@ def point_level_to_level0(point: Point, downsample: float) -> Point:
         ValueError: If downsample is not positive.
     """
     transformed = level_to_level0(point.to_tuple(), downsample)
-    return Point(x=transformed[0], y=transformed[1])
+    return Point.from_tuple(transformed)
 
 
 def size_level0_to_level(size: Size, downsample: float) -> Size:
@@ -90,7 +90,7 @@ def size_level0_to_level(size: Size, downsample: float) -> Size:
         ValueError: If downsample is not positive.
     """
     transformed = size_at_level(size.to_tuple(), downsample)
-    return Size(width=transformed[0], height=transformed[1])
+    return Size.from_tuple(transformed)
 
 
 def size_level_to_level0(size: Size, downsample: float) -> Size:
@@ -107,7 +107,7 @@ def size_level_to_level0(size: Size, downsample: float) -> Size:
         ValueError: If downsample is not positive.
     """
     transformed = size_to_level0(size.to_tuple(), downsample)
-    return Size(width=transformed[0], height=transformed[1])
+    return Size.from_tuple(transformed)
 
 
 def region_level0_to_level(region: Region, downsample: float) -> Region:

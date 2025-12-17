@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class Point(BaseModel, frozen=True):
@@ -142,21 +142,14 @@ class Region(BaseModel, frozen=True):
             Region spanning the specified corners.
 
         Raises:
-            ValueError: If bottom_right is not strictly greater than top_left.
+            ValidationError: If bottom_right is not strictly greater than
+                top_left (results in non-positive width or height).
         """
         x1, y1 = top_left
         x2, y2 = bottom_right
         width = x2 - x1
         height = y2 - y1
         return cls(x=x1, y=y1, width=width, height=height)
-
-    @model_validator(mode="after")
-    def _validate_dimensions(self) -> Self:
-        """Ensure width and height remain positive after validation."""
-        # Pydantic's gt=0 handles this, but we add explicit check for clarity
-        if self.width <= 0 or self.height <= 0:
-            raise ValueError("Region dimensions must be positive")
-        return self
 
     def contains_point(self, point: Point) -> bool:
         """Check if a point is inside this region (inclusive of edges).

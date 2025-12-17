@@ -83,6 +83,10 @@ class AxisGuideGenerator:
         Returns:
             RGBA PIL Image with the axis guide overlay.
 
+        Raises:
+            ValueError: If thumbnail_size or slide_dimensions contain
+                non-positive values.
+
         Example:
             >>> generator = AxisGuideGenerator()
             >>> overlay = generator.generate(
@@ -92,6 +96,14 @@ class AxisGuideGenerator:
             >>> overlay.mode
             'RGBA'
         """
+        # Validate inputs to prevent division by zero
+        if thumbnail_size[0] <= 0 or thumbnail_size[1] <= 0:
+            raise ValueError(f"thumbnail_size must be positive, got {thumbnail_size}")
+        if slide_dimensions[0] <= 0 or slide_dimensions[1] <= 0:
+            raise ValueError(
+                f"slide_dimensions must be positive, got {slide_dimensions}"
+            )
+
         thumb_w, thumb_h = thumbnail_size
         slide_w, slide_h = slide_dimensions
 
