@@ -151,8 +151,9 @@ class PyramidLevelSelector:
     ) -> int:
         """Find the level closest to target_native.
 
-        Implements tie-breaker: if two levels are equidistant from target_native,
-        the finer level (smaller index) is selected.
+        Tie-breaker behavior: if two levels are equidistant from target_native,
+        the finer level (smaller index) is selected. This is implicit due to
+        ascending iteration order (k=0,1,2,...) with strict < comparison.
 
         Args:
             region_long_side: Region long-side in Level-0 pixels (paper: L0).
@@ -165,13 +166,15 @@ class PyramidLevelSelector:
         best_k = 0
         best_diff = float("inf")
 
+        # Iterate levels in ascending order (finest to coarsest).
+        # Using strict < ensures first level achieving min diff is kept,
+        # which naturally provides finer-level preference on ties.
         for k, ds in enumerate(metadata.level_downsamples):
             # Paper notation: Lk = projected size at level k
             size_at_level = region_long_side / ds
             diff = abs(size_at_level - target_native)
 
-            # Select if strictly better, or on tie if finer (smaller k)
-            if diff < best_diff or (diff == best_diff and k < best_k):
+            if diff < best_diff:
                 best_diff = diff
                 best_k = k
 
