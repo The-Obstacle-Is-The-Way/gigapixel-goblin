@@ -75,7 +75,10 @@ The paper states: "Thumbnail is overlaid with four evenly spaced axis guides alo
 ### Validation
 `GeometryValidator.validate(region: Region, bounds: Size)`:
 - Checks if `region.right <= bounds.width` and `region.bottom <= bounds.height`.
-- Clamps regions that slightly exceed bounds (common LLM error).
+- Raises a `ValidationError` if out of bounds (strict by default).
+
+#### Optional Clamping (Explicit Recovery Path)
+GIANT paper does not specify how invalid crops are handled. For robustness, implement clamping as a **separate** method (`clamp_region`) and only use it when explicitly chosen by the agent error-recovery policy (Spec-09).
 
 #### `GeometryValidator.clamp_region`
 ```python

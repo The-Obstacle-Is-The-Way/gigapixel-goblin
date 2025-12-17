@@ -40,7 +40,7 @@ class RunResult(BaseModel):
 1.  **Initialize:**
     - Open WSI with `WSIReader`.
     - Create `ContextManager`.
-    - Generate Thumbnail + Axis Guides (`spec-03`).
+    - Generate a 1024px Thumbnail + Axis Guides (`spec-03`, paper baseline uses 1024×1024 thumbnails).
     - Add Thumbnail to Context (Turn 0).
     
 2.  **Navigation Loop** (t = 1 to T−1):
@@ -48,8 +48,9 @@ class RunResult(BaseModel):
     - **LLM Call:** `response = await llm_provider.generate_response(messages)`.
     - **Enforce crop:** At steps 1..T−1, the model MUST return `BoundingBoxAction`.
         - If model returns `FinalAnswer` early, log warning but accept (early termination).
-    - **Validate:** Clamp/validate bbox using `GeometryValidator`.
-    - **Act:** `cropped_img = crop_engine.crop(response.action.region)`.
+    - **Validate:** Validate bbox using `GeometryValidator` (strict by default; clamp only as an explicit, test-covered recovery path).
+    - **Act:** `cropped_img = crop_engine.crop(region, target_size=llm_provider.get_target_size())`.
+        - **Paper fidelity:** Use 1000px crops for OpenAI models and 500px crops for Anthropic models (paper note on Claude image pricing).
     - **Record:** Append `(reasoning, action, cropped_img)` to Context/Trajectory.
 
 3.  **Final Answer** (t = T):
@@ -60,6 +61,13 @@ class RunResult(BaseModel):
         - After 3 failures: terminate with `success=False, error_message="Exceeded step limit after 3 retries"`.
         - **For benchmarking:** This counts as incorrect (paper evaluation policy).
     - Return `RunResult`.
+
+### Budget / Cost Guardrails (Production-Readiness)
+To prevent runaway costs during long runs (benchmarks or retries), `GIANTAgent.run()` should accept an optional `budget_usd: float | None`.
+- If `total_cost >= budget_usd` at any point, force finalization:
+  - Add a User message using `FORCE_ANSWER_TEMPLATE` noting the budget was reached.
+  - Make a final LLM call requiring `FinalAnswerAction`.
+  - Return `success=False` with `error_message="Budget exceeded"` (benchmark counts as incorrect).
 
 ### Error Handling
 - **Invalid Coordinate Loop:** If the LLM tries to crop outside the image, catch the `ValidationError`, feed it back to the LLM as a User message using the template below, and retry.

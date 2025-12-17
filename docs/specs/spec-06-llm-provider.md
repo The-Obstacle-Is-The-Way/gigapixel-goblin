@@ -84,7 +84,8 @@ Token costs vary by model and image tokens. Maintain a lookup table:
 PRICING_USD_PER_1K = {
     "gpt-5": {"input": 0.01, "output": 0.03, "image_base": 0.00255},
     "gpt-4o": {"input": 0.005, "output": 0.015, "image_base": 0.00255},
-    "claude-3-5-sonnet-20241022": {"input": 0.003, "output": 0.015, "image_per_1k_px": 0.00048},
+    # Paper model label: "Claude 4.5-Sonnet" (model name is configurable; keep pricing table keys aligned to configured names)
+    "claude-4-5-sonnet": {"input": 0.003, "output": 0.015, "image_per_1k_px": 0.00048},
 }
 
 def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
@@ -97,9 +98,11 @@ def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> fl
 ### Implementation Details
 
 #### Structured Output Strategy
-To ensure reliability and Chain-of-Thought (CoT) reasoning:
+To ensure reliability and consistent parsing (reasoning + action), use provider-native structured output where available.
 
-1.  **OpenAI:** Use `client.beta.chat.completions.parse` with `response_format=StepResponse`. This enforces the schema and allows the model to output reasoning field first.
+1.  **OpenAI (SDK v2.x):** Use the Responses API with a JSON Schema `response_format`, then parse into `StepResponse`.
+    - Request: `client.responses.create(model=..., input=[...], response_format={"type": "json_schema", "json_schema": {"name": "StepResponse", "schema": StepResponse.model_json_schema()}})`
+    - Parse: `StepResponse.model_validate_json(response.output_text)`
 2.  **Anthropic:** Use Tool Use. Define a tool `submit_step` that takes `reasoning` and `action` arguments. Force the model to use this tool (`tool_choice={"type": "tool", "name": "submit_step"}`).
 
 #### Image Resolution Handling
@@ -108,7 +111,7 @@ Per the paper, different providers may require different image resolutions due t
 - `AnthropicProvider._get_target_size()` -> `settings.IMAGE_SIZE_ANTHROPIC` (500px)
 
 #### Rate Limiting & Retries
-Use `tenacity` decorator:
+**Retries:** Use `tenacity` decorator:
 ```python
 @retry(
     wait=wait_random_exponential(min=1, max=60),
@@ -117,8 +120,32 @@ Use `tenacity` decorator:
 )
 ```
 
+**Rate limiting (must-have for benchmarks):** Use `aiolimiter.AsyncLimiter` in each provider to cap request throughput and avoid cascading 429s.
+```python
+from aiolimiter import AsyncLimiter
+
+class OpenAIProvider:
+    def __init__(..., rpm: int = 60):
+        self._limiter = AsyncLimiter(max_rate=rpm, time_period=60)
+
+    async def generate_response(...):
+        async with self._limiter:
+            return await self._call_openai(...)
+```
+
+#### Circuit Breaker (Failure Containment)
+Add a small circuit breaker around API calls:
+- Open the circuit after `N` consecutive failures (e.g., 10).
+- While open, fail fast for `cooldown_seconds` (e.g., 60) to protect budgets and provider limits.
+- Transition to half-open and allow a limited number of trial calls to close the circuit on success.
+
+#### Provider Factory + Fallback
+Implement a `ProviderFactory` that creates providers from `Settings` (Dependency Inversion):
+- `ProviderFactory.create(provider: Literal["openai","anthropic"], model: str) -> LLMProvider`
+- Optional `FallbackProvider(primary, fallbacks)` that retries on **retriable** exceptions by switching providers/models.
+
 #### Message Construction
-- **OpenAI:** Maps `MessageContent` to `{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}`.
+- **OpenAI (Responses API):** Maps to `{"type": "input_image", "image_url": f"data:image/jpeg;base64,{b64}"}` plus `{"type": "input_text", "text": ...}`.
 - **Anthropic:** Maps to `{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}}`.
 
 ## Test Plan

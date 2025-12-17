@@ -5,13 +5,15 @@ This specification covers the tissue segmentation + random patch sampling needed
 
 **Paper Reference:** "Following prior work, we use the CLAM Python package to segment the tissue on the slide before patching. [...] The model independently answers each patch, and predictions are combined by majority vote."
 
-**Implementation Choice:** Either (a) a true dependency on the CLAM package, or (b) a documented "CLAM-parity" reimplementation with fixed parameters. We choose (b) for reproducibility without external model dependencies.
+**Implementation Choice (Paper Fidelity vs. Portability):**
+- **Primary (paper-faithful):** Use the CLAM pipeline for tissue segmentation when available.
+- **Fallback (portable):** Use a documented "CLAM-parity" reimplementation with fixed parameters for environments where CLAM is not installable.
 
 ## Dependencies
 - [Spec-02: WSI Data Layer & OpenSlide Integration](./spec-02-wsi-data.md)
 
 ## Acceptance Criteria
-- [ ] `TissueSegmentor` class implemented (CLAM-parity).
+- [ ] `TissueSegmentor` supports `backend={"clam","parity"}` (default `parity` in CI; `clam` enabled when installed).
 - [ ] Produces a binary mask (Tissue/Background) from the WSI thumbnail.
 - [ ] Implements Otsu's thresholding + morphological closing (CLAM default behavior).
 - [ ] `RandomPatchSampler` implemented: Returns `N=30` random `Region`s (Level-0 coords) of size `PATCH_SIZE=224×224` whose center overlaps tissue mask.
@@ -35,6 +37,10 @@ This specification covers the tissue segmentation + random patch sampling needed
 **Paper Parameters:**
 - `N = 30` patches per slide
 - `PATCH_SIZE = 224×224` pixels (Level-0)
+
+**Patch Image Construction (Baseline):**
+- Each sampled `Region` is read directly via `WSIReader.read_region(..., level=0, size=(224,224))`.
+- No additional resizing is applied (the model receives exactly 224×224 px images, per paper).
 
 **Algorithm:**
 ```python

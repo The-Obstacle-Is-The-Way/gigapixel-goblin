@@ -14,8 +14,12 @@ This specification defines the user-facing command-line interface (CLI) for GIAN
 - [ ] `giant run` supports `--mode {giant,thumbnail,patch}` for baseline comparison.
 - [ ] `giant run` supports `--runs N` for majority voting (GIANT x5).
 - [ ] `giant run` supports `--provider {openai,anthropic}` and `--model` selection.
+- [ ] `giant run` supports `--budget-usd` to cap total spend and fail fast.
 - [ ] `giant benchmark <dataset>` runs the evaluation pipeline with resume support.
-- [ ] `giant download` downloads MultiPathQA from HuggingFace.
+- [ ] `giant benchmark` supports `--wsi-root <dir>` to resolve `image_path` entries from MultiPathQA metadata to local slide files.
+- [ ] `giant benchmark` supports `--budget-usd` to cap total spend and fail fast.
+- [ ] `giant benchmark` handles SIGINT/SIGTERM gracefully by writing a final checkpoint before exiting.
+- [ ] `giant download` downloads MultiPathQA metadata (`MultiPathQA.csv`) from HuggingFace.
 - [ ] `giant visualize <result.json>` outputs trajectory visualization.
 - [ ] Logging verbosity controllable via `-v` / `-vv` / `-vvv` flags.
 - [ ] `--json` flag outputs machine-readable JSON for all commands.
@@ -55,6 +59,7 @@ def run(
     model: str = typer.Option("gpt-5", "--model", help="Model name (e.g., gpt-5, claude-4-5-sonnet)"),
     max_steps: int = typer.Option(20, "--max-steps", "-T", help="Max navigation steps"),
     runs: int = typer.Option(1, "--runs", "-r", help="Number of runs for majority voting"),
+    budget_usd: float = typer.Option(0.0, "--budget-usd", help="Stop early if total cost exceeds this USD budget (0 disables)"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Save trajectory to JSON"),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True, help="Increase verbosity"),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
@@ -64,7 +69,7 @@ def run(
 
 @app.command()
 def benchmark(
-    dataset: str = typer.Argument(..., help="Dataset name or path (tcga, panda, gtex, expertvqa, slidebenchvqa)"),
+    dataset: str = typer.Argument(..., help="Dataset name or path (tcga, panda, gtex, tcga_expert_vqa|expertvqa, tcga_slidebench|slidebenchvqa)"),
     output_dir: Path = typer.Option(Path("./results"), "--output-dir", "-o"),
     mode: Mode = typer.Option(Mode.giant, "--mode", "-m"),
     provider: Provider = typer.Option(Provider.openai, "--provider", "-p"),
@@ -72,6 +77,8 @@ def benchmark(
     max_steps: int = typer.Option(20, "--max-steps", "-T"),
     runs: int = typer.Option(1, "--runs", "-r", help="Runs per item for majority voting"),
     concurrency: int = typer.Option(4, "--concurrency", "-c", help="Max concurrent API calls"),
+    wsi_root: Path = typer.Option(Path("./wsi"), "--wsi-root", help="Root directory containing WSIs referenced by MultiPathQA.csv"),
+    budget_usd: float = typer.Option(0.0, "--budget-usd", help="Stop early if total cost exceeds this USD budget (0 disables)"),
     resume: bool = typer.Option(True, "--resume/--no-resume", help="Resume from checkpoint"),
     verbose: int = typer.Option(0, "--verbose", "-v", count=True),
 ):
@@ -140,6 +147,12 @@ For `visualize`, generate a static HTML file that:
    - The model's reasoning
    - The action taken
 4. Final answer summary
+
+### Optional: HTTP Service Mode (Production Deployment)
+If GIANT is deployed behind an API (e.g., for a lab internal service), add a separate entrypoint (e.g., `giant serve`) using FastAPI (optional dependency group):
+- `GET /healthz` returns 200 if process is alive
+- `GET /readyz` validates required config (API keys, model selection) and can do a lightweight provider auth check (no image)
+- Graceful shutdown on SIGTERM/SIGINT: stop accepting new requests, persist in-flight trajectory/checkpoint, and close OpenSlide handles
 
 ## Test Plan
 

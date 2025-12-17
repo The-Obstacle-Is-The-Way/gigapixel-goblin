@@ -15,6 +15,7 @@ This specification implements the `CropRegion(W, at, S)` function defined in Alg
 - [ ] Resizes the resulting image to have the long side exactly equal to `S` (preserving aspect ratio) using `PIL.Image.Resampling.LANCZOS`.
 - [ ] Returns a `CroppedImage` object containing the PIL image and its Base64 representation.
 - [ ] Performance: Does not load full slide into memory.
+- [ ] (Optional) Disk-backed caching (via `diskcache`) can memoize crops across runs (GIANT×N / benchmarks).
 
 ## Technical Design
 
@@ -50,6 +51,14 @@ class CroppedImage:
 ### Edge Cases
 - **Aspect Ratio:** The region might be extremely wide or tall. The resize logic must handle this.
 - **Rounding Errors:** When converting L0 dimension to Level-k dimension, flooring might lose a pixel. This is generally acceptable for LMM context, but we should be consistent.
+
+### Optional: Crop Cache (diskcache)
+For long benchmarks and majority-vote runs, enable an on-disk cache to avoid recomputing identical crops.
+- Cache key: `(wsi_path, region.x, region.y, region.width, region.height, target_size, read_level)`
+- Cache value: JPEG bytes (or base64) + metadata (`read_level`, `scale_factor`)
+- Requirements:
+  - Configurable cache directory and max size
+  - Safe to disable (default off)
 
 ## Test Plan
 
