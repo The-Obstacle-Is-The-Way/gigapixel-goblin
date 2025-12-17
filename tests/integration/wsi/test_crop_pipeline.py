@@ -56,8 +56,11 @@ class TestCropPipelineRealFile:
             # Verify image
             assert result.image.mode == "RGB"
             long_side = max(result.image.width, result.image.height)
-            # Should be target_size or smaller (never upsample)
-            assert long_side <= 1000
+            if max(region.width, region.height) >= 1000:
+                assert long_side == 1000
+            else:
+                # Never upsample
+                assert long_side <= 1000
 
             # Verify base64 is valid JPEG
             decoded = base64.b64decode(result.base64_content)
@@ -148,8 +151,11 @@ class TestCropPipelineRealFile:
             for target_size in [500, 1000, 2000]:
                 result = engine.crop(region, target_size=target_size)
                 long_side = max(result.image.width, result.image.height)
-                # Should be at most target_size (never upsample)
-                assert long_side <= target_size
+                if max(region.width, region.height) >= target_size:
+                    assert long_side == target_size
+                else:
+                    # Never upsample
+                    assert long_side <= target_size
 
     def test_small_region_no_upsample(self, wsi_test_file: Path) -> None:
         """Small regions are returned at native resolution (no upsample)."""
@@ -197,13 +203,17 @@ class TestBoundaryCropBehavior:
             )
 
             # Should not raise - OpenSlide handles boundary padding
-            result = engine.crop(region, target_size=500)
+            result = engine.crop(region, target_size=1000)
 
             # Verify we got a valid image
             assert isinstance(result, CroppedImage)
             assert result.image.mode == "RGB"
-            # Image should respect target_size constraint
-            assert max(result.image.width, result.image.height) <= 500
+            assert result.read_level == 0
+            assert result.scale_factor == 1.0
+            assert result.image.size == (region.width, region.height)
+
+            # The far-right pixel is out-of-bounds and should be black.
+            assert result.image.getpixel((result.image.width - 1, 0)) == (0, 0, 0)
 
     def test_boundary_crop_bottom_edge(self, wsi_test_file: Path) -> None:
         """P1-2: Boundary crop extending past bottom edge.
@@ -223,11 +233,17 @@ class TestBoundaryCropBehavior:
             )
 
             # Should not raise - OpenSlide handles boundary padding
-            result = engine.crop(region, target_size=500)
+            result = engine.crop(region, target_size=1000)
 
             # Verify we got a valid image
             assert isinstance(result, CroppedImage)
             assert result.image.mode == "RGB"
+            assert result.read_level == 0
+            assert result.scale_factor == 1.0
+            assert result.image.size == (region.width, region.height)
+
+            # The bottom pixel is out-of-bounds and should be black.
+            assert result.image.getpixel((0, result.image.height - 1)) == (0, 0, 0)
 
     def test_boundary_crop_corner(self, wsi_test_file: Path) -> None:
         """Boundary crop at bottom-right corner.
@@ -247,10 +263,18 @@ class TestBoundaryCropBehavior:
             )
 
             # Should not raise
-            result = engine.crop(region, target_size=500)
+            result = engine.crop(region, target_size=1000)
 
             assert isinstance(result, CroppedImage)
             assert result.image.mode == "RGB"
+            assert result.read_level == 0
+            assert result.scale_factor == 1.0
+            assert result.image.size == (region.width, region.height)
+
+            # Bottom-right corner is out-of-bounds and should be black.
+            assert result.image.getpixel(
+                (result.image.width - 1, result.image.height - 1)
+            ) == (0, 0, 0)
 
     def test_boundary_crop_preserves_size(self, wsi_test_file: Path) -> None:
         """Boundary crop returns correctly sized image.
@@ -275,7 +299,7 @@ class TestBoundaryCropBehavior:
 
             # The long side should be <= target_size
             long_side = max(result.image.width, result.image.height)
-            assert long_side <= 500
+            assert long_side == 500
 
             # Aspect ratio should be preserved (600/500 = 1.2)
             expected_ratio = region.width / region.height

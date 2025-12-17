@@ -6,6 +6,7 @@ library to provide a clean, type-safe interface for WSI operations.
 
 from __future__ import annotations
 
+import ctypes
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -71,6 +72,7 @@ class WSIReader:
         """
         self._path = Path(path).resolve()
         self._metadata: WSIMetadata | None = None
+        self._slide: openslide.OpenSlide | None
 
         # Validate file exists
         if not self._path.exists():
@@ -90,7 +92,7 @@ class WSIReader:
 
         # Open with OpenSlide
         try:
-            self._slide: openslide.OpenSlide = openslide.OpenSlide(str(self._path))
+            self._slide = openslide.OpenSlide(str(self._path))
         except openslide.OpenSlideError as e:
             raise WSIOpenError(
                 f"Failed to open WSI: {e}",
@@ -101,6 +103,12 @@ class WSIReader:
     def path(self) -> Path:
         """Return the path to the WSI file."""
         return self._path
+
+    def _ensure_open(self) -> openslide.OpenSlide:
+        slide = self._slide
+        if slide is None:
+            raise WSIReadError("WSI is closed", path=self._path)
+        return slide
 
     def get_metadata(self) -> WSIMetadata:
         """Get metadata for the opened WSI.
@@ -114,9 +122,11 @@ class WSIReader:
         if self._metadata is not None:
             return self._metadata
 
+        slide = self._ensure_open()
+
         # Extract MPP (microns per pixel) if available
         # Different vendors use different property keys
-        props = self._slide.properties
+        props = slide.properties
         mpp_x = self._extract_mpp(props, "openslide.mpp-x")
         mpp_y = self._extract_mpp(props, "openslide.mpp-y")
 
@@ -125,11 +135,11 @@ class WSIReader:
 
         self._metadata = WSIMetadata(
             path=str(self._path),
-            width=self._slide.dimensions[0],
-            height=self._slide.dimensions[1],
-            level_count=self._slide.level_count,
-            level_dimensions=tuple(self._slide.level_dimensions),
-            level_downsamples=tuple(self._slide.level_downsamples),
+            width=slide.dimensions[0],
+            height=slide.dimensions[1],
+            level_count=slide.level_count,
+            level_dimensions=tuple(slide.level_dimensions),
+            level_downsamples=tuple(slide.level_downsamples),
             vendor=vendor,
             mpp_x=mpp_x,
             mpp_y=mpp_y,
@@ -185,6 +195,8 @@ class WSIReader:
             # Read a 512x512 region at level 2, starting at (1000, 2000) in L0 coords
             region = reader.read_region((1000, 2000), level=2, size=(512, 512))
         """
+        slide = self._ensure_open()
+
         # Validate level
         metadata = self.get_metadata()
         if level < 0 or level >= metadata.level_count:
@@ -219,9 +231,17 @@ class WSIReader:
 
         try:
             # OpenSlide.read_region returns RGBA, convert to RGB
-            rgba_image = self._slide.read_region(location, level, size)
+            rgba_image = slide.read_region(location, level, size)
             return rgba_image.convert("RGB")
-        except openslide.OpenSlideError as e:
+        except (openslide.OpenSlideError, ctypes.ArgumentError) as e:
+            raise WSIReadError(
+                f"Failed to read region: {e}",
+                path=self._path,
+                level=level,
+                location=location,
+                size=size,
+            ) from e
+        except Exception as e:
             raise WSIReadError(
                 f"Failed to read region: {e}",
                 path=self._path,
@@ -245,6 +265,8 @@ class WSIReader:
         Raises:
             WSIReadError: If thumbnail generation fails.
         """
+        slide = self._ensure_open()
+
         if max_size[0] <= 0 or max_size[1] <= 0:
             raise WSIReadError(
                 f"Invalid max_size {max_size}. Dimensions must be positive.",
@@ -253,9 +275,9 @@ class WSIReader:
 
         try:
             # OpenSlide.get_thumbnail returns RGBA, convert to RGB
-            thumbnail = self._slide.get_thumbnail(max_size)
+            thumbnail = slide.get_thumbnail(max_size)
             return thumbnail.convert("RGB")
-        except openslide.OpenSlideError as e:
+        except Exception as e:
             raise WSIReadError(
                 f"Failed to generate thumbnail: {e}",
                 path=self._path,
@@ -277,7 +299,14 @@ class WSIReader:
             Delegates to OpenSlide which handles edge cases internally.
             For values <= 0, OpenSlide returns level 0.
         """
-        return self._slide.get_best_level_for_downsample(downsample)
+        slide = self._ensure_open()
+        try:
+            return slide.get_best_level_for_downsample(downsample)
+        except Exception as e:
+            raise WSIReadError(
+                f"Failed to get best level for downsample: {e}",
+                path=self._path,
+            ) from e
 
     def close(self) -> None:
         """Close the WSI file and release resources.
@@ -285,7 +314,10 @@ class WSIReader:
         After calling close(), the reader should not be used.
         It's recommended to use the context manager pattern instead.
         """
+        if self._slide is None:
+            return
         self._slide.close()
+        self._slide = None
 
     def __enter__(self) -> WSIReader:
         """Enter context manager."""

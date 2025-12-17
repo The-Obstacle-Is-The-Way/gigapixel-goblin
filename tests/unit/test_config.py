@@ -183,3 +183,43 @@ class TestRequireMethods:
         with pytest.raises(ConfigError) as exc_info:
             settings.require_huggingface_token()
         assert "HUGGINGFACE_TOKEN" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        ("settings_kwargs", "method_name", "expected_env_var"),
+        [
+            ({"OPENAI_API_KEY": ""}, "require_openai_key", "OPENAI_API_KEY"),
+            ({"OPENAI_API_KEY": "   "}, "require_openai_key", "OPENAI_API_KEY"),
+            ({"ANTHROPIC_API_KEY": ""}, "require_anthropic_key", "ANTHROPIC_API_KEY"),
+            (
+                {"ANTHROPIC_API_KEY": "   "},
+                "require_anthropic_key",
+                "ANTHROPIC_API_KEY",
+            ),
+            (
+                {"HUGGINGFACE_TOKEN": ""},
+                "require_huggingface_token",
+                "HUGGINGFACE_TOKEN",
+            ),
+            (
+                {"HUGGINGFACE_TOKEN": "   "},
+                "require_huggingface_token",
+                "HUGGINGFACE_TOKEN",
+            ),
+        ],
+    )
+    def test_require_methods_reject_blank_values(
+        self,
+        settings_kwargs: dict[str, str],
+        method_name: str,
+        expected_env_var: str,
+    ) -> None:
+        """require_* methods reject empty/whitespace-only values."""
+        settings = Settings(
+            **settings_kwargs,
+            _env_file=None,  # type: ignore[call-arg]
+        )
+
+        method = getattr(settings, method_name)
+        with pytest.raises(ConfigError) as exc_info:
+            method()
+        assert expected_env_var in str(exc_info.value)

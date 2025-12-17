@@ -4,6 +4,8 @@ All configuration is strongly typed and supports environment variables
 and .env files.
 """
 
+from typing import TypeGuard
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,9 +16,11 @@ class ConfigError(Exception):
     configuration values required by a specific operation are not set.
 
     Example:
-        >>> settings.require_openai_key()
-        ConfigError: OPENAI_API_KEY not configured.
-        Set it in .env file or OPENAI_API_KEY environment variable.
+        >>> Settings(_env_file=None).require_openai_key()  # doctest: +ELLIPSIS
+        Traceback (most recent call last):
+        ...
+        ConfigError: OpenAI API key not configured. Set it in .env file or
+        OPENAI_API_KEY environment variable.
     """
 
     def __init__(self, key_name: str, env_var: str) -> None:
@@ -80,6 +84,10 @@ class Settings(BaseSettings):
     # Budget Guardrails
     DEFAULT_BUDGET_USD: float = 0.0  # 0 = no budget limit
 
+    @staticmethod
+    def _is_configured_secret(value: str | None) -> TypeGuard[str]:
+        return value is not None and value.strip() != ""
+
     def require_openai_key(self) -> str:
         """Get OpenAI API key, raising ConfigError if not set.
 
@@ -92,7 +100,7 @@ class Settings(BaseSettings):
         Raises:
             ConfigError: If OPENAI_API_KEY is not configured.
         """
-        if self.OPENAI_API_KEY is None:
+        if not self._is_configured_secret(self.OPENAI_API_KEY):
             raise ConfigError("OpenAI API key", "OPENAI_API_KEY")
         return self.OPENAI_API_KEY
 
@@ -108,7 +116,7 @@ class Settings(BaseSettings):
         Raises:
             ConfigError: If ANTHROPIC_API_KEY is not configured.
         """
-        if self.ANTHROPIC_API_KEY is None:
+        if not self._is_configured_secret(self.ANTHROPIC_API_KEY):
             raise ConfigError("Anthropic API key", "ANTHROPIC_API_KEY")
         return self.ANTHROPIC_API_KEY
 
@@ -124,7 +132,7 @@ class Settings(BaseSettings):
         Raises:
             ConfigError: If HUGGINGFACE_TOKEN is not configured.
         """
-        if self.HUGGINGFACE_TOKEN is None:
+        if not self._is_configured_secret(self.HUGGINGFACE_TOKEN):
             raise ConfigError("HuggingFace token", "HUGGINGFACE_TOKEN")
         return self.HUGGINGFACE_TOKEN
 

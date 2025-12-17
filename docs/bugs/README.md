@@ -12,7 +12,7 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed** |
+| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed (validated)** |
 
 ### P1 - High Priority (Could Crash / OOM)
 
@@ -45,7 +45,8 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 - `tests/integration/wsi/` contains opt-in integration tests that exercise the real OpenSlide stack.
 - By default these tests are skipped unless `WSI_TEST_FILE` points to a real slide (or a small local test slide exists under `tests/integration/wsi/data/`).
-- Recommendation: run these tests at least once locally before starting Spec-06, and optionally wire them into CI using a small public test slide.
+- Validation: `WSI_TEST_FILE=tests/integration/wsi/data/CMU-1-Small-Region.svs uv run pytest tests/integration/wsi -v` → `17 passed` (0 skipped).
+- Test data safety: `tests/integration/wsi/data/` is gitignored to prevent committing binary slides.
 
 ### 2. Unit tests are valuable (not “100% mocked”)
 

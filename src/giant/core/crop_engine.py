@@ -140,8 +140,8 @@ class CropEngine:
 
         Note:
             The algorithm invariant is preserved: we only downsample (or 1:1)
-            to reach target_size, never upsample, unless the region is smaller
-            than target_size at Level-0.
+            to reach target_size. We never upsample; if the read region is
+            smaller than target_size, it is returned unchanged.
 
         Raises:
             ValueError: If jpeg_quality is not in range 1-100.
