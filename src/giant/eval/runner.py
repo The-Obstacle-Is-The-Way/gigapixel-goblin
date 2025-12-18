@@ -14,6 +14,7 @@ import asyncio
 import csv
 import json
 import logging
+import re
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,6 +36,10 @@ if TYPE_CHECKING:
     from giant.llm.protocol import LLMProvider
 
 logger = logging.getLogger(__name__)
+
+_MISSING_LABEL_SENTINEL = -1
+
+_SAFE_FILENAME_COMPONENT_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
 
 class EvaluationConfig(BaseModel):
@@ -183,11 +188,17 @@ class BenchmarkRunner:
                     prompt = prompt.replace("{options}", formatted_options)
 
                 # Parse truth label
-                truth_label = self._parse_truth_label(
-                    row.get("answer", ""),
-                    benchmark_name,
-                    options,
-                )
+                try:
+                    truth_label = self._parse_truth_label(
+                        row.get("answer", ""),
+                        benchmark_name,
+                        options,
+                    )
+                except ValueError as e:
+                    row_id = row.get("id", row.get("image_path", "<unknown>"))
+                    raise ValueError(
+                        f"Invalid truth label for row {row_id!r}: {e}"
+                    ) from e
 
                 item = BenchmarkItem(
                     benchmark_name=benchmark_name,
@@ -224,14 +235,25 @@ class BenchmarkRunner:
 
         Raises:
             FileNotFoundError: If WSI file is not found.
+            ValueError: If image_path attempts path traversal.
         """
+        image_rel = Path(image_path)
+        if image_rel.is_absolute() or image_rel.drive:
+            raise ValueError(
+                f"Invalid image_path {image_path!r}: absolute paths are not allowed."
+            )
+        if ".." in image_rel.parts:
+            raise ValueError(
+                f"Invalid image_path {image_path!r}: path traversal is not allowed."
+            )
+
         # Try direct path
-        direct_path = self.wsi_root / image_path
+        direct_path = self.wsi_root / image_rel
         if direct_path.exists():
             return direct_path
 
         # Try benchmark subdirectory
-        subdir_path = self.wsi_root / benchmark_name / image_path
+        subdir_path = self.wsi_root / benchmark_name / image_rel
         if subdir_path.exists():
             return subdir_path
 
@@ -262,6 +284,8 @@ class BenchmarkRunner:
             Canonicalized integer truth label.
         """
         answer = answer.strip()
+        if not answer:
+            raise ValueError("Empty truth label")
 
         # Try integer conversion first
         try:
@@ -271,25 +295,18 @@ class BenchmarkRunner:
 
         # GTEx: string label to index
         if options:
-            try:
-                idx = options.index(answer)
-                return idx + 1  # 1-based
-            except ValueError:
-                pass
+            for i, opt in enumerate(options, start=1):
+                if opt == answer:
+                    return i
 
-            # Case-insensitive match
             answer_lower = answer.lower()
             for i, opt in enumerate(options, start=1):
                 if opt.lower() == answer_lower:
                     return i
 
-        # Fallback: return 0 (will be incorrect)
-        logger.warning(
-            "Could not parse truth label '%s' for benchmark %s",
-            answer,
-            benchmark_name,
+        raise ValueError(
+            f"Could not parse truth label {answer!r} for benchmark {benchmark_name!r}"
         )
-        return 0
 
     async def run_benchmark(
         self,
@@ -311,6 +328,7 @@ class BenchmarkRunner:
         if run_id is None:
             timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
             run_id = f"{benchmark_name}_{timestamp}"
+        self._validate_run_id(run_id)
 
         # Load items
         items = self.load_benchmark_items(csv_path, benchmark_name)
@@ -333,14 +351,13 @@ class BenchmarkRunner:
             len(checkpoint.completed_ids),
         )
 
-        # Run agent on pending items with concurrency control
-        semaphore = asyncio.Semaphore(self.config.max_concurrent)
-        tasks = [
-            self._run_item_with_semaphore(item, semaphore, checkpoint)
-            for item in pending_items
-        ]
-
-        await asyncio.gather(*tasks)
+        # Run agent on pending items with bounded concurrency.
+        # NOTE: Avoid creating one Task per item; use a fixed worker pool.
+        try:
+            await self._run_pending_items(pending_items, checkpoint)
+        finally:
+            # Always persist the latest state (even on cancellation) so we can resume.
+            self._checkpoint_manager.save(checkpoint)
 
         # Compute metrics
         metrics = self._compute_metrics(checkpoint.results, benchmark_name)
@@ -366,23 +383,80 @@ class BenchmarkRunner:
 
         return results
 
-    async def _run_item_with_semaphore(
+    @staticmethod
+    def _validate_run_id(run_id: str) -> None:
+        run_id_path = Path(run_id)
+        if (
+            run_id_path.is_absolute()
+            or ".." in run_id_path.parts
+            or run_id_path.name != run_id
+        ):
+            raise ValueError(
+                f"Invalid run_id {run_id!r}: must be a simple filename "
+                "(no path traversal)."
+            )
+
+    @staticmethod
+    def _safe_filename_component(value: str) -> str:
+        """Return a filesystem-safe component for filenames."""
+        safe = _SAFE_FILENAME_COMPONENT_RE.sub("_", value).strip("._-")
+        return safe or "item"
+
+    async def _run_pending_items(
         self,
-        item: BenchmarkItem,
-        semaphore: asyncio.Semaphore,
+        pending_items: list[BenchmarkItem],
         checkpoint: CheckpointState,
     ) -> None:
-        """Run a single item with semaphore for concurrency control."""
-        async with semaphore:
-            result = await self._run_single_item(item)
+        """Run all pending items using a fixed-size worker pool."""
+        if not pending_items:
+            return
 
-            # Update checkpoint
-            checkpoint.results.append(result)
-            checkpoint.completed_ids.add(item.benchmark_id)
+        work_queue: asyncio.Queue[BenchmarkItem | None] = asyncio.Queue()
+        for item in pending_items:
+            work_queue.put_nowait(item)
 
-            # Save checkpoint periodically
-            if len(checkpoint.completed_ids) % self.config.checkpoint_interval == 0:
-                self._checkpoint_manager.save(checkpoint)
+        n_workers = min(self.config.max_concurrent, len(pending_items))
+        for _ in range(n_workers):
+            work_queue.put_nowait(None)
+
+        checkpoint_lock = asyncio.Lock()
+        async with asyncio.TaskGroup() as tg:
+            for _ in range(n_workers):
+                tg.create_task(
+                    self._run_worker(
+                        work_queue=work_queue,
+                        checkpoint=checkpoint,
+                        checkpoint_lock=checkpoint_lock,
+                    )
+                )
+
+    async def _run_worker(
+        self,
+        *,
+        work_queue: asyncio.Queue[BenchmarkItem | None],
+        checkpoint: CheckpointState,
+        checkpoint_lock: asyncio.Lock,
+    ) -> None:
+        """Worker that processes items and updates checkpoints."""
+        while True:
+            item = await work_queue.get()
+            try:
+                if item is None:
+                    return
+
+                result = await self._run_single_item(item)
+
+                async with checkpoint_lock:
+                    checkpoint.results.append(result)
+                    checkpoint.completed_ids.add(item.benchmark_id)
+
+                    if (
+                        len(checkpoint.completed_ids) % self.config.checkpoint_interval
+                        == 0
+                    ):
+                        self._checkpoint_manager.save(checkpoint)
+            finally:
+                work_queue.task_done()
 
     async def _run_single_item(self, item: BenchmarkItem) -> BenchmarkResult:
         """Run the GIANT agent on a single benchmark item.
@@ -401,6 +475,7 @@ class BenchmarkRunner:
 
             # Run agent (with majority voting if runs_per_item > 1)
             predictions = []
+            labels: list[int | None] = []
             total_cost = 0.0
             total_tokens = 0
             last_trajectory_path = ""
@@ -414,9 +489,17 @@ class BenchmarkRunner:
                 )
 
                 run_result = await agent.run()
-                predictions.append(run_result.answer)
+                prediction_text = run_result.answer
+                predictions.append(prediction_text)
                 total_cost += run_result.total_cost
                 total_tokens += run_result.total_tokens
+
+                extracted = extract_label(
+                    prediction_text,
+                    benchmark_name=item.benchmark_name,
+                    options=item.options,
+                )
+                labels.append(extracted.label)
 
                 # Save trajectory
                 if self.config.save_trajectories:
@@ -427,25 +510,18 @@ class BenchmarkRunner:
                     )
 
             # Apply majority voting if multiple runs
-            if len(predictions) > 1:
-                final_prediction = self._majority_vote(predictions)
-            else:
-                final_prediction = predictions[0]
-
-            # Extract label from prediction
-            extracted = extract_label(
-                final_prediction,
-                benchmark_name=item.benchmark_name,
-                options=item.options,
+            final_prediction, final_label = self._select_majority_prediction(
+                predictions=predictions,
+                labels=labels,
             )
 
             # Determine correctness
-            correct = extracted.label == item.truth_label
+            correct = final_label == item.truth_label
 
             return BenchmarkResult(
                 item_id=item.benchmark_id,
                 prediction=final_prediction,
-                predicted_label=extracted.label,
+                predicted_label=final_label,
                 truth_label=item.truth_label,
                 correct=correct,
                 cost_usd=total_cost,
@@ -477,6 +553,45 @@ class BenchmarkRunner:
         counts = Counter(predictions)
         return counts.most_common(1)[0][0]
 
+    def _select_majority_prediction(
+        self,
+        *,
+        predictions: list[str],
+        labels: list[int | None],
+    ) -> tuple[str, int | None]:
+        """Select final prediction for runs_per_item > 1.
+
+        Voting policy:
+        - If at least one run produced an extracted label, vote on labels.
+          The returned prediction text is taken from the first run that matches
+          the winning label (stable and deterministic).
+        - If no run produced a label (all None), vote on raw prediction strings.
+        """
+        if len(predictions) != len(labels):
+            raise ValueError("predictions and labels must have the same length")
+        if not predictions:
+            raise ValueError("predictions must not be empty")
+
+        if len(predictions) == 1:
+            return predictions[0], labels[0]
+
+        if any(label is not None for label in labels):
+            counts: Counter[int | None] = Counter(labels)
+            max_count = max(counts.values())
+            winners = {label for label, count in counts.items() if count == max_count}
+
+            # Deterministic tie-break: first seen in input order.
+            winning_label = next(label for label in labels if label in winners)
+
+            winning_prediction = next(
+                pred
+                for pred, label in zip(predictions, labels, strict=True)
+                if label == winning_label
+            )
+            return winning_prediction, winning_label
+
+        return self._majority_vote(predictions), None
+
     def _compute_metrics(
         self,
         results: list[BenchmarkResult],
@@ -491,19 +606,18 @@ class BenchmarkRunner:
         Returns:
             Dictionary with metrics and bootstrap results.
         """
-        # Filter out errors
-        valid_results = [
-            r for r in results if r.error is None and r.predicted_label is not None
-        ]
+        if not results:
+            return {"error": "No results to compute metrics"}
 
-        if not valid_results:
-            return {"error": "No valid results to compute metrics"}
-
-        # We filtered out None values above, so we can safely cast
+        # Paper-faithful scoring: failures to answer/extract count as incorrect.
+        # Use a sentinel label that will never match any truth label.
         predictions: list[int] = [
-            r.predicted_label for r in valid_results if r.predicted_label is not None
+            r.predicted_label
+            if r.predicted_label is not None and r.error is None
+            else _MISSING_LABEL_SENTINEL
+            for r in results
         ]
-        truths = [r.truth_label for r in valid_results]
+        truths = [r.truth_label for r in results]
 
         # Determine metric type
         task_info = BENCHMARK_TASKS.get(benchmark_name, {})
@@ -527,8 +641,11 @@ class BenchmarkRunner:
             "bootstrap_ci_lower": bootstrap.ci_lower,
             "bootstrap_ci_upper": bootstrap.ci_upper,
             "n_replicates": bootstrap.n_replicates,
-            "n_valid": len(valid_results),
-            "n_errors": len(results) - len(valid_results),
+            "n_total": len(results),
+            "n_errors": sum(r.error is not None for r in results),
+            "n_extraction_failures": sum(
+                r.error is None and r.predicted_label is None for r in results
+            ),
             "format_string": f"{bootstrap.mean:.1%} ± {bootstrap.std:.1%}",
         }
 
@@ -551,7 +668,8 @@ class BenchmarkRunner:
         trajectories_dir = self.output_dir / "trajectories"
         trajectories_dir.mkdir(exist_ok=True)
 
-        filename = f"{item_id}_run{run_idx}.json"
+        safe_item_id = self._safe_filename_component(item_id)
+        filename = f"{safe_item_id}_run{run_idx}.json"
         path = trajectories_dir / filename
 
         trajectory_data = run_result.trajectory.model_dump()

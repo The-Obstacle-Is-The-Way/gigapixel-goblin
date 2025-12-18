@@ -137,6 +137,40 @@ class TestCheckpointManager:
         )
         assert loaded.completed_ids == {"item-1"}
 
+    def test_load_or_create_existing_benchmark_mismatch_raises(
+        self, checkpoint_manager: CheckpointManager
+    ) -> None:
+        state = CheckpointState(
+            run_id="mismatch-benchmark",
+            benchmark_name="tcga",
+            config={"max_steps": 20},
+        )
+        checkpoint_manager.save(state)
+
+        with pytest.raises(ValueError, match="is for benchmark"):
+            checkpoint_manager.load_or_create(
+                "mismatch-benchmark",
+                "gtex",
+                config={"max_steps": 20},
+            )
+
+    def test_load_or_create_existing_config_mismatch_raises(
+        self, checkpoint_manager: CheckpointManager
+    ) -> None:
+        state = CheckpointState(
+            run_id="mismatch-config",
+            benchmark_name="tcga",
+            config={"max_steps": 20},
+        )
+        checkpoint_manager.save(state)
+
+        with pytest.raises(ValueError, match="config mismatch"):
+            checkpoint_manager.load_or_create(
+                "mismatch-config",
+                "tcga",
+                config={"max_steps": 10},
+            )
+
     def test_delete_existing(self, checkpoint_manager: CheckpointManager) -> None:
         """Test deleting an existing checkpoint."""
         state = CheckpointState(run_id="to-delete", benchmark_name="tcga")

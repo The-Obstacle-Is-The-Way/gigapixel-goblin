@@ -66,6 +66,15 @@ class CheckpointManager:
 
     def _checkpoint_path(self, run_id: str) -> Path:
         """Get the checkpoint file path for a run."""
+        run_id_path = Path(run_id)
+        if (
+            run_id_path.is_absolute()
+            or ".." in run_id_path.parts
+            or run_id_path.name != run_id
+        ):
+            raise ValueError(
+                f"Invalid run_id {run_id!r}: must be a simple filename (no traversal)."
+            )
         return self.checkpoint_dir / f"{run_id}.checkpoint.json"
 
     def exists(self, run_id: str) -> bool:
@@ -112,6 +121,18 @@ class CheckpointManager:
         """
         existing = self.load(run_id)
         if existing is not None:
+            if existing.benchmark_name != benchmark_name:
+                raise ValueError(
+                    f"Checkpoint {run_id!r} is for benchmark "
+                    f"{existing.benchmark_name!r}, not {benchmark_name!r}. "
+                    "Use a new run_id or delete the checkpoint."
+                )
+            if config is not None and existing.config and existing.config != config:
+                raise ValueError(
+                    f"Checkpoint {run_id!r} config mismatch. "
+                    "Refusing to resume with different settings. "
+                    "Use a new run_id or delete the checkpoint."
+                )
             logger.info(
                 "Resuming from checkpoint: %d/%d items completed",
                 len(existing.completed_ids),
