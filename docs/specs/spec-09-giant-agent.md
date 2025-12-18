@@ -10,13 +10,13 @@ This specification implements the main `GIANTAgent` class. This is the high-leve
 - [Spec-08: Conversation Context Manager](./spec-08-context-manager.md)
 
 ## Acceptance Criteria
-- [ ] `GIANTAgent` class is implemented.
-- [ ] `run()` method executes the navigation loop up to `max_steps`.
-- [ ] Correctly handles the initial "Thumbnail" step.
-- [ ] Correctly executes "Crop" actions using the `CropEngine`.
-- [ ] Correctly handles "Answer" actions (early stopping).
-- [ ] Returns a `RunResult` object containing the final answer and the full `Trajectory`.
-- [ ] Error handling: If LLM produces invalid coordinates or fails repeatedly, the agent should degrade gracefully (e.g., stop and return partial info).
+- [x] `GIANTAgent` class is implemented.
+- [x] `run()` method executes the navigation loop up to `max_steps`.
+- [x] Correctly handles the initial "Thumbnail" step.
+- [x] Correctly executes "Crop" actions using the `CropEngine`.
+- [x] Correctly handles "Answer" actions (early stopping).
+- [x] Returns a `RunResult` object containing the final answer and the full `Trajectory`.
+- [x] Error handling: If LLM produces invalid coordinates or fails repeatedly, the agent should degrade gracefully (e.g., stop and return partial info).
 
 ## Technical Design
 

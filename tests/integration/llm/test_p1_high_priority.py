@@ -279,10 +279,10 @@ class TestP1_2_TokenLimitApproach:
             ctx.add_turn(image_base64=f"img{i}==", response=response)
 
         messages = ctx.get_messages(thumbnail_base64="thumb==")
-        # Should have system + initial user + 20 turns (assistant+user pairs)
-        # Actually: system + user0 + (assistant0 + user1) * 19 + assistant19
-        # = 1 + 1 + 19*2 + 1 = 41 messages
-        assert len(messages) == 41
+        # Ready for the next LLM call after the 20th crop:
+        # system + user0 + (assistant0 + user1) * 20
+        # = 1 + 1 + 20*2 = 42 messages
+        assert len(messages) == 42
 
 
 # =============================================================================
