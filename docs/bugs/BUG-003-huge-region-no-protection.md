@@ -2,7 +2,7 @@
 
 ## Severity: P1 (High Priority)
 
-## Status: Fixed (pending merge)
+## Status: **Fixed**
 
 ## Description
 

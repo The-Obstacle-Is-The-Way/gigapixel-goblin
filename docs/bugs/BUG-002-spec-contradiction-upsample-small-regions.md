@@ -2,7 +2,7 @@
 
 ## Severity: P2 (Medium Priority) - Spec-05.5 Doc Mismatch
 
-## Status: Fixed (pending merge)
+## Status: **Fixed**
 
 ## Description
 
