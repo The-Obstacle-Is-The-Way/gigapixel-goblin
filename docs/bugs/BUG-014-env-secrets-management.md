@@ -155,16 +155,40 @@ will run automatically. Use `-m mock` to avoid this.
 
 ---
 
+## Spec Analysis - Gemini Intent
+
+### What the Specs Say
+
+| Document | Gemini Status |
+|----------|---------------|
+| `spec-06-llm-provider.md` | Gemini in pricing example, NOT in acceptance criteria |
+| `spec-08.5-llm-integration-checkpoint.md` | **P4-1: "Gemini provider - Not in current spec - Document as future work"** |
+| `docs/models/MODEL_REGISTRY.md` | Gemini listed as approved model with pricing |
+| `src/giant/llm/model_registry.py` | `GOOGLE_MODELS` defined with `gemini-3-pro-preview` |
+| `src/giant/llm/pricing.py` | Gemini pricing defined |
+| `src/giant/config.py` | **NO GOOGLE_API_KEY** |
+| `src/giant/llm/` | **NO google_client.py** |
+
+### Conclusion
+
+Gemini was **intentionally planned** for the future (P4 priority) but the scaffolding is incomplete:
+- Model registry and pricing are ready
+- Config and provider implementation are missing
+
+---
+
 ## Decision Points
 
 ### Q1: What to do about Google/Gemini?
 
 **Options:**
 1. **Remove from model_registry** - Clean up scaffolding until we implement it
-2. **Keep but document** - Mark as "future" in docs and .env.example
-3. **Implement now** - Add `google_client.py` (scope creep)
+2. **Keep scaffolding, complete config** - Add `GOOGLE_API_KEY` to config, keep provider as future
+3. **Implement now** - Add `google_client.py` (scope creep for current checkpoint)
 
-**Recommendation:** Option 2 - Keep scaffolding but document clearly
+**Recommendation:** Option 2 - Complete the config scaffolding, document provider as P4 future work
+
+**Why:** The model_registry and pricing are already there. Adding `GOOGLE_API_KEY` to config.py makes it consistent and ready for when we implement the provider. This is low-risk, high-clarity.
 
 ### Q2: Should tests ONLY read from `.env`, not shell?
 
@@ -179,11 +203,12 @@ will run automatically. Use `-m mock` to avoid this.
 
 ## Implementation Checklist
 
-- [ ] Update `.env.example` with comprehensive comments
+- [x] Update `.env.example` with comprehensive comments
 - [ ] Update `docs/specs/spec-08.5-llm-integration-checkpoint.md` with test warnings
-- [ ] Decide on Google/Gemini status and document
-- [ ] Add comment in `config.py` about Google being future work
-- [ ] Consider: Should model_registry reject Google until implemented?
+- [x] Decide on Google/Gemini status and document → **Decision: Keep scaffolding, complete config**
+- [x] Add `GOOGLE_API_KEY` to `config.py` with `require_google_key()` method
+- [x] Update `spec-06-llm-provider.md` to note Gemini as P4 future work
+- [ ] Consider: Should model_registry reject Google until implemented? → **No, scaffolding is fine**
 
 ---
 
