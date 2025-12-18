@@ -80,7 +80,7 @@ def create_provider(
     Args:
         provider: Provider name ("openai" or "anthropic").
         model: Optional model override. If not specified, uses provider defaults:
-            - OpenAI: "gpt-5.2-pro-2025-12-11"
+            - OpenAI: "gpt-5.2-2025-12-11"
             - Anthropic: "claude-opus-4-5-20251101"
 
     Returns:
@@ -90,13 +90,13 @@ def create_provider(
         ValueError: If provider is unknown.
 
     Example:
-        provider = create_provider("openai", model="gpt-5.2-pro-2025-12-11")
+        provider = create_provider("openai", model="gpt-5.2-2025-12-11")
         response = await provider.generate_response(messages)
 
     See docs/models/MODEL_REGISTRY.md for approved models and pricing.
     """
     if provider == "openai":
-        return OpenAIProvider(model=model or "gpt-5.2-pro-2025-12-11")
+        return OpenAIProvider(model=model or "gpt-5.2-2025-12-11")
     elif provider == "anthropic":
         return AnthropicProvider(model=model or "claude-opus-4-5-20251101")
     else:

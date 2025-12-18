@@ -9,7 +9,7 @@ This specification defines the abstraction layer for Large Multimodal Models (LM
 
 ## Acceptance Criteria
 - [x] `LLMProvider` Protocol defined.
-- [x] `OpenAIProvider` implemented (default: `gpt-5.2-pro-2025-12-11`).
+- [x] `OpenAIProvider` implemented (default: `gpt-5.2-2025-12-11`).
 - [x] `AnthropicProvider` implemented (default: `claude-opus-4-5-20251101`).
 - [x] Support for multimodal inputs (text + base64 images).
 - [x] Robust parsing of `StepResponse` (reasoning text + action).
@@ -90,9 +90,7 @@ PRICING_USD_PER_1K = {
     "claude-opus-4-5-20251101": {"input": 0.005, "output": 0.025, "image_per_1k_px": 0.00048},
     # Gemini 3.0 Pro - 1M context, advanced reasoning
     "gemini-3-pro-preview": {"input": 0.002, "output": 0.012},
-    # GPT-5.2 Pro - Flagship for agentic tasks
-    "gpt-5.2-pro-2025-12-11": {"input": 0.021, "output": 0.168, "image_base": 0.00255},
-    # GPT-5.2 Standard - Cost-effective alternative
+    # GPT-5.2 - 400K context, cost-effective frontier model
     "gpt-5.2-2025-12-11": {"input": 0.00175, "output": 0.014, "image_base": 0.00255},
 }
 

@@ -77,7 +77,7 @@ class OpenAIProvider:
         response = await provider.generate_response(messages)
     """
 
-    model: str = "gpt-5.2-pro-2025-12-11"
+    model: str = "gpt-5.2-2025-12-11"
     settings: Settings = field(default_factory=lambda: settings)
 
     # Internal state (initialized in __post_init__)

@@ -29,9 +29,6 @@ class ModelPricing(TypedDict, total=False):
 # Sources: OpenAI, Anthropic, Google pricing pages (as of Dec 2025)
 # See docs/models/MODEL_REGISTRY.md for SSOT
 PRICING_USD_PER_1K: dict[str, ModelPricing] = {
-    # ==========================================================================
-    # FRONTIER MODELS (Dec 2025) - Primary targets for GIANT
-    # ==========================================================================
     # Claude Opus 4.5 - Best for coding & agents (80.9% SWE-bench)
     "claude-opus-4-5-20251101": {
         "input": 0.005,  # $5/1M tokens
@@ -44,56 +41,11 @@ PRICING_USD_PER_1K: dict[str, ModelPricing] = {
         "output": 0.012,  # $12/1M tokens
         # Gemini includes images in token count, no separate image cost
     },
-    # GPT-5.2 Pro - 400K context, flagship for agentic tasks
-    "gpt-5.2-pro-2025-12-11": {
-        "input": 0.021,  # $21/1M tokens
-        "output": 0.168,  # $168/1M tokens
-        "image_base": 0.00255,
-    },
-    # GPT-5.2 Standard - Cost-effective alternative
+    # GPT-5.2 - 400K context, cost-effective frontier model
     "gpt-5.2-2025-12-11": {
         "input": 0.00175,  # $1.75/1M tokens
         "output": 0.014,  # $14/1M tokens
         "image_base": 0.00255,
-    },
-    # ==========================================================================
-    # LEGACY MODELS (for backwards compatibility)
-    # ==========================================================================
-    "gpt-5": {
-        "input": 0.01,
-        "output": 0.03,
-        "image_base": 0.00255,
-    },
-    "gpt-4o": {
-        "input": 0.005,
-        "output": 0.015,
-        "image_base": 0.00255,
-    },
-    "gpt-4o-mini": {
-        "input": 0.00015,
-        "output": 0.0006,
-        "image_base": 0.00255,
-    },
-    # Anthropic legacy models
-    "claude-4-5-sonnet": {
-        "input": 0.003,
-        "output": 0.015,
-        "image_per_1k_px": 0.00048,
-    },
-    "claude-sonnet-4-20250514": {
-        "input": 0.003,
-        "output": 0.015,
-        "image_per_1k_px": 0.00048,
-    },
-    "claude-3-5-sonnet-20241022": {
-        "input": 0.003,
-        "output": 0.015,
-        "image_per_1k_px": 0.00048,
-    },
-    "claude-3-opus-20240229": {
-        "input": 0.015,
-        "output": 0.075,
-        "image_per_1k_px": 0.00048,
     },
 }
 
@@ -108,7 +60,7 @@ def get_model_pricing(model: str) -> ModelPricing:
     """Get pricing for a model.
 
     Args:
-        model: Model identifier (e.g., "gpt-4o", "claude-4-5-sonnet").
+        model: Model identifier (e.g., "gpt-5.2-2025-12-11").
 
     Returns:
         ModelPricing dictionary with input/output costs.

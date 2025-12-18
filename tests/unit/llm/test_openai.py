@@ -79,8 +79,8 @@ class TestOpenAIProviderInit:
     def test_init_with_default_model(self, test_settings: Settings) -> None:
         """Test initialization with default model."""
         provider = OpenAIProvider(settings=test_settings)
-        assert provider.model == "gpt-5.2-pro-2025-12-11"
-        assert provider.get_model_name() == "gpt-5.2-pro-2025-12-11"
+        assert provider.model == "gpt-5.2-2025-12-11"
+        assert provider.get_model_name() == "gpt-5.2-2025-12-11"
 
     def test_init_with_custom_model(self, test_settings: Settings) -> None:
         """Test initialization with custom model."""
@@ -123,7 +123,7 @@ class TestOpenAIProviderGenerate:
             assert result.step_response.action.action_type == "crop"
             assert result.usage.prompt_tokens == 100
             assert result.usage.completion_tokens == 50
-            assert result.model == "gpt-5.2-pro-2025-12-11"
+            assert result.model == "gpt-5.2-2025-12-11"
             assert result.latency_ms > 0
 
     @pytest.mark.asyncio

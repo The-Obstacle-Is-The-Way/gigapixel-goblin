@@ -35,7 +35,7 @@ class TestCreateProvider:
         """Test creating OpenAI provider."""
         provider = create_provider("openai")
         assert isinstance(provider, OpenAIProvider)
-        assert provider.get_model_name() == "gpt-5.2-pro-2025-12-11"
+        assert provider.get_model_name() == "gpt-5.2-2025-12-11"
 
     def test_create_openai_with_custom_model(self, mock_providers: None) -> None:
         """Test creating OpenAI provider with custom model."""
