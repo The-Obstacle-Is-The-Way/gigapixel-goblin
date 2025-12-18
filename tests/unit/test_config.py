@@ -2,7 +2,7 @@
 
 import pytest
 
-from giant.config import Settings
+from giant.config import ConfigError, Settings
 
 
 class TestSettings:
@@ -99,3 +99,127 @@ class TestSettings:
         """Test that settings can be created with custom values."""
         assert test_settings.OPENAI_API_KEY == "test-openai-key"
         assert test_settings.LOG_LEVEL == "DEBUG"
+
+
+class TestConfigError:
+    """Tests for the ConfigError exception."""
+
+    def test_config_error_message_format(self) -> None:
+        """Test ConfigError message includes key name and env var."""
+        error = ConfigError("OpenAI API key", "OPENAI_API_KEY")
+        assert "OpenAI API key" in str(error)
+        assert "OPENAI_API_KEY" in str(error)
+        assert ".env" in str(error)
+
+    def test_config_error_attributes(self) -> None:
+        """Test ConfigError stores key name and env var as attributes."""
+        error = ConfigError("Test key", "TEST_VAR")
+        assert error.key_name == "Test key"
+        assert error.env_var == "TEST_VAR"
+
+
+class TestRequireMethods:
+    """Tests for require_*_key() methods."""
+
+    def test_require_openai_key_when_set(self) -> None:
+        """Test require_openai_key returns key when set."""
+        settings = Settings(
+            OPENAI_API_KEY="sk-test-key",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        result = settings.require_openai_key()
+        assert result == "sk-test-key"
+
+    def test_require_openai_key_when_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test require_openai_key raises ConfigError when not set."""
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        settings = Settings(
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        with pytest.raises(ConfigError) as exc_info:
+            settings.require_openai_key()
+        assert "OPENAI_API_KEY" in str(exc_info.value)
+
+    def test_require_anthropic_key_when_set(self) -> None:
+        """Test require_anthropic_key returns key when set."""
+        settings = Settings(
+            ANTHROPIC_API_KEY="sk-ant-test-key",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        result = settings.require_anthropic_key()
+        assert result == "sk-ant-test-key"
+
+    def test_require_anthropic_key_when_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test require_anthropic_key raises ConfigError when not set."""
+        monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+        settings = Settings(
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        with pytest.raises(ConfigError) as exc_info:
+            settings.require_anthropic_key()
+        assert "ANTHROPIC_API_KEY" in str(exc_info.value)
+
+    def test_require_huggingface_token_when_set(self) -> None:
+        """Test require_huggingface_token returns token when set."""
+        settings = Settings(
+            HUGGINGFACE_TOKEN="hf_test_token",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        result = settings.require_huggingface_token()
+        assert result == "hf_test_token"
+
+    def test_require_huggingface_token_when_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test require_huggingface_token raises ConfigError when not set."""
+        monkeypatch.delenv("HUGGINGFACE_TOKEN", raising=False)
+        settings = Settings(
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        with pytest.raises(ConfigError) as exc_info:
+            settings.require_huggingface_token()
+        assert "HUGGINGFACE_TOKEN" in str(exc_info.value)
+
+    @pytest.mark.parametrize(
+        ("settings_kwargs", "method_name", "expected_env_var"),
+        [
+            ({"OPENAI_API_KEY": ""}, "require_openai_key", "OPENAI_API_KEY"),
+            ({"OPENAI_API_KEY": "   "}, "require_openai_key", "OPENAI_API_KEY"),
+            ({"ANTHROPIC_API_KEY": ""}, "require_anthropic_key", "ANTHROPIC_API_KEY"),
+            (
+                {"ANTHROPIC_API_KEY": "   "},
+                "require_anthropic_key",
+                "ANTHROPIC_API_KEY",
+            ),
+            (
+                {"HUGGINGFACE_TOKEN": ""},
+                "require_huggingface_token",
+                "HUGGINGFACE_TOKEN",
+            ),
+            (
+                {"HUGGINGFACE_TOKEN": "   "},
+                "require_huggingface_token",
+                "HUGGINGFACE_TOKEN",
+            ),
+        ],
+    )
+    def test_require_methods_reject_blank_values(
+        self,
+        settings_kwargs: dict[str, str],
+        method_name: str,
+        expected_env_var: str,
+    ) -> None:
+        """require_* methods reject empty/whitespace-only values."""
+        settings = Settings(
+            **settings_kwargs,
+            _env_file=None,  # type: ignore[call-arg]
+        )
+
+        method = getattr(settings, method_name)
+        with pytest.raises(ConfigError) as exc_info:
+            method()
+        assert expected_env_var in str(exc_info.value)

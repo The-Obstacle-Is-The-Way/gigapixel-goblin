@@ -389,6 +389,29 @@ class TestWSIReaderContextManager:
 
             mock.close.assert_called_once()
 
+    def test_read_region_after_close_raises_wsi_read_error(
+        self, tmp_path: Path
+    ) -> None:
+        """Test that calling read_region after close raises WSIReadError."""
+        mock = MagicMock(spec=openslide.OpenSlide)
+        mock.dimensions = (1000, 1000)
+        mock.level_count = 1
+        mock.level_dimensions = ((1000, 1000),)
+        mock.level_downsamples = (1.0,)
+        mock.properties = {}
+
+        fake_file = tmp_path / "slide.svs"
+        fake_file.write_bytes(b"data")
+
+        with patch("giant.wsi.reader.openslide.OpenSlide", return_value=mock):
+            reader = WSIReader(fake_file)
+            reader.close()
+
+            with pytest.raises(WSIReadError, match="WSI is closed"):
+                reader.read_region((0, 0), level=0, size=(10, 10))
+
+            mock.read_region.assert_not_called()
+
 
 class TestWSIReaderBestLevel:
     """Tests for WSIReader.get_best_level_for_downsample()."""

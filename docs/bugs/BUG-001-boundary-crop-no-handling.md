@@ -2,7 +2,7 @@
 
 ## Severity: P3 (Low Priority) - Policy/Documentation
 
-## Status: Open (Policy decision)
+## Status: Fixed - Documented and Tested
 
 ## Description
 
@@ -76,3 +76,19 @@ def crop(
 ### Testing Required
 
 - Integration test (real file): Crop region extending past right/bottom edge and assert output size is preserved and padded area is black.
+
+## Resolution
+
+**Decision**: Option A (keep current behavior with documentation)
+
+The boundary behavior has been documented and tested:
+
+1. **Documentation**: `src/giant/core/crop_engine.py` module docstring now explicitly documents the boundary behavior policy: out-of-bounds pixels are filled with black (from OpenSlide's transparent padding after RGB conversion).
+
+2. **Integration Tests**: Added `TestBoundaryCropBehavior` class in `tests/integration/wsi/test_crop_pipeline.py` with:
+   - `test_boundary_crop_right_edge` (P1-1)
+   - `test_boundary_crop_bottom_edge` (P1-2)
+   - `test_boundary_crop_corner` (both edges)
+   - `test_boundary_crop_preserves_size` (size/aspect ratio validation)
+
+3. **Future Work**: Bounds validation/clamping can be added at the agent layer (Spec-09) if needed, using the existing `GeometryValidator.clamp_region()` utility.

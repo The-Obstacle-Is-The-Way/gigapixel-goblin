@@ -2,7 +2,7 @@
 
 ## Severity: P0 (Critical)
 
-## Status: Fixed (pending merge)
+## Status: Fixed and validated
 
 ## Description
 
@@ -68,7 +68,7 @@ Mark integration tests with `@pytest.mark.integration` and skip in CI unless tes
 
 ### Proposed Fix
 
-Implemented on `fix/spec-05.5-p0-p1-bugs` (pending merge):
+Implemented and validated:
 
 1. Added tests under `tests/integration/wsi/`
 2. Added `conftest.py` fixtures that:
@@ -91,3 +91,11 @@ Implemented on `fix/spec-05.5-p0-p1-bugs` (pending merge):
 > - All P0 tests pass
 > - At least ONE real `.svs` file tested end-to-end
 > - Integration test file committed to `tests/integration/wsi/`
+
+## Validation
+
+Integration tests were run against a real Aperio SVS file from OpenSlide test data:
+
+- Slide: `tests/integration/wsi/data/CMU-1-Small-Region.svs` (gitignored)
+- Command: `WSI_TEST_FILE=tests/integration/wsi/data/CMU-1-Small-Region.svs uv run pytest tests/integration/wsi -v`
+- Result: `17 passed` (0 skipped)

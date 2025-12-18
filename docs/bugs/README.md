@@ -12,28 +12,28 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed (pending merge)** |
+| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed (validated)** |
 
 ### P1 - High Priority (Could Crash / OOM)
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | **Fixed (pending merge)** |
+| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | **Fixed** |
 
 ### P2 - Medium Priority (Correctness / Spec-05.5 Doc Gaps)
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-005](./BUG-005-single-level-slide-untested.md) | Single-Level Slide Behavior Untested | Open |
-| [BUG-002](./BUG-002-spec-contradiction-upsample-small-regions.md) | Spec-05.5 Contradicts Spec-05 on Upsampling | **Fixed (pending merge)** |
+| [BUG-005](./BUG-005-single-level-slide-untested.md) | Single-Level Slide Behavior Untested | **Fixed** |
+| [BUG-002](./BUG-002-spec-contradiction-upsample-small-regions.md) | Spec-05.5 Contradicts Spec-05 on Upsampling | **Fixed** |
 
 ### P3 - Low Priority (DevEx / Future-Proofing)
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-001](./BUG-001-boundary-crop-no-handling.md) | Boundary Behavior Not Explicitly Specified (Pad vs Clamp) | Open (Policy) |
-| [BUG-007](./BUG-007-entire-test-suite-mocked.md) | Prior “bogus tests” claim was inaccurate (see doc) | Closed (Doc corrected) |
-| [BUG-008](./BUG-008-api-keys-silent-none.md) | Missing “required key” guardrails at use sites | Open (Spec-06/CLI) |
+| [BUG-001](./BUG-001-boundary-crop-no-handling.md) | Boundary Behavior Not Explicitly Specified (Pad vs Clamp) | **Fixed** (documented + tested) |
+| [BUG-007](./BUG-007-entire-test-suite-mocked.md) | Prior "bogus tests" claim was inaccurate (see doc) | Closed (Doc corrected) |
+| [BUG-008](./BUG-008-api-keys-silent-none.md) | Missing "required key" guardrails at use sites | **Fixed** |
 | [BUG-009](./BUG-009-font-loading-silent-fallback.md) | Font Loading Falls Back Silently | Open (DevEx) |
 | [BUG-010](./BUG-010-mpp-nullable-no-guards.md) | Optional MPP Needs Helper/Guards When Used | Open (Future) |
 | [BUG-011](./BUG-011-unused-geometry-validator.md) | GeometryValidator Is Staged for Spec-09 (Not Dead) | Open (Deferred) |
@@ -45,7 +45,8 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 - `tests/integration/wsi/` contains opt-in integration tests that exercise the real OpenSlide stack.
 - By default these tests are skipped unless `WSI_TEST_FILE` points to a real slide (or a small local test slide exists under `tests/integration/wsi/data/`).
-- Recommendation: run these tests at least once locally before starting Spec-06, and optionally wire them into CI using a small public test slide.
+- Validation: `WSI_TEST_FILE=tests/integration/wsi/data/CMU-1-Small-Region.svs uv run pytest tests/integration/wsi -v` → `17 passed` (0 skipped).
+- Test data safety: `tests/integration/wsi/data/` is gitignored to prevent committing binary slides.
 
 ### 2. Unit tests are valuable (not “100% mocked”)
 
@@ -77,7 +78,16 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 ### CAN DEFER
 
-- **BUG-001, BUG-005, BUG-008, BUG-009, BUG-010, BUG-011, BUG-012**: Non-blocking (policy/DevEx/future-proofing)
+- **BUG-009, BUG-010, BUG-011, BUG-012**: Non-blocking (DevEx/future-proofing)
+
+### FIXED
+
+- **BUG-001**: Boundary behavior documented and integration tests added
+- **BUG-002**: Spec-05.5 doc updated to match spec-05
+- **BUG-003**: Memory protection via max_read_dimension parameter
+- **BUG-004**: Integration tests with opt-in WSI file testing
+- **BUG-005**: Comprehensive single-level slide unit tests
+- **BUG-008**: ConfigError and require_*_key() methods added
 
 ## Audit Methodology
 
