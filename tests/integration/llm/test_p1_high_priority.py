@@ -227,6 +227,30 @@ class TestP1_1_RateLimitHandling:
         response = await provider.generate_response(messages)
         assert response.step_response is not None
 
+    def test_openai_retry_decorator_configuration(self) -> None:
+        """Test OpenAI retry decorator is configured for rate limits."""
+        from giant.llm.openai_client import OpenAIProvider
+
+        method = OpenAIProvider._call_with_retry
+        # Tenacity wraps methods with retry config in __wrapped__ attribute
+        assert hasattr(method, "__wrapped__"), "Missing retry decorator"
+        # Verify tenacity configuration is present
+        assert hasattr(method, "retry") or hasattr(method, "retry_state"), (
+            "Missing tenacity config"
+        )
+
+    def test_anthropic_retry_decorator_configuration(self) -> None:
+        """Test Anthropic retry decorator is configured for rate limits."""
+        from giant.llm.anthropic_client import AnthropicProvider
+
+        method = AnthropicProvider._call_with_retry
+        # Tenacity wraps methods with retry config in __wrapped__ attribute
+        assert hasattr(method, "__wrapped__"), "Missing retry decorator"
+        # Verify tenacity configuration is present
+        assert hasattr(method, "retry") or hasattr(method, "retry_state"), (
+            "Missing tenacity config"
+        )
+
 
 # =============================================================================
 # P1-2: Token limit approach

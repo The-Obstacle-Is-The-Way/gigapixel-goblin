@@ -426,24 +426,46 @@ class TestP2_5_ConcurrentAPICalls:
 class TestP2_6_APITimeout:
     """P2-6: Test API timeout handling.
 
-    Note: Testing actual timeouts requires real delays which makes tests slow.
-    These tests verify timeout configuration exists.
+    Tests that timeout exceptions are properly converted to LLMError.
     """
 
-    def test_openai_provider_uses_httpx_client(self) -> None:
-        """Test OpenAI provider uses httpx client (which supports timeouts)."""
-        from giant.llm.openai_client import OpenAIProvider
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_openai_handles_read_timeout(
+        self, mock_openai_settings: Settings
+    ) -> None:
+        """Test OpenAI raises LLMError on read timeout."""
+        respx.post("https://api.openai.com/v1/responses").mock(
+            side_effect=httpx.ReadTimeout("Request timed out")
+        )
 
-        # OpenAI SDK uses httpx internally for async operations
-        # Just verify the provider initializes correctly
-        assert hasattr(OpenAIProvider, "_call_with_retry")
+        provider = OpenAIProvider(settings=mock_openai_settings)
+        messages = [
+            Message(role="system", content=[MessageContent(type="text", text="Test")]),
+            Message(role="user", content=[MessageContent(type="text", text="Test")]),
+        ]
 
-    def test_anthropic_provider_uses_httpx_client(self) -> None:
-        """Test Anthropic provider uses httpx client (which supports timeouts)."""
-        from giant.llm.anthropic_client import AnthropicProvider
+        with pytest.raises(LLMError):
+            await provider.generate_response(messages)
 
-        # Anthropic SDK uses httpx internally
-        assert hasattr(AnthropicProvider, "_call_with_retry")
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_anthropic_handles_read_timeout(
+        self, mock_anthropic_settings: Settings
+    ) -> None:
+        """Test Anthropic raises LLMError on read timeout."""
+        respx.post("https://api.anthropic.com/v1/messages").mock(
+            side_effect=httpx.ReadTimeout("Request timed out")
+        )
+
+        provider = AnthropicProvider(settings=mock_anthropic_settings)
+        messages = [
+            Message(role="system", content=[MessageContent(type="text", text="Test")]),
+            Message(role="user", content=[MessageContent(type="text", text="Test")]),
+        ]
+
+        with pytest.raises(LLMError):
+            await provider.generate_response(messages)
 
 
 # =============================================================================
