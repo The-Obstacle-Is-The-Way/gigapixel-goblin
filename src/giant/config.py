@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # API Keys
     OPENAI_API_KEY: str | None = None
     ANTHROPIC_API_KEY: str | None = None
+    GOOGLE_API_KEY: str | None = None  # Future: Gemini provider (P4)
     HUGGINGFACE_TOKEN: str | None = None
 
     # Logging
@@ -119,6 +120,25 @@ class Settings(BaseSettings):
         if not self._is_configured_secret(self.ANTHROPIC_API_KEY):
             raise ConfigError("Anthropic API key", "ANTHROPIC_API_KEY")
         return self.ANTHROPIC_API_KEY
+
+    def require_google_key(self) -> str:
+        """Get Google API key, raising ConfigError if not set.
+
+        Use this method when making Google/Gemini API calls to get a clear
+        error message instead of cryptic authentication failures.
+
+        Note: GoogleProvider is P4 (future work). This method is scaffolded
+        for consistency with other providers.
+
+        Returns:
+            The Google API key string.
+
+        Raises:
+            ConfigError: If GOOGLE_API_KEY is not configured.
+        """
+        if not self._is_configured_secret(self.GOOGLE_API_KEY):
+            raise ConfigError("Google API key", "GOOGLE_API_KEY")
+        return self.GOOGLE_API_KEY
 
     def require_huggingface_token(self) -> str:
         """Get HuggingFace token, raising ConfigError if not set.

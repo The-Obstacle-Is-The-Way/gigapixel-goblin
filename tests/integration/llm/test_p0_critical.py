@@ -63,16 +63,38 @@ def mock_anthropic_settings() -> Settings:
     )
 
 
+def _has_openai_key() -> bool:
+    """Check if real OpenAI API key is available (shell env OR .env file)."""
+    # Check shell env first, then fall back to settings (which reads .env)
+    if os.getenv("OPENAI_API_KEY"):
+        return True
+    from giant.config import Settings
+
+    s = Settings()
+    return s.OPENAI_API_KEY is not None and s.OPENAI_API_KEY.strip() != ""
+
+
+def _has_anthropic_key() -> bool:
+    """Check if real Anthropic API key is available (shell env OR .env file)."""
+    # Check shell env first, then fall back to settings (which reads .env)
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return True
+    from giant.config import Settings
+
+    s = Settings()
+    return s.ANTHROPIC_API_KEY is not None and s.ANTHROPIC_API_KEY.strip() != ""
+
+
 @pytest.fixture
 def has_openai_key() -> bool:
     """Check if real OpenAI API key is available."""
-    return bool(os.getenv("OPENAI_API_KEY"))
+    return _has_openai_key()
 
 
 @pytest.fixture
 def has_anthropic_key() -> bool:
     """Check if real Anthropic API key is available."""
-    return bool(os.getenv("ANTHROPIC_API_KEY"))
+    return _has_anthropic_key()
 
 
 @pytest.fixture
@@ -474,7 +496,7 @@ def _mock_openai_crop_response() -> dict[str, Any]:
         "id": "resp_123",
         "object": "response",
         "created": 1234567890,
-        "model": "gpt-5.2-2025-12-11",
+        "model": "gpt-5.2",
         "output": [
             {
                 "type": "message",
@@ -524,7 +546,7 @@ def _mock_openai_answer_response() -> dict[str, Any]:
         "id": "resp_456",
         "object": "response",
         "created": 1234567890,
-        "model": "gpt-5.2-2025-12-11",
+        "model": "gpt-5.2",
         "output": [
             {
                 "type": "message",
@@ -635,10 +657,10 @@ class TestP0_1_OpenAIProviderInit:
     def test_openai_provider_init_success(self, mock_openai_settings: Settings) -> None:
         """Test that OpenAI provider initializes without error."""
         provider = OpenAIProvider(
-            model="gpt-5.2-2025-12-11",
+            model="gpt-5.2",
             settings=mock_openai_settings,
         )
-        assert provider.get_model_name() == "gpt-5.2-2025-12-11"
+        assert provider.get_model_name() == "gpt-5.2"
         assert provider.get_target_size() == 1000
 
     def test_openai_provider_via_factory_requires_real_env(self) -> None:
@@ -1071,8 +1093,8 @@ class TestP0_9_ParseAnswerAction:
 @pytest.mark.live
 @pytest.mark.cost
 @pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY not set",
+    not _has_openai_key(),
+    reason="OPENAI_API_KEY not set (shell env or .env file)",
 )
 class TestLiveOpenAI:
     """Live tests with real OpenAI API (requires OPENAI_API_KEY).
@@ -1115,8 +1137,8 @@ class TestLiveOpenAI:
 @pytest.mark.live
 @pytest.mark.cost
 @pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set",
+    not _has_anthropic_key(),
+    reason="ANTHROPIC_API_KEY not set (shell env or .env file)",
 )
 class TestLiveAnthropic:
     """Live tests with real Anthropic API (requires ANTHROPIC_API_KEY).

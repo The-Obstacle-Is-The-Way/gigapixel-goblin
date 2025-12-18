@@ -35,7 +35,7 @@ class TestCreateProvider:
         """Test creating OpenAI provider."""
         provider = create_provider("openai")
         assert isinstance(provider, OpenAIProvider)
-        assert provider.get_model_name() == "gpt-5.2-2025-12-11"
+        assert provider.get_model_name() == "gpt-5.2"
 
     def test_create_openai_with_anthropic_model_rejected(
         self, mock_providers: None
@@ -56,7 +56,7 @@ class TestCreateProvider:
     ) -> None:
         """Test Anthropic provider rejects non-Anthropic approved models."""
         with pytest.raises(ValueError) as exc_info:
-            create_provider("anthropic", model="gpt-5.2-2025-12-11")
+            create_provider("anthropic", model="gpt-5.2")
         assert "not approved" in str(exc_info.value).lower()
 
     def test_unknown_provider_raises(self) -> None:

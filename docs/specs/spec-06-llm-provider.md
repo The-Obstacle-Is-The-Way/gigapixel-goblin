@@ -9,12 +9,17 @@ This specification defines the abstraction layer for Large Multimodal Models (LM
 
 ## Acceptance Criteria
 - [x] `LLMProvider` Protocol defined.
-- [x] `OpenAIProvider` implemented (default: `gpt-5.2-2025-12-11`).
+- [x] `OpenAIProvider` implemented (default: `gpt-5.2`).
 - [x] `AnthropicProvider` implemented (default: `claude-opus-4-5-20251101`).
+- [ ] `GoogleProvider` for Gemini (P4 - Future, see Spec-XX).
 - [x] Support for multimodal inputs (text + base64 images).
 - [x] Robust parsing of `StepResponse` (reasoning text + action).
 - [x] Automatic retry logic for API errors and rate limits (using `tenacity`).
 - [x] Cost tracking per request.
+
+> **Note:** Gemini/Google provider is scaffolded in `model_registry.py` and `pricing.py` but
+> the provider implementation (`google_client.py`) is deferred to a future spec. Config
+> includes `GOOGLE_API_KEY` placeholder for consistency.
 
 > **Model Registry:** See `docs/models/MODEL_REGISTRY.md` for approved frontier models.
 > This diverges from the original paper to use Dec 2025 frontier models.
@@ -91,7 +96,7 @@ PRICING_USD_PER_1K = {
     # Gemini 3.0 Pro - 1M context, advanced reasoning
     "gemini-3-pro-preview": {"input": 0.002, "output": 0.012},
     # GPT-5.2 - 400K context, cost-effective frontier model
-    "gpt-5.2-2025-12-11": {"input": 0.00175, "output": 0.014, "image_base": 0.00255},
+    "gpt-5.2": {"input": 0.00175, "output": 0.014, "image_base": 0.00255},
 }
 
 def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
@@ -169,11 +174,13 @@ Implement a `ProviderFactory` that creates providers from `Settings` (Dependency
 ```text
 src/giant/llm/
 ├── __init__.py
-├── protocol.py       # LLMProvider, Message, StepResponse, TokenUsage
-├── pricing.py        # Cost calculation per model
+├── protocol.py         # LLMProvider, Message, StepResponse, TokenUsage
+├── pricing.py          # Cost calculation per model
+├── model_registry.py   # Approved models by provider
 ├── openai_client.py
 ├── anthropic_client.py
-└── converters.py     # Helpers for message format conversion
+├── google_client.py    # Future (P4) - Gemini provider
+└── converters.py       # Helpers for message format conversion
 tests/unit/llm/
 ├── test_openai.py
 ├── test_anthropic.py

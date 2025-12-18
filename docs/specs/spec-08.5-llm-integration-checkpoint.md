@@ -88,47 +88,61 @@ Won't block progress but good to note.
 
 ## API Key Requirements
 
-You need valid API keys for integration testing:
+You need valid API keys for live integration testing.
+
+### Setup
 
 ```bash
-# .env file (never commit!)
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
+# Copy the template and add your keys
+cp .env.example .env
+
+# Edit .env with your actual keys:
+# OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=sk-ant-...
 ```
 
-**Cost estimate for full integration test:** ~$0.50-2.00 (mostly from image tokens)
+> **WARNING: Shell Environment Behavior**
+>
+> Tests use `os.getenv()` which reads from BOTH your shell environment AND `.env` file.
+> If you have API keys exported in `~/.zshrc` or `~/.bashrc`, live tests will run
+> automatically even without a `.env` file. Use `-m mock` to skip live tests.
 
-### Mock Mode Option
+**Cost estimate for full live test run:** ~$0.50-2.00 (mostly from image tokens)
 
-For CI/CD or cost-sensitive testing:
+### Test Modes
 
-```python
-# Use respx to mock HTTP calls
-import respx
-
-@respx.mock
-def test_openai_generate():
-    respx.post("https://api.openai.com/v1/chat/completions").respond(
-        json={"choices": [{"message": {"content": "crop(100, 200, 500, 500)"}}]}
-    )
-    # ... test code
-```
+| Mode | Command | API Calls | Cost |
+|------|---------|-----------|------|
+| Mock only | `pytest -m mock` | None | Free |
+| All tests | `pytest` | If keys set | ~$0.50-2.00 |
+| Live only | `pytest -m live` | Yes | ~$0.50-2.00 |
 
 ## Running Integration Tests
 
 ```bash
-# Set API keys
-export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
+# RECOMMENDED: Run mock tests (safe, no API calls, no cost)
+uv run pytest tests/integration/llm/ -v -m "mock"
 
-# Run integration tests
+# Run ALL tests (live tests run if keys are set)
 uv run pytest tests/integration/llm/ -v --tb=long
 
-# Run with cost guard (skip tests over $0.10)
-uv run pytest tests/integration/llm/ -v -m "not expensive"
+# Run ONLY live API tests (opt-in, costs money)
+uv run pytest tests/integration/llm/test_p0_critical.py -v -m "live"
+```
 
-# Dry run (mocked, no real API calls)
-uv run pytest tests/integration/llm/ -v -m "mock"
+### Mock Mode for CI/CD
+
+For CI/CD or cost-sensitive testing, use `respx` to mock HTTP calls:
+
+```python
+import respx
+
+@respx.mock
+def test_openai_generate():
+    respx.post("https://api.openai.com/v1/responses").respond(
+        json={"output_text": '{"reasoning": "...", "action": {...}}'}
+    )
+    # ... test code
 ```
 
 ## Sign-Off Criteria

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 OPENAI_MODELS: frozenset[str] = frozenset(
     {
-        "gpt-5.2-2025-12-11",
+        "gpt-5.2",
     }
 )
 

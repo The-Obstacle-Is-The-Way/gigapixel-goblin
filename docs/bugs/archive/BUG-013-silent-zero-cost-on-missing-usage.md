@@ -2,7 +2,7 @@
 
 ## Severity: P1 (High Priority) - Cost Tracking Integrity
 
-## Status: Open
+## Status: Closed (Fixed)
 
 ## Description
 
@@ -40,7 +40,7 @@ Either:
 ### Proposed Fix
 
 ```python
-# Option A: Fail fast (recommended for production integrity)
+# Option A: Fail fast (implemented)
 usage = response.usage
 if usage is None:
     raise LLMError(
@@ -74,13 +74,17 @@ else:
 
 ### Code Location
 
-- `src/giant/llm/openai_client.py:204-208`
-- `src/giant/llm/anthropic_client.py:224-228`
+- `src/giant/llm/openai_client.py`
+- `src/giant/llm/anthropic_client.py`
 
 ### Test Evidence
 
-Current tests always mock usage data. No test exercises None usage path.
+Added integration regression tests to ensure we fail loudly when usage is missing:
+
+- `tests/integration/llm/test_p1_high_priority.py`
+  - `TestP1_7_CostTracking.test_openai_missing_usage_raises`
+  - `TestP1_7_CostTracking.test_anthropic_missing_usage_raises`
 
 ### Mitigation
 
-Add integration tests that verify usage is always present in real API responses.
+Live tests still help verify SDK/API behavior, but missing usage now fails fast to prevent silent under-reporting.

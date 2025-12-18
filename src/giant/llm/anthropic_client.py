@@ -13,6 +13,7 @@ Per Spec-06:
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -72,6 +73,9 @@ def _build_submit_step_tool() -> dict[str, Any]:
 def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse:
     """Parse tool use input into StepResponse.
 
+    Handles the case where Anthropic returns nested fields as JSON strings
+    instead of parsed dicts (common with complex tool schemas).
+
     Args:
         tool_input: The input dictionary from the tool use.
 
@@ -82,6 +86,17 @@ def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse
         LLMParseError: If parsing fails.
     """
     try:
+        # Handle case where 'action' is returned as a JSON string instead of dict
+        # This can happen with complex nested schemas in tool use
+        if isinstance(tool_input.get("action"), str):
+            try:
+                tool_input = {
+                    **tool_input,
+                    "action": json.loads(tool_input["action"]),
+                }
+            except json.JSONDecodeError:
+                pass  # Let pydantic handle the validation error
+
         return StepResponse.model_validate(tool_input)
     except ValidationError as e:
         raise LLMParseError(
@@ -223,8 +238,14 @@ class AnthropicProvider:
 
             # Calculate usage and cost (defensive None check for SDK edge cases)
             usage = response.usage
-            prompt_tokens = usage.input_tokens if usage else 0
-            completion_tokens = usage.output_tokens if usage else 0
+            if usage is None:
+                raise LLMError(
+                    "API response missing usage data - cannot track costs",
+                    provider="anthropic",
+                    model=self.model,
+                )
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
             total_tokens = prompt_tokens + completion_tokens
 
             text_cost = calculate_cost(self.model, prompt_tokens, completion_tokens)
@@ -253,6 +274,9 @@ class AnthropicProvider:
             raise
         except LLMParseError:
             # Don't wrap parse errors
+            raise
+        except LLMError:
+            # Don't wrap already-wrapped LLM errors
             raise
         except Exception as e:
             raise LLMError(

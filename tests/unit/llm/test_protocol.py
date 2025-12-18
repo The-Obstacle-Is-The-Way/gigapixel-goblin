@@ -237,10 +237,10 @@ class TestLLMResponse:
         response = LLMResponse(
             step_response=step_response,
             usage=usage,
-            model="gpt-5.2-2025-12-11",
+            model="gpt-5.2",
             latency_ms=500.0,
         )
-        assert response.model == "gpt-5.2-2025-12-11"
+        assert response.model == "gpt-5.2"
         assert response.latency_ms == 500.0
 
     def test_negative_latency_rejected(self) -> None:
@@ -259,7 +259,7 @@ class TestLLMResponse:
             LLMResponse(
                 step_response=step_response,
                 usage=usage,
-                model="gpt-5.2-2025-12-11",
+                model="gpt-5.2",
                 latency_ms=-100.0,
             )
 
@@ -277,10 +277,10 @@ class TestLLMError:
         error = LLMError(
             "Rate limited",
             provider="openai",
-            model="gpt-5.2-2025-12-11",
+            model="gpt-5.2",
         )
         assert error.provider == "openai"
-        assert error.model == "gpt-5.2-2025-12-11"
+        assert error.model == "gpt-5.2"
 
     def test_error_with_cause(self) -> None:
         """Test creating error with cause exception."""

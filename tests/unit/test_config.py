@@ -184,6 +184,27 @@ class TestRequireMethods:
             settings.require_huggingface_token()
         assert "HUGGINGFACE_TOKEN" in str(exc_info.value)
 
+    def test_require_google_key_when_set(self) -> None:
+        """Test require_google_key returns key when set."""
+        settings = Settings(
+            GOOGLE_API_KEY="google-test-key",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        result = settings.require_google_key()
+        assert result == "google-test-key"
+
+    def test_require_google_key_when_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test require_google_key raises ConfigError when not set."""
+        monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+        settings = Settings(
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        with pytest.raises(ConfigError) as exc_info:
+            settings.require_google_key()
+        assert "GOOGLE_API_KEY" in str(exc_info.value)
+
     @pytest.mark.parametrize(
         ("settings_kwargs", "method_name", "expected_env_var"),
         [
@@ -195,6 +216,8 @@ class TestRequireMethods:
                 "require_anthropic_key",
                 "ANTHROPIC_API_KEY",
             ),
+            ({"GOOGLE_API_KEY": ""}, "require_google_key", "GOOGLE_API_KEY"),
+            ({"GOOGLE_API_KEY": "   "}, "require_google_key", "GOOGLE_API_KEY"),
             (
                 {"HUGGINGFACE_TOKEN": ""},
                 "require_huggingface_token",

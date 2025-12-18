@@ -21,7 +21,7 @@ class TestModelConstants:
 
     def test_openai_models(self) -> None:
         """Test OpenAI approved models."""
-        assert OPENAI_MODELS == frozenset({"gpt-5.2-2025-12-11"})
+        assert OPENAI_MODELS == frozenset({"gpt-5.2"})
 
     def test_anthropic_models(self) -> None:
         """Test Anthropic approved models."""
@@ -64,7 +64,7 @@ class TestValidateModelId:
 
     def test_validate_gpt52(self) -> None:
         """Test GPT-5.2 is valid."""
-        validate_model_id("gpt-5.2-2025-12-11")  # Should not raise
+        validate_model_id("gpt-5.2")  # Should not raise
 
     def test_validate_claude_opus(self) -> None:
         """Test Claude Opus 4.5 is valid."""
@@ -104,7 +104,7 @@ class TestValidateModelIdWithProvider:
 
     def test_gpt52_valid_for_openai(self) -> None:
         """Test GPT-5.2 is valid for OpenAI provider."""
-        validate_model_id("gpt-5.2-2025-12-11", provider="openai")
+        validate_model_id("gpt-5.2", provider="openai")
 
     def test_claude_valid_for_anthropic(self) -> None:
         """Test Claude is valid for Anthropic provider."""
@@ -124,13 +124,13 @@ class TestValidateModelIdWithProvider:
     def test_reject_gpt_for_anthropic(self) -> None:
         """Test GPT model rejected for Anthropic provider."""
         with pytest.raises(ValueError) as exc_info:
-            validate_model_id("gpt-5.2-2025-12-11", provider="anthropic")
+            validate_model_id("gpt-5.2", provider="anthropic")
         assert "not approved" in str(exc_info.value)
         assert "anthropic" in str(exc_info.value)
 
     def test_reject_unknown_provider(self) -> None:
         """Test unknown provider is rejected."""
         with pytest.raises(ValueError) as exc_info:
-            validate_model_id("gpt-5.2-2025-12-11", provider="unknown")
+            validate_model_id("gpt-5.2", provider="unknown")
         assert "Unknown provider" in str(exc_info.value)
         assert "Supported providers" in str(exc_info.value)

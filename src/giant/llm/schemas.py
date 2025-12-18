@@ -5,6 +5,7 @@ We intentionally hand-author the JSON Schema for `StepResponse` instead of using
 - Provider "strict JSON schema" support often has limitations around `$ref`
   / `$defs`.
 - A small, explicit schema is easier to reason about and test.
+- OpenAI's structured output doesn't support `oneOf`, requiring a flattened schema.
 """
 
 from __future__ import annotations
@@ -13,7 +14,12 @@ from typing import Any
 
 
 def step_response_json_schema() -> dict[str, Any]:
-    """Return a provider-friendly JSON Schema for `StepResponse`."""
+    """Return a provider-friendly JSON Schema for `StepResponse`.
+
+    This schema uses `oneOf` for the action discriminated union.
+    Works with Anthropic tool use but NOT OpenAI structured output.
+    For OpenAI, use `step_response_json_schema_openai()`.
+    """
     return {
         "type": "object",
         "additionalProperties": False,
@@ -48,6 +54,64 @@ def step_response_json_schema() -> dict[str, Any]:
                         "required": ["action_type", "answer_text"],
                     },
                 ],
+            },
+        },
+        "required": ["reasoning", "action"],
+    }
+
+
+def step_response_json_schema_openai() -> dict[str, Any]:
+    """Return an OpenAI-compatible JSON Schema for `StepResponse`.
+
+    OpenAI's structured output doesn't support `oneOf`, so we flatten the
+    action union into a single object with all fields. The `action_type`
+    discriminator indicates which fields are meaningful.
+
+    Schema design:
+    - `action_type`: "crop" or "answer" (discriminator)
+    - For "crop": x, y, width, height are populated; answer_text is null
+    - For "answer": answer_text is populated; x, y, width, height are null
+    """
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "reasoning": {
+                "type": "string",
+                "description": "Concise reasoning for the action",
+            },
+            "action": {
+                "type": "object",
+                "additionalProperties": False,
+                "description": "Action: crop (x/y/width/height) or answer (text)",
+                "properties": {
+                    "action_type": {
+                        "type": "string",
+                        "enum": ["crop", "answer"],
+                        "description": "crop=zoom region, answer=final response",
+                    },
+                    "x": {
+                        "type": ["integer", "null"],
+                        "description": "X coord (crop only, null for answer)",
+                    },
+                    "y": {
+                        "type": ["integer", "null"],
+                        "description": "Y coord (crop only, null for answer)",
+                    },
+                    "width": {
+                        "type": ["integer", "null"],
+                        "description": "Width (crop only, null for answer)",
+                    },
+                    "height": {
+                        "type": ["integer", "null"],
+                        "description": "Height (crop only, null for answer)",
+                    },
+                    "answer_text": {
+                        "type": ["string", "null"],
+                        "description": "Final answer (answer only, null for crop)",
+                    },
+                },
+                "required": ["action_type", "x", "y", "width", "height", "answer_text"],
             },
         },
         "required": ["reasoning", "action"],

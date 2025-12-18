@@ -62,16 +62,30 @@ class TestBuildJsonSchema:
         assert schema["strict"] is True
 
     def test_action_schema_has_discriminator(self) -> None:
-        """Test that action schema has action_type discriminator."""
+        """Test that action schema has action_type discriminator.
+
+        OpenAI doesn't support oneOf, so we use a flattened schema with
+        all fields present (nullable for unused ones) and action_type
+        as the discriminator.
+        """
         schema = _build_json_schema()
         action_schema = schema["schema"]["properties"]["action"]
-        assert "oneOf" in action_schema
 
-        variants = action_schema["oneOf"]
-        assert any(v["properties"]["action_type"]["enum"] == ["crop"] for v in variants)
-        assert any(
-            v["properties"]["action_type"]["enum"] == ["answer"] for v in variants
-        )
+        # Verify flattened schema (no oneOf)
+        assert "oneOf" not in action_schema
+        assert action_schema["type"] == "object"
+
+        # Verify action_type discriminator
+        assert "action_type" in action_schema["properties"]
+        assert action_schema["properties"]["action_type"]["enum"] == ["crop", "answer"]
+
+        # Verify all fields are present (flattened union)
+        props = action_schema["properties"]
+        assert "x" in props
+        assert "y" in props
+        assert "width" in props
+        assert "height" in props
+        assert "answer_text" in props
 
 
 class TestOpenAIProviderInit:
@@ -80,8 +94,8 @@ class TestOpenAIProviderInit:
     def test_init_with_default_model(self, test_settings: Settings) -> None:
         """Test initialization with default model."""
         provider = OpenAIProvider(settings=test_settings)
-        assert provider.model == "gpt-5.2-2025-12-11"
-        assert provider.get_model_name() == "gpt-5.2-2025-12-11"
+        assert provider.model == "gpt-5.2"
+        assert provider.get_model_name() == "gpt-5.2"
 
     def test_init_with_invalid_model_raises(self, test_settings: Settings) -> None:
         """Test initialization rejects non-OpenAI approved models."""
@@ -124,7 +138,7 @@ class TestOpenAIProviderGenerate:
             assert result.step_response.action.action_type == "crop"
             assert result.usage.prompt_tokens == 100
             assert result.usage.completion_tokens == 50
-            assert result.model == "gpt-5.2-2025-12-11"
+            assert result.model == "gpt-5.2"
             assert result.latency_ms > 0
 
     @pytest.mark.asyncio

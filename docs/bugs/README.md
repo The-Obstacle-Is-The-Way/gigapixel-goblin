@@ -8,12 +8,6 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
-### P1 - High Priority
-
-| ID | Title | Status |
-|----|-------|--------|
-| [BUG-013](./BUG-013-silent-zero-cost-on-missing-usage.md) | Silent Zero-Cost on Missing Usage Data | Open |
-
 ### P3 - Low Priority (Deferred / Future-Proofing)
 
 | ID | Title | Status |
@@ -36,6 +30,8 @@ See `archive/` for historical bugs that have been resolved:
 | BUG-008 | API Keys Silent None | ConfigError added |
 | BUG-009 | Font Loading Silent Fallback | Warning log added |
 | BUG-012 | HF Download Silent Auth | Debug log added |
+| BUG-013 | Silent Zero-Cost on Missing Usage Data | Fail fast on missing usage + tests |
+| BUG-014 | Environment Secrets Management Gap | .env docs + test fixes + schema fixes |
 
 ## Severity Definitions
 
@@ -52,10 +48,12 @@ See `archive/` for historical bugs that have been resolved:
 **Audited**: Specs 06-08 (LLM Provider, Navigation Prompts, Context Manager)
 
 **Findings**:
-- 59 integration tests passing
+- 61 integration tests passing (+ 2 new missing-usage tests)
 - P0-2 requirements fully covered
-- 1 new bug documented (BUG-013)
-- 9 fixed bugs archived
+- 2 bugs documented + fixed (BUG-013, BUG-014)
+- 11 fixed bugs archived
+- Fixed: Anthropic JSON string parsing, OpenAI oneOf schema issue
+- Fixed: Test skipif now detects keys from .env file
 
 ### Spec-05.5 WSI Integration Checkpoint (2025-12-17)
 

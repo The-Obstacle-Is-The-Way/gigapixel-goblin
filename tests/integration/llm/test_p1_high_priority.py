@@ -75,7 +75,7 @@ def _mock_openai_crop_response() -> dict[str, Any]:
         "id": "resp_123",
         "object": "response",
         "created": 1234567890,
-        "model": "gpt-5.2-2025-12-11",
+        "model": "gpt-5.2",
         "output": [
             {
                 "type": "message",
@@ -596,6 +596,54 @@ class TestP1_7_CostTracking:
 
     @pytest.mark.asyncio
     @respx.mock
+    async def test_openai_missing_usage_raises(
+        self, mock_openai_settings: Settings
+    ) -> None:
+        """Test OpenAI fails loudly if usage data is missing."""
+        output_content = json.dumps(
+            {
+                "reasoning": "Test",
+                "action": {
+                    "action_type": "crop",
+                    "x": 0,
+                    "y": 0,
+                    "width": 100,
+                    "height": 100,
+                },
+            }
+        )
+        respx.post("https://api.openai.com/v1/responses").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "id": "resp_123",
+                    "object": "response",
+                    "output": [
+                        {
+                            "type": "message",
+                            "role": "assistant",
+                            "content": [
+                                {"type": "output_text", "text": output_content}
+                            ],
+                        }
+                    ],
+                    "output_text": output_content,
+                    # Intentionally omit "usage" to exercise missing usage handling
+                },
+            )
+        )
+
+        provider = OpenAIProvider(settings=mock_openai_settings)
+        messages = [
+            Message(role="system", content=[MessageContent(type="text", text="Test")]),
+            Message(role="user", content=[MessageContent(type="text", text="Test")]),
+        ]
+
+        with pytest.raises(LLMError, match="missing usage data"):
+            await provider.generate_response(messages)
+
+    @pytest.mark.asyncio
+    @respx.mock
     async def test_anthropic_tracks_token_usage(
         self, mock_anthropic_settings: Settings
     ) -> None:
@@ -641,6 +689,51 @@ class TestP1_7_CostTracking:
         assert response.usage.completion_tokens == 100
         assert response.usage.total_tokens == 300
         assert response.usage.cost_usd >= 0
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_anthropic_missing_usage_raises(
+        self, mock_anthropic_settings: Settings
+    ) -> None:
+        """Test Anthropic fails loudly if usage data is missing."""
+        respx.post("https://api.anthropic.com/v1/messages").mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "id": "msg_123",
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": "toolu_123",
+                            "name": "submit_step",
+                            "input": {
+                                "reasoning": "Test",
+                                "action": {
+                                    "action_type": "crop",
+                                    "x": 0,
+                                    "y": 0,
+                                    "width": 100,
+                                    "height": 100,
+                                },
+                            },
+                        }
+                    ],
+                    "stop_reason": "tool_use",
+                    # Intentionally omit "usage" to exercise missing usage handling
+                },
+            )
+        )
+
+        provider = AnthropicProvider(settings=mock_anthropic_settings)
+        messages = [
+            Message(role="system", content=[MessageContent(type="text", text="Test")]),
+            Message(role="user", content=[MessageContent(type="text", text="Test")]),
+        ]
+
+        with pytest.raises(LLMError, match="missing usage data"):
+            await provider.generate_response(messages)
 
 
 # =============================================================================

@@ -13,6 +13,7 @@ Per Spec-06:
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from dataclasses import dataclass, field
@@ -48,7 +49,7 @@ from giant.llm.protocol import (
     StepResponse,
     TokenUsage,
 )
-from giant.llm.schemas import step_response_json_schema
+from giant.llm.schemas import step_response_json_schema_openai
 
 logger = logging.getLogger(__name__)
 
@@ -56,13 +57,58 @@ logger = logging.getLogger(__name__)
 def _build_json_schema() -> dict[str, Any]:
     """Build JSON schema for StepResponse structured output.
 
+    Uses the OpenAI-specific flattened schema (no oneOf).
+
     Returns:
         OpenAI-compatible JSON schema dictionary.
     """
     return {
         "name": "StepResponse",
         "strict": True,
-        "schema": step_response_json_schema(),
+        "schema": step_response_json_schema_openai(),
+    }
+
+
+def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
+    """Convert OpenAI's flattened response to StepResponse-compatible format.
+
+    The OpenAI schema has all action fields present with nulls for unused ones.
+    This function filters out the null fields so pydantic can validate properly.
+
+    Args:
+        data: Raw parsed JSON from OpenAI response.
+
+    Returns:
+        Normalized dict suitable for StepResponse.model_validate().
+    """
+    if "action" not in data or not isinstance(data["action"], dict):
+        return data
+
+    action = data["action"]
+    action_type = action.get("action_type")
+
+    if action_type == "crop":
+        # Keep only crop fields
+        normalized_action = {
+            "action_type": "crop",
+            "x": action.get("x"),
+            "y": action.get("y"),
+            "width": action.get("width"),
+            "height": action.get("height"),
+        }
+    elif action_type == "answer":
+        # Keep only answer fields
+        normalized_action = {
+            "action_type": "answer",
+            "answer_text": action.get("answer_text"),
+        }
+    else:
+        # Unknown action type, pass through as-is
+        normalized_action = action
+
+    return {
+        "reasoning": data.get("reasoning"),
+        "action": normalized_action,
     }
 
 
@@ -78,7 +124,7 @@ class OpenAIProvider:
         response = await provider.generate_response(messages)
     """
 
-    model: str = "gpt-5.2-2025-12-11"
+    model: str = "gpt-5.2"
     settings: Settings = field(default_factory=lambda: settings)
 
     # Internal state (initialized in __post_init__)
@@ -168,6 +214,7 @@ class OpenAIProvider:
             input_messages = messages_to_openai_input(messages)
 
             # Make API call using responses.create for structured output
+            json_schema = _build_json_schema()
             response = await self._client.responses.create(  # type: ignore[call-overload]
                 model=self.model,
                 input=input_messages,
@@ -175,7 +222,9 @@ class OpenAIProvider:
                 text={
                     "format": {
                         "type": "json_schema",
-                        "json_schema": _build_json_schema(),
+                        "name": json_schema["name"],
+                        "schema": json_schema["schema"],
+                        "strict": json_schema.get("strict", True),
                     }
                 },
             )
@@ -192,7 +241,16 @@ class OpenAIProvider:
                 )
 
             try:
-                step_response = StepResponse.model_validate_json(output_text)
+                # Parse JSON and normalize the flattened OpenAI format
+                raw_data = json.loads(output_text)
+                normalized_data = _normalize_openai_response(raw_data)
+                step_response = StepResponse.model_validate(normalized_data)
+            except json.JSONDecodeError as e:
+                raise LLMParseError(
+                    f"Failed to parse JSON: {e}",
+                    raw_output=output_text,
+                    provider="openai",
+                ) from e
             except ValidationError as e:
                 raise LLMParseError(
                     f"Failed to parse StepResponse: {e}",
@@ -203,8 +261,14 @@ class OpenAIProvider:
 
             # Calculate usage and cost
             usage = response.usage
-            prompt_tokens = usage.input_tokens if usage else 0
-            completion_tokens = usage.output_tokens if usage else 0
+            if usage is None:
+                raise LLMError(
+                    "API response missing usage data - cannot track costs",
+                    provider="openai",
+                    model=self.model,
+                )
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
             total_tokens = prompt_tokens + completion_tokens
 
             # Calculate cost (text + images)
@@ -234,6 +298,9 @@ class OpenAIProvider:
             raise
         except LLMParseError:
             # Don't wrap parse errors
+            raise
+        except LLMError:
+            # Don't wrap already-wrapped LLM errors
             raise
         except Exception as e:
             raise LLMError(

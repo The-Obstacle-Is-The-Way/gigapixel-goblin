@@ -44,7 +44,7 @@ PRICING_USD_PER_1K: dict[str, ModelPricing] = {
         # Gemini includes images in token count, no separate image cost
     },
     # GPT-5.2 - 400K context, cost-effective frontier model
-    "gpt-5.2-2025-12-11": {
+    "gpt-5.2": {
         "input": 0.00175,  # $1.75/1M tokens
         "output": 0.014,  # $14/1M tokens
         "image_base": 0.00255,
@@ -58,7 +58,7 @@ def get_model_pricing(model: str) -> ModelPricing:
     """Get pricing for a model.
 
     Args:
-        model: Model identifier (e.g., "gpt-5.2-2025-12-11").
+        model: Model identifier (e.g., "gpt-5.2").
 
     Returns:
         ModelPricing dictionary with input/output costs.
