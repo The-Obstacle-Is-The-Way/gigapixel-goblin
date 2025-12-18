@@ -6,7 +6,6 @@ library to provide a clean, type-safe interface for WSI operations.
 
 from __future__ import annotations
 
-import ctypes
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -233,15 +232,9 @@ class WSIReader:
             # OpenSlide.read_region returns RGBA, convert to RGB
             rgba_image = slide.read_region(location, level, size)
             return rgba_image.convert("RGB")
-        except (openslide.OpenSlideError, ctypes.ArgumentError) as e:
-            raise WSIReadError(
-                f"Failed to read region: {e}",
-                path=self._path,
-                level=level,
-                location=location,
-                size=size,
-            ) from e
         except Exception as e:
+            # Catch all exceptions (OpenSlideError, ctypes.ArgumentError, etc.)
+            # and wrap in WSIReadError for consistent error handling
             raise WSIReadError(
                 f"Failed to read region: {e}",
                 path=self._path,

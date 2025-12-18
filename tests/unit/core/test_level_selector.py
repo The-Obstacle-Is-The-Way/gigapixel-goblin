@@ -212,22 +212,10 @@ class TestPyramidLevelSelectorStandardCases:
 
 
 class TestSingleLevelSlideEdgeCases:
-    """Comprehensive tests for single-level slide behavior (BUG-005)."""
+    """Comprehensive tests for single-level slide behavior (BUG-005).
 
-    @pytest.fixture
-    def single_level_metadata(self) -> WSIMetadata:
-        """Create single-level (no pyramid) metadata."""
-        return WSIMetadata(
-            path="/path/to/slide.tiff",
-            width=10000,
-            height=8000,
-            level_count=1,
-            level_dimensions=((10000, 8000),),
-            level_downsamples=(1.0,),
-            vendor="generic",
-            mpp_x=None,
-            mpp_y=None,
-        )
+    Uses module-level single_level_metadata fixture.
+    """
 
     def test_single_level_very_small_region(
         self, single_level_metadata: WSIMetadata
