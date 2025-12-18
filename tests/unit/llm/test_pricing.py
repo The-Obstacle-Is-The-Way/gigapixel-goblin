@@ -19,7 +19,7 @@ class TestPricingTable:
         """Test that frontier models are in the pricing table."""
         assert "claude-opus-4-5-20251101" in PRICING_USD_PER_1K
         assert "gemini-3-pro-preview" in PRICING_USD_PER_1K
-        assert "gpt-5.2-2025-12-11" in PRICING_USD_PER_1K
+        assert "gpt-5.2" in PRICING_USD_PER_1K
 
     def test_only_frontier_models(self) -> None:
         """Test that only frontier models are in the pricing table."""
@@ -37,7 +37,7 @@ class TestGetModelPricing:
 
     def test_gpt52_pricing(self) -> None:
         """Test getting pricing for GPT-5.2."""
-        pricing = get_model_pricing("gpt-5.2-2025-12-11")
+        pricing = get_model_pricing("gpt-5.2")
         assert pricing["input"] == 0.00175
         assert pricing["output"] == 0.014
 
@@ -64,9 +64,7 @@ class TestCalculateCost:
 
     def test_gpt52_cost(self) -> None:
         """Test cost calculation for GPT-5.2."""
-        cost = calculate_cost(
-            "gpt-5.2-2025-12-11", prompt_tokens=1000, completion_tokens=500
-        )
+        cost = calculate_cost("gpt-5.2", prompt_tokens=1000, completion_tokens=500)
         # 1000 * 0.00175/1000 + 500 * 0.014/1000 = 0.00175 + 0.007 = 0.00875
         assert cost == pytest.approx(0.00875)
 
@@ -80,9 +78,7 @@ class TestCalculateCost:
 
     def test_zero_tokens_zero_cost(self) -> None:
         """Test that zero tokens results in zero cost."""
-        cost = calculate_cost(
-            "gpt-5.2-2025-12-11", prompt_tokens=0, completion_tokens=0
-        )
+        cost = calculate_cost("gpt-5.2", prompt_tokens=0, completion_tokens=0)
         assert cost == 0.0
 
     def test_unknown_model_raises(self) -> None:
@@ -96,17 +92,17 @@ class TestCalculateImageCostOpenai:
 
     def test_single_image(self) -> None:
         """Test cost for a single image."""
-        cost = calculate_image_cost_openai("gpt-5.2-2025-12-11", image_count=1)
+        cost = calculate_image_cost_openai("gpt-5.2", image_count=1)
         assert cost == pytest.approx(0.00255)
 
     def test_multiple_images(self) -> None:
         """Test cost for multiple images."""
-        cost = calculate_image_cost_openai("gpt-5.2-2025-12-11", image_count=3)
+        cost = calculate_image_cost_openai("gpt-5.2", image_count=3)
         assert cost == pytest.approx(0.00255 * 3)
 
     def test_zero_images(self) -> None:
         """Test zero images results in zero cost."""
-        cost = calculate_image_cost_openai("gpt-5.2-2025-12-11", image_count=0)
+        cost = calculate_image_cost_openai("gpt-5.2", image_count=0)
         assert cost == 0.0
 
 
@@ -145,7 +141,7 @@ class TestCalculateTotalCost:
     def test_openai_text_only(self) -> None:
         """Test OpenAI total cost with text only."""
         cost = calculate_total_cost(
-            "gpt-5.2-2025-12-11",
+            "gpt-5.2",
             prompt_tokens=1000,
             completion_tokens=500,
             provider="openai",
@@ -155,7 +151,7 @@ class TestCalculateTotalCost:
     def test_openai_with_images(self) -> None:
         """Test OpenAI total cost with images."""
         cost = calculate_total_cost(
-            "gpt-5.2-2025-12-11",
+            "gpt-5.2",
             prompt_tokens=1000,
             completion_tokens=500,
             image_count=2,

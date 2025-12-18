@@ -75,7 +75,7 @@ def _mock_openai_crop_response() -> dict[str, Any]:
         "id": "resp_123",
         "object": "response",
         "created": 1234567890,
-        "model": "gpt-5.2-2025-12-11",
+        "model": "gpt-5.2",
         "output": [
             {
                 "type": "message",

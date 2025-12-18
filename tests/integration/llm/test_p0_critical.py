@@ -496,7 +496,7 @@ def _mock_openai_crop_response() -> dict[str, Any]:
         "id": "resp_123",
         "object": "response",
         "created": 1234567890,
-        "model": "gpt-5.2-2025-12-11",
+        "model": "gpt-5.2",
         "output": [
             {
                 "type": "message",
@@ -546,7 +546,7 @@ def _mock_openai_answer_response() -> dict[str, Any]:
         "id": "resp_456",
         "object": "response",
         "created": 1234567890,
-        "model": "gpt-5.2-2025-12-11",
+        "model": "gpt-5.2",
         "output": [
             {
                 "type": "message",
@@ -657,10 +657,10 @@ class TestP0_1_OpenAIProviderInit:
     def test_openai_provider_init_success(self, mock_openai_settings: Settings) -> None:
         """Test that OpenAI provider initializes without error."""
         provider = OpenAIProvider(
-            model="gpt-5.2-2025-12-11",
+            model="gpt-5.2",
             settings=mock_openai_settings,
         )
-        assert provider.get_model_name() == "gpt-5.2-2025-12-11"
+        assert provider.get_model_name() == "gpt-5.2"
         assert provider.get_target_size() == 1000
 
     def test_openai_provider_via_factory_requires_real_env(self) -> None:

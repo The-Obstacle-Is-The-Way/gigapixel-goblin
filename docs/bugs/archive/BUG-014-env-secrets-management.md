@@ -37,7 +37,7 @@ LOG_LEVEL=INFO
 
 | Provider | In Model Registry | In Config | Provider Client |
 |----------|-------------------|-----------|-----------------|
-| OpenAI | `gpt-5.2-2025-12-11` | `OPENAI_API_KEY` | `openai_client.py` |
+| OpenAI | `gpt-5.2` | `OPENAI_API_KEY` | `openai_client.py` |
 | Anthropic | `claude-opus-4-5-20251101` | `ANTHROPIC_API_KEY` | `anthropic_client.py` |
 | Google | `gemini-3-pro-preview` | **MISSING** | **MISSING** |
 

@@ -163,7 +163,7 @@ class TestAnthropicProviderInit:
     def test_init_with_invalid_model_raises(self, test_settings: Settings) -> None:
         """Test initialization rejects non-Anthropic approved models."""
         with pytest.raises(ValueError):
-            AnthropicProvider(model="gpt-5.2-2025-12-11", settings=test_settings)
+            AnthropicProvider(model="gpt-5.2", settings=test_settings)
 
     def test_get_target_size(self, test_settings: Settings) -> None:
         """Test target size from settings."""

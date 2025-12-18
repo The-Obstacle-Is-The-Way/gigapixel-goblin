@@ -9,7 +9,7 @@ This specification defines the abstraction layer for Large Multimodal Models (LM
 
 ## Acceptance Criteria
 - [x] `LLMProvider` Protocol defined.
-- [x] `OpenAIProvider` implemented (default: `gpt-5.2-2025-12-11`).
+- [x] `OpenAIProvider` implemented (default: `gpt-5.2`).
 - [x] `AnthropicProvider` implemented (default: `claude-opus-4-5-20251101`).
 - [ ] `GoogleProvider` for Gemini (P4 - Future, see Spec-XX).
 - [x] Support for multimodal inputs (text + base64 images).
@@ -96,7 +96,7 @@ PRICING_USD_PER_1K = {
     # Gemini 3.0 Pro - 1M context, advanced reasoning
     "gemini-3-pro-preview": {"input": 0.002, "output": 0.012},
     # GPT-5.2 - 400K context, cost-effective frontier model
-    "gpt-5.2-2025-12-11": {"input": 0.00175, "output": 0.014, "image_base": 0.00255},
+    "gpt-5.2": {"input": 0.00175, "output": 0.014, "image_base": 0.00255},
 }
 
 def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:

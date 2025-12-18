@@ -10,7 +10,7 @@
 |------------|--------------------|---------------------------------|-----------|------------|---------------------------------|
 | Anthropic  | Claude Opus 4.5    | `claude-opus-4-5-20251101`      | 200K      | 64K        | Best for coding & agents        |
 | Google     | Gemini 3.0 Pro     | `gemini-3-pro-preview`          | 1M        | 64K        | Advanced reasoning, multimodal  |
-| OpenAI     | GPT-5.2            | `gpt-5.2-2025-12-11`            | 400K      | 128K       | Cost-effective frontier model   |
+| OpenAI     | GPT-5.2            | `gpt-5.2`                     | 400K      | 128K       | Cost-effective frontier model   |
 
 ## Pricing (USD per 1M tokens)
 
@@ -18,7 +18,7 @@
 |------------------------------|----------|----------|-------------------------------|
 | `claude-opus-4-5-20251101`   | $5.00    | $25.00   | Pixel-based (~$0.48/1K px)    |
 | `gemini-3-pro-preview`       | $2.00    | $12.00   | Included in token count       |
-| `gpt-5.2-2025-12-11`         | $1.75    | $14.00   | Flat-rate per image           |
+| `gpt-5.2`                    | $1.75    | $14.00   | Flat-rate per image           |
 
 ## Why These Models?
 
@@ -38,7 +38,7 @@ provider = create_provider("anthropic", model="claude-opus-4-5-20251101")
 provider = create_provider("google", model="gemini-3-pro-preview")
 
 # OpenAI
-provider = create_provider("openai", model="gpt-5.2-2025-12-11")
+provider = create_provider("openai", model="gpt-5.2")
 ```
 
 ## Sources

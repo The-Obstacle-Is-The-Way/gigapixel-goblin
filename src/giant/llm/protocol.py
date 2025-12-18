@@ -172,7 +172,7 @@ class LLMProvider(Protocol):
         """Get the model identifier being used.
 
         Returns:
-            Model identifier string (e.g., "gpt-5.2-2025-12-11").
+            Model identifier string (e.g., "gpt-5.2").
         """
         ...
 
