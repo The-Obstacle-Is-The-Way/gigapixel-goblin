@@ -94,6 +94,7 @@ ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["PLR2004"]  # Allow magic numbers in tests
+"src/giant/llm/pricing.py" = ["PLR0913"]  # Allow many args for calculate_total_cost
 
 [tool.ruff.format]
 quote-style = "double"

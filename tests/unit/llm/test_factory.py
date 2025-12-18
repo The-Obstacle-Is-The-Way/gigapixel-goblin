@@ -1,0 +1,78 @@
+"""Tests for giant.llm factory function."""
+
+import pytest
+
+from giant.config import Settings
+from giant.llm import (
+    AnthropicProvider,
+    OpenAIProvider,
+    create_provider,
+)
+
+
+@pytest.fixture
+def mock_settings() -> Settings:
+    """Create mock settings with API keys."""
+    return Settings(
+        OPENAI_API_KEY="test-openai-key",
+        ANTHROPIC_API_KEY="test-anthropic-key",
+        _env_file=None,  # type: ignore[call-arg]
+    )
+
+
+@pytest.fixture
+def mock_providers(mock_settings: Settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock the global settings used by providers."""
+    # Patch the settings singleton
+    monkeypatch.setattr("giant.llm.openai_client.settings", mock_settings)
+    monkeypatch.setattr("giant.llm.anthropic_client.settings", mock_settings)
+
+
+class TestCreateProvider:
+    """Tests for create_provider factory function."""
+
+    def test_create_openai_provider(self, mock_providers: None) -> None:
+        """Test creating OpenAI provider."""
+        provider = create_provider("openai")
+        assert isinstance(provider, OpenAIProvider)
+        assert provider.get_model_name() == "gpt-4o"
+
+    def test_create_openai_with_custom_model(self, mock_providers: None) -> None:
+        """Test creating OpenAI provider with custom model."""
+        provider = create_provider("openai", model="gpt-5")
+        assert isinstance(provider, OpenAIProvider)
+        assert provider.get_model_name() == "gpt-5"
+
+    def test_create_anthropic_provider(self, mock_providers: None) -> None:
+        """Test creating Anthropic provider."""
+        provider = create_provider("anthropic")
+        assert isinstance(provider, AnthropicProvider)
+        assert provider.get_model_name() == "claude-sonnet-4-20250514"
+
+    def test_create_anthropic_with_custom_model(self, mock_providers: None) -> None:
+        """Test creating Anthropic provider with custom model."""
+        provider = create_provider("anthropic", model="claude-3-opus-20240229")
+        assert isinstance(provider, AnthropicProvider)
+        assert provider.get_model_name() == "claude-3-opus-20240229"
+
+    def test_unknown_provider_raises(self) -> None:
+        """Test that unknown provider raises ValueError."""
+        with pytest.raises(ValueError) as exc_info:
+            create_provider("unknown")
+        assert "Unknown provider" in str(exc_info.value)
+        assert "openai" in str(exc_info.value)
+        assert "anthropic" in str(exc_info.value)
+
+
+class TestProviderTargetSizes:
+    """Tests for provider target sizes."""
+
+    def test_openai_target_size(self, mock_providers: None) -> None:
+        """Test OpenAI provider returns correct target size."""
+        provider = create_provider("openai")
+        assert provider.get_target_size() == 1000
+
+    def test_anthropic_target_size(self, mock_providers: None) -> None:
+        """Test Anthropic provider returns correct target size."""
+        provider = create_provider("anthropic")
+        assert provider.get_target_size() == 500
