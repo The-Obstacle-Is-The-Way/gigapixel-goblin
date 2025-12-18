@@ -9,16 +9,16 @@ This specification defines the tooling to evaluate GIANT against the MultiPathQA
 - [Spec-09: GIANT Agent Core Loop](./spec-09-giant-agent.md)
 
 ## Acceptance Criteria
-- [ ] `BenchmarkRunner` class is implemented.
-- [ ] Supports loading MultiPathQA metadata from `MultiPathQA.csv` (HuggingFace) and/or a local CSV/JSON export.
-- [ ] Requires a `wsi_root` input and resolves each `image_path` to a local WSI file (clear error if missing).
-- [ ] Implements dataset-aware answer extraction (1-based option indices, PANDA JSON `isup_grade`, GTEx label→index mapping).
-- [ ] Supports `runs_per_item >= 1` with majority voting (paper’s GIANT×5 is `runs_per_item=5`).
-- [ ] `MetricsCalculator` computes Accuracy and Balanced Accuracy.
-- [ ] `BootstrapEvaluator` computes **mean ± std dev** using 1000 bootstrap replicates (paper reporting format).
-- [ ] (Optional) `BootstrapEvaluator` can also compute 95% percentile intervals for internal analysis.
-- [ ] Results are saved to a structured JSON file with full provenance.
-- [ ] Supports resuming interrupted runs.
+- [x] `BenchmarkRunner` class is implemented.
+- [x] Supports loading MultiPathQA metadata from `MultiPathQA.csv` (HuggingFace) and/or a local CSV/JSON export.
+- [x] Requires a `wsi_root` input and resolves each `image_path` to a local WSI file (clear error if missing).
+- [x] Implements dataset-aware answer extraction (1-based option indices, PANDA JSON `isup_grade`, GTEx label→index mapping).
+- [x] Supports `runs_per_item >= 1` with majority voting (paper's GIANT×5 is `runs_per_item=5`).
+- [x] `MetricsCalculator` computes Accuracy and Balanced Accuracy.
+- [x] `BootstrapEvaluator` computes **mean ± std dev** using 1000 bootstrap replicates (paper reporting format).
+- [x] (Optional) `BootstrapEvaluator` can also compute 95% percentile intervals for internal analysis.
+- [x] Results are saved to a structured JSON file with full provenance.
+- [x] Supports resuming interrupted runs.
 
 ## Technical Design
 
