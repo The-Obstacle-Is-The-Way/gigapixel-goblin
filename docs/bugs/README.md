@@ -1,145 +1,68 @@
-# Bug Tracking - GIANT WSI Pipeline
+# Bug Tracking - GIANT WSI + LLM Pipeline
 
 ## Summary
 
-This directory tracks bugs discovered during the Spec-05.5 Integration Checkpoint deep audit.
+This directory tracks bugs discovered during integration checkpoint audits.
 
-The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional unit-testing strategy to keep tests fast, deterministic, and free of large binary WSI files. Integration tests now exist to exercise the real OpenSlide stack against a real WSI file, and are **skipped by default** unless a test slide is provided.
+**Archive**: Fixed bugs are moved to `archive/` to keep the active list clean.
 
-## Bug Index
+## Active Bugs
 
-### P0 - Critical (Blocks Spec-06)
-
-| ID | Title | Status |
-|----|-------|--------|
-| [BUG-004](./BUG-004-missing-integration-tests.md) | No Integration Tests with Real WSI Files | **Fixed (validated)** |
-
-### P1 - High Priority (Could Crash / OOM)
+### P1 - High Priority
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-003](./BUG-003-huge-region-no-protection.md) | Huge Region Requests Can OOM | **Fixed** |
+| [BUG-013](./BUG-013-silent-zero-cost-on-missing-usage.md) | Silent Zero-Cost on Missing Usage Data | Open |
 
-### P2 - Medium Priority (Correctness / Spec-05.5 Doc Gaps)
-
-| ID | Title | Status |
-|----|-------|--------|
-| [BUG-005](./BUG-005-single-level-slide-untested.md) | Single-Level Slide Behavior Untested | **Fixed** |
-| [BUG-002](./BUG-002-spec-contradiction-upsample-small-regions.md) | Spec-05.5 Contradicts Spec-05 on Upsampling | **Fixed** |
-
-### P3 - Low Priority (DevEx / Future-Proofing)
+### P3 - Low Priority (Deferred / Future-Proofing)
 
 | ID | Title | Status |
 |----|-------|--------|
-| [BUG-001](./BUG-001-boundary-crop-no-handling.md) | Boundary Behavior Not Explicitly Specified (Pad vs Clamp) | **Fixed** (documented + tested) |
-| [BUG-007](./BUG-007-entire-test-suite-mocked.md) | Prior "bogus tests" claim was inaccurate (see doc) | Closed (Doc corrected) |
-| [BUG-008](./BUG-008-api-keys-silent-none.md) | Missing "required key" guardrails at use sites | **Fixed** |
-| [BUG-009](./BUG-009-font-loading-silent-fallback.md) | Font Loading Falls Back Silently | **Fixed** |
 | [BUG-010](./BUG-010-mpp-nullable-no-guards.md) | Optional MPP Needs Helper/Guards When Used | Open (Future) |
-| [BUG-011](./BUG-011-unused-geometry-validator.md) | GeometryValidator Is Staged for Spec-09 (Not Dead) | Open (Deferred) |
-| [BUG-012](./BUG-012-download-silent-auth.md) | HF Download Auth Behavior Not Surfaced | **Fixed** |
+| [BUG-011](./BUG-011-unused-geometry-validator.md) | GeometryValidator Is Staged for Spec-09 | Open (Deferred) |
 
-## Key Findings
+## Archived (Fixed) Bugs
 
-### 1. Real OpenSlide integration coverage exists (BUG-004)
+See `archive/` for historical bugs that have been resolved:
 
-- `tests/integration/wsi/` contains opt-in integration tests that exercise the real OpenSlide stack.
-- By default these tests are skipped unless `WSI_TEST_FILE` points to a real slide (or a small local test slide exists under `tests/integration/wsi/data/`).
-- Validation: `WSI_TEST_FILE=tests/integration/wsi/data/CMU-1-Small-Region.svs uv run pytest tests/integration/wsi -v` → `17 passed` (0 skipped).
-- Test data safety: `tests/integration/wsi/data/` is gitignored to prevent committing binary slides.
-
-### 2. Unit tests are valuable (not “100% mocked”)
-
-- Many tests exercise real behavior (level selection math, geometry primitives/transforms/validation, PIL resizing + JPEG/Base64 encoding).
-- Mocking OpenSlide in unit tests is appropriate; integration tests should cover the real stack (BUG-004).
-
-### 3. Largest real runtime risk is memory blowups (BUG-003)
-
-- `openslide.read_region` allocates an RGBA buffer of `w*h` pixels; extremely large region requests can OOM.
-- Mitigation implemented: `CropEngine.crop()` enforces a configurable maximum read dimension to prevent extreme allocations; future work can refine this to a pixel-budget-based limit or thumbnail fallback policy.
+| ID | Title | Resolution |
+|----|-------|------------|
+| BUG-001 | Boundary Crop Behavior | Documented + tested |
+| BUG-002 | Spec Contradiction on Upsampling | Spec-05.5 updated |
+| BUG-003 | Huge Region No Protection | Memory guard added |
+| BUG-004 | Missing Integration Tests | Integration tests added |
+| BUG-005 | Single-Level Slide Untested | Unit tests added |
+| BUG-007 | Test Suite Mocked (claim inaccurate) | Documentation corrected |
+| BUG-008 | API Keys Silent None | ConfigError added |
+| BUG-009 | Font Loading Silent Fallback | Warning log added |
+| BUG-012 | HF Download Silent Auth | Debug log added |
 
 ## Severity Definitions
 
-- **P0 (Critical)**: Blocks progress. Must fix before Spec-06.
-- **P1 (High)**: Will cause production bugs. Should fix before Spec-06.
+- **P0 (Critical)**: Blocks progress. Must fix immediately.
+- **P1 (High)**: Will cause production bugs. Should fix before next spec.
 - **P2 (Medium)**: Edge cases. Can document and address later.
 - **P3 (Low)**: Nice to have. Future optimization.
+- **P4 (Future)**: Scaffolding for upcoming specs.
 
-## Resolution Priority
+## Checkpoint History
 
-### MUST FIX Before Spec-06
+### Spec-08.5 LLM Integration Checkpoint (2025-12-18)
 
-1. **BUG-004**: Add opt-in integration tests with a real WSI file (**done**; run once locally)
-2. **BUG-003**: Add huge-region protection / pixel budget (**done**; dimension guard)
+**Audited**: Specs 06-08 (LLM Provider, Navigation Prompts, Context Manager)
 
-### SHOULD FIX Before Spec-06
+**Findings**:
+- 59 integration tests passing
+- P0-2 requirements fully covered
+- 1 new bug documented (BUG-013)
+- 9 fixed bugs archived
 
-3. **BUG-002**: Update Spec-05.5 P1-3 to match paper/spec-05 (no upsample) (**done**)
+### Spec-05.5 WSI Integration Checkpoint (2025-12-17)
 
-### CAN DEFER
+**Audited**: Specs 01-05 (WSI data layer, cropping, levels)
 
-- **BUG-010, BUG-011**: Non-blocking (future-proofing / staged for Spec-09)
-
-### FIXED
-
-- **BUG-001**: Boundary behavior documented and integration tests added
-- **BUG-002**: Spec-05.5 doc updated to match spec-05
-- **BUG-003**: Memory protection via max_read_dimension parameter
-- **BUG-004**: Integration tests with opt-in WSI file testing
-- **BUG-005**: Comprehensive single-level slide unit tests
-- **BUG-008**: ConfigError and require_*_key() methods added
-- **BUG-009**: Warning logged when font falls back to default
-- **BUG-012**: Debug log when HF token is not set
-
-## Audit Methodology
-
-1. Read ALL source files (`src/giant/**/*.py`)
-2. Read ALL test files (`tests/**/*.py`)
-3. Check for:
-   - Halfway implementations
-   - Silent fallbacks / degradation
-   - Things that should fail loudly
-   - Over-mocking in tests
-   - Nullable handling without guards
-   - Dead code / unused utilities
-
-## Discovered During
-
-- **Spec-05.5 Integration Checkpoint Review**
-- **Date**: 2025-12-17
-- **Reviewer**: AI Code Review (Claude)
-
-## Files Examined
-
-### Source (20 files)
-- `src/giant/__init__.py`
-- `src/giant/config.py`
-- `src/giant/cli/main.py`
-- `src/giant/data/download.py`
-- `src/giant/utils/logging.py`
-- `src/giant/geometry/primitives.py`
-- `src/giant/geometry/transforms.py`
-- `src/giant/geometry/validators.py`
-- `src/giant/geometry/overlay.py`
-- `src/giant/wsi/reader.py`
-- `src/giant/wsi/types.py`
-- `src/giant/wsi/exceptions.py`
-- `src/giant/core/level_selector.py`
-- `src/giant/core/crop_engine.py`
-- (+ init files)
-
-### Tests (19 files)
-- `tests/unit/wsi/test_reader.py`
-- `tests/unit/wsi/test_types.py`
-- `tests/unit/wsi/test_exceptions.py`
-- `tests/unit/core/test_level_selector.py`
-- `tests/unit/core/test_crop_engine.py`
-- `tests/unit/geometry/test_primitives.py`
-- `tests/unit/geometry/test_transforms.py`
-- `tests/unit/geometry/test_validators.py`
-- `tests/unit/geometry/test_overlay.py`
-- `tests/unit/test_config.py`
-- `tests/unit/test_cli.py`
-- `tests/unit/test_download.py`
-- `tests/unit/test_logging.py`
-- (+ init files)
+**Findings**:
+- 17 WSI integration tests added
+- 12 bugs documented
+- 9 bugs fixed
+- 2 deferred to Spec-09 (BUG-010, BUG-011)
