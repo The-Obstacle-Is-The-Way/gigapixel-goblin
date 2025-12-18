@@ -8,13 +8,16 @@ This specification defines the abstraction layer for Large Multimodal Models (LM
 - [Spec-03: Coordinate System & Geometry](./spec-03-coordinates.md)
 
 ## Acceptance Criteria
-- [ ] `LLMProvider` Protocol defined.
-- [ ] `OpenAIProvider` implemented (supporting GPT-4o, GPT-5).
-- [ ] `AnthropicProvider` implemented (supporting Claude 4.5-Sonnet per paper; model name configurable).
-- [ ] Support for multimodal inputs (text + base64 images).
-- [ ] Robust parsing of `StepResponse` (reasoning text + action).
-- [ ] Automatic retry logic for API errors and rate limits (using `tenacity`).
-- [ ] Cost tracking per request.
+- [x] `LLMProvider` Protocol defined.
+- [x] `OpenAIProvider` implemented (default: `gpt-5.2-pro-2025-12-11`).
+- [x] `AnthropicProvider` implemented (default: `claude-opus-4-5-20251101`).
+- [x] Support for multimodal inputs (text + base64 images).
+- [x] Robust parsing of `StepResponse` (reasoning text + action).
+- [x] Automatic retry logic for API errors and rate limits (using `tenacity`).
+- [x] Cost tracking per request.
+
+> **Model Registry:** See `docs/models/MODEL_REGISTRY.md` for approved frontier models.
+> This diverges from the original paper to use Dec 2025 frontier models.
 
 ## Technical Design
 
@@ -77,15 +80,20 @@ class LLMProvider(Protocol):
 
 ### Cost Calculation
 
-Token costs vary by model and image tokens. Maintain a lookup table:
+Token costs vary by model and image tokens. See `docs/models/MODEL_REGISTRY.md` for SSOT.
 
 ```python
 # src/giant/llm/pricing.py
+# FRONTIER MODELS (Dec 2025)
 PRICING_USD_PER_1K = {
-    "gpt-5": {"input": 0.01, "output": 0.03, "image_base": 0.00255},
-    "gpt-4o": {"input": 0.005, "output": 0.015, "image_base": 0.00255},
-    # Paper model label: "Claude 4.5-Sonnet" (model name is configurable; keep pricing table keys aligned to configured names)
-    "claude-4-5-sonnet": {"input": 0.003, "output": 0.015, "image_per_1k_px": 0.00048},
+    # Claude Opus 4.5 - Best for coding & agents
+    "claude-opus-4-5-20251101": {"input": 0.005, "output": 0.025, "image_per_1k_px": 0.00048},
+    # Gemini 3.0 Pro - 1M context, advanced reasoning
+    "gemini-3-pro-preview": {"input": 0.002, "output": 0.012},
+    # GPT-5.2 Pro - Flagship for agentic tasks
+    "gpt-5.2-pro-2025-12-11": {"input": 0.021, "output": 0.168, "image_base": 0.00255},
+    # GPT-5.2 Standard - Cost-effective alternative
+    "gpt-5.2-2025-12-11": {"input": 0.00175, "output": 0.014, "image_base": 0.00255},
 }
 
 def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
@@ -93,7 +101,7 @@ def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> fl
     return (prompt_tokens * prices["input"] + completion_tokens * prices["output"]) / 1000
 ```
 
-**Note:** Image token costs are approximations. Update pricing table as APIs evolve.
+**Note:** Image token costs are approximations. See MODEL_REGISTRY.md for current pricing.
 
 ### Implementation Details
 

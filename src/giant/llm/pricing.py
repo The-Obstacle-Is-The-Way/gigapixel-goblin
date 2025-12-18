@@ -26,9 +26,39 @@ class ModelPricing(TypedDict, total=False):
 
 
 # Pricing table: USD per 1,000 tokens
-# Sources: OpenAI and Anthropic pricing pages (as of Dec 2025)
+# Sources: OpenAI, Anthropic, Google pricing pages (as of Dec 2025)
+# See docs/models/MODEL_REGISTRY.md for SSOT
 PRICING_USD_PER_1K: dict[str, ModelPricing] = {
-    # OpenAI Models
+    # ==========================================================================
+    # FRONTIER MODELS (Dec 2025) - Primary targets for GIANT
+    # ==========================================================================
+    # Claude Opus 4.5 - Best for coding & agents (80.9% SWE-bench)
+    "claude-opus-4-5-20251101": {
+        "input": 0.005,  # $5/1M tokens
+        "output": 0.025,  # $25/1M tokens
+        "image_per_1k_px": 0.00048,
+    },
+    # Gemini 3.0 Pro - 1M context, advanced reasoning
+    "gemini-3-pro-preview": {
+        "input": 0.002,  # $2/1M tokens
+        "output": 0.012,  # $12/1M tokens
+        # Gemini includes images in token count, no separate image cost
+    },
+    # GPT-5.2 Pro - 400K context, flagship for agentic tasks
+    "gpt-5.2-pro-2025-12-11": {
+        "input": 0.021,  # $21/1M tokens
+        "output": 0.168,  # $168/1M tokens
+        "image_base": 0.00255,
+    },
+    # GPT-5.2 Standard - Cost-effective alternative
+    "gpt-5.2-2025-12-11": {
+        "input": 0.00175,  # $1.75/1M tokens
+        "output": 0.014,  # $14/1M tokens
+        "image_base": 0.00255,
+    },
+    # ==========================================================================
+    # LEGACY MODELS (for backwards compatibility)
+    # ==========================================================================
     "gpt-5": {
         "input": 0.01,
         "output": 0.03,
@@ -44,8 +74,7 @@ PRICING_USD_PER_1K: dict[str, ModelPricing] = {
         "output": 0.0006,
         "image_base": 0.00255,
     },
-    # Anthropic Models
-    # Paper model label: "Claude 4.5-Sonnet"
+    # Anthropic legacy models
     "claude-4-5-sonnet": {
         "input": 0.003,
         "output": 0.015,

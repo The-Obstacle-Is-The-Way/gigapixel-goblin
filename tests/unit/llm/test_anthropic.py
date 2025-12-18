@@ -156,8 +156,8 @@ class TestAnthropicProviderInit:
     def test_init_with_default_model(self, test_settings: Settings) -> None:
         """Test initialization with default model."""
         provider = AnthropicProvider(settings=test_settings)
-        assert provider.model == "claude-sonnet-4-20250514"
-        assert provider.get_model_name() == "claude-sonnet-4-20250514"
+        assert provider.model == "claude-opus-4-5-20251101"
+        assert provider.get_model_name() == "claude-opus-4-5-20251101"
 
     def test_init_with_custom_model(self, test_settings: Settings) -> None:
         """Test initialization with custom model."""
@@ -212,7 +212,7 @@ class TestAnthropicProviderGenerate:
             assert result.step_response.action.action_type == "crop"
             assert result.usage.prompt_tokens == 100
             assert result.usage.completion_tokens == 50
-            assert result.model == "claude-sonnet-4-20250514"
+            assert result.model == "claude-opus-4-5-20251101"
             assert result.latency_ms > 0
 
     @pytest.mark.asyncio
