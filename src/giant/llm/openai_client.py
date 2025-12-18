@@ -141,9 +141,9 @@ class OpenAIProvider:
                 model=self.model,
                 cause=e,
             ) from e
-        except Exception:
-            self._circuit_breaker.record_failure()
-            raise
+        # Note: Other exceptions (application bugs, validation errors, etc.)
+        # propagate without tripping circuit breaker - only transient/remote
+        # errors should affect circuit breaker state.
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),

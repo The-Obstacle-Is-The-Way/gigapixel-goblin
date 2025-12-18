@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from openai import APIConnectionError
 
 from giant.config import Settings
 from giant.llm.openai_client import OpenAIProvider, _build_json_schema
@@ -229,7 +230,11 @@ class TestOpenAIProviderCircuitBreaker:
     async def test_circuit_breaker_opens_on_failures(
         self, test_settings: Settings, sample_messages: list[Message]
     ) -> None:
-        """Test that circuit breaker opens after failures."""
+        """Test that circuit breaker opens after transient failures.
+
+        Only transient errors (RateLimitError, APIConnectionError) should
+        trip the circuit breaker - not application bugs.
+        """
         # Set low threshold for testing
         provider = OpenAIProvider(settings=test_settings)
         provider._circuit_breaker.config.failure_threshold = 2
@@ -237,7 +242,8 @@ class TestOpenAIProviderCircuitBreaker:
         with patch.object(
             provider._client.responses, "create", new_callable=AsyncMock
         ) as mock_create:
-            mock_create.side_effect = Exception("API Error")
+            # Use APIConnectionError - a transient error that should trip breaker
+            mock_create.side_effect = APIConnectionError(request=None)
 
             # First failure
             with pytest.raises(LLMError):

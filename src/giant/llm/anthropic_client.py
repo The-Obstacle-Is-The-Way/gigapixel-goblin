@@ -166,9 +166,9 @@ class AnthropicProvider:
                 model=self.model,
                 cause=e,
             ) from e
-        except Exception:
-            self._circuit_breaker.record_failure()
-            raise
+        # Note: Other exceptions (application bugs, validation errors, etc.)
+        # propagate without tripping circuit breaker - only transient/remote
+        # errors should affect circuit breaker state.
 
     @retry(
         wait=wait_random_exponential(min=1, max=60),
@@ -221,10 +221,10 @@ class AnthropicProvider:
 
             step_response = _parse_tool_use_to_step_response(tool_use_block.input)
 
-            # Calculate usage and cost
+            # Calculate usage and cost (defensive None check for SDK edge cases)
             usage = response.usage
-            prompt_tokens = usage.input_tokens
-            completion_tokens = usage.output_tokens
+            prompt_tokens = usage.input_tokens if usage else 0
+            completion_tokens = usage.output_tokens if usage else 0
             total_tokens = prompt_tokens + completion_tokens
 
             text_cost = calculate_cost(self.model, prompt_tokens, completion_tokens)

@@ -5,6 +5,7 @@ from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from anthropic import APIConnectionError
 from PIL import Image
 
 from giant.config import Settings
@@ -315,14 +316,19 @@ class TestAnthropicProviderCircuitBreaker:
     async def test_circuit_breaker_opens_on_failures(
         self, test_settings: Settings, sample_messages: list[Message]
     ) -> None:
-        """Test that circuit breaker opens after failures."""
+        """Test that circuit breaker opens after transient failures.
+
+        Only transient errors (RateLimitError, APIConnectionError) should
+        trip the circuit breaker - not application bugs.
+        """
         provider = AnthropicProvider(settings=test_settings)
         provider._circuit_breaker.config.failure_threshold = 2
 
         with patch.object(
             provider._client.messages, "create", new_callable=AsyncMock
         ) as mock_create:
-            mock_create.side_effect = Exception("API Error")
+            # Use APIConnectionError - a transient error that should trip breaker
+            mock_create.side_effect = APIConnectionError(request=None)
 
             # First failure
             with pytest.raises(LLMError):
