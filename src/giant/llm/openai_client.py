@@ -203,8 +203,14 @@ class OpenAIProvider:
 
             # Calculate usage and cost
             usage = response.usage
-            prompt_tokens = usage.input_tokens if usage else 0
-            completion_tokens = usage.output_tokens if usage else 0
+            if usage is None:
+                raise LLMError(
+                    "API response missing usage data - cannot track costs",
+                    provider="openai",
+                    model=self.model,
+                )
+            prompt_tokens = usage.input_tokens
+            completion_tokens = usage.output_tokens
             total_tokens = prompt_tokens + completion_tokens
 
             # Calculate cost (text + images)
@@ -234,6 +240,9 @@ class OpenAIProvider:
             raise
         except LLMParseError:
             # Don't wrap parse errors
+            raise
+        except LLMError:
+            # Don't wrap already-wrapped LLM errors
             raise
         except Exception as e:
             raise LLMError(

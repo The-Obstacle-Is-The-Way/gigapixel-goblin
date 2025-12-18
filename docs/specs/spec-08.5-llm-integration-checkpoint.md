@@ -124,11 +124,11 @@ export ANTHROPIC_API_KEY=sk-ant-...
 # Run integration tests
 uv run pytest tests/integration/llm/ -v --tb=long
 
-# Run with cost guard (skip tests over $0.10)
-uv run pytest tests/integration/llm/ -v -m "not expensive"
-
-# Dry run (mocked, no real API calls)
+# Run mock-only (skip live API calls even if keys are set)
 uv run pytest tests/integration/llm/ -v -m "mock"
+
+# Run live API tests (opt-in, costs money)
+uv run pytest tests/integration/llm/test_p0_critical.py -v -m "live"
 ```
 
 ## Sign-Off Criteria

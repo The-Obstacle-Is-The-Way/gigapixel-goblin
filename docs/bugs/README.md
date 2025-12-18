@@ -8,12 +8,6 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
-### P1 - High Priority
-
-| ID | Title | Status |
-|----|-------|--------|
-| [BUG-013](./BUG-013-silent-zero-cost-on-missing-usage.md) | Silent Zero-Cost on Missing Usage Data | Open |
-
 ### P3 - Low Priority (Deferred / Future-Proofing)
 
 | ID | Title | Status |
@@ -36,6 +30,7 @@ See `archive/` for historical bugs that have been resolved:
 | BUG-008 | API Keys Silent None | ConfigError added |
 | BUG-009 | Font Loading Silent Fallback | Warning log added |
 | BUG-012 | HF Download Silent Auth | Debug log added |
+| BUG-013 | Silent Zero-Cost on Missing Usage Data | Fail fast on missing usage + tests |
 
 ## Severity Definitions
 
@@ -54,8 +49,8 @@ See `archive/` for historical bugs that have been resolved:
 **Findings**:
 - 59 integration tests passing
 - P0-2 requirements fully covered
-- 1 new bug documented (BUG-013)
-- 9 fixed bugs archived
+- 1 new bug documented + fixed (BUG-013)
+- 10 fixed bugs archived
 
 ### Spec-05.5 WSI Integration Checkpoint (2025-12-17)
 
