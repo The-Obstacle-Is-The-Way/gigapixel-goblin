@@ -8,6 +8,12 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
+### P1 - High Priority
+
+| ID | Title | Status |
+|----|-------|--------|
+| [BUG-014](./BUG-014-env-secrets-management.md) | Environment Secrets Management Gap | Open |
+
 ### P3 - Low Priority (Deferred / Future-Proofing)
 
 | ID | Title | Status |
