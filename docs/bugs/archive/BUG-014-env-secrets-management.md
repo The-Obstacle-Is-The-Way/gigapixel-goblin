@@ -2,7 +2,7 @@
 
 ## Severity: P1 (High Priority) - Security & Configuration Integrity
 
-## Status: Open
+## Status: Closed (Fixed)
 
 ## Summary
 
@@ -204,11 +204,14 @@ Gemini was **intentionally planned** for the future (P4 priority) but the scaffo
 ## Implementation Checklist
 
 - [x] Update `.env.example` with comprehensive comments
-- [ ] Update `docs/specs/spec-08.5-llm-integration-checkpoint.md` with test warnings
+- [x] Update `docs/specs/spec-08.5-llm-integration-checkpoint.md` with test warnings
 - [x] Decide on Google/Gemini status and document → **Decision: Keep scaffolding, complete config**
 - [x] Add `GOOGLE_API_KEY` to `config.py` with `require_google_key()` method
 - [x] Update `spec-06-llm-provider.md` to note Gemini as P4 future work
-- [ ] Consider: Should model_registry reject Google until implemented? → **No, scaffolding is fine**
+- [x] Consider: Should model_registry reject Google until implemented? → **No, scaffolding is fine**
+- [x] Fix test skipif to detect keys from `.env` file (not just shell env)
+- [x] Fix Anthropic JSON string parsing for nested action field
+- [x] Fix OpenAI schema to not use `oneOf` (use flattened schema with nulls)
 
 ---
 

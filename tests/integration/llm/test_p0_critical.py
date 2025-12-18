@@ -63,16 +63,38 @@ def mock_anthropic_settings() -> Settings:
     )
 
 
+def _has_openai_key() -> bool:
+    """Check if real OpenAI API key is available (shell env OR .env file)."""
+    # Check shell env first, then fall back to settings (which reads .env)
+    if os.getenv("OPENAI_API_KEY"):
+        return True
+    from giant.config import Settings
+
+    s = Settings()
+    return s.OPENAI_API_KEY is not None and s.OPENAI_API_KEY.strip() != ""
+
+
+def _has_anthropic_key() -> bool:
+    """Check if real Anthropic API key is available (shell env OR .env file)."""
+    # Check shell env first, then fall back to settings (which reads .env)
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return True
+    from giant.config import Settings
+
+    s = Settings()
+    return s.ANTHROPIC_API_KEY is not None and s.ANTHROPIC_API_KEY.strip() != ""
+
+
 @pytest.fixture
 def has_openai_key() -> bool:
     """Check if real OpenAI API key is available."""
-    return bool(os.getenv("OPENAI_API_KEY"))
+    return _has_openai_key()
 
 
 @pytest.fixture
 def has_anthropic_key() -> bool:
     """Check if real Anthropic API key is available."""
-    return bool(os.getenv("ANTHROPIC_API_KEY"))
+    return _has_anthropic_key()
 
 
 @pytest.fixture
@@ -1071,8 +1093,8 @@ class TestP0_9_ParseAnswerAction:
 @pytest.mark.live
 @pytest.mark.cost
 @pytest.mark.skipif(
-    not os.getenv("OPENAI_API_KEY"),
-    reason="OPENAI_API_KEY not set",
+    not _has_openai_key(),
+    reason="OPENAI_API_KEY not set (shell env or .env file)",
 )
 class TestLiveOpenAI:
     """Live tests with real OpenAI API (requires OPENAI_API_KEY).
@@ -1115,8 +1137,8 @@ class TestLiveOpenAI:
 @pytest.mark.live
 @pytest.mark.cost
 @pytest.mark.skipif(
-    not os.getenv("ANTHROPIC_API_KEY"),
-    reason="ANTHROPIC_API_KEY not set",
+    not _has_anthropic_key(),
+    reason="ANTHROPIC_API_KEY not set (shell env or .env file)",
 )
 class TestLiveAnthropic:
     """Live tests with real Anthropic API (requires ANTHROPIC_API_KEY).
