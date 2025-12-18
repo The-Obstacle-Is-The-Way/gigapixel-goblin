@@ -82,10 +82,10 @@ class TestOpenAIProviderInit:
         assert provider.model == "gpt-5.2-2025-12-11"
         assert provider.get_model_name() == "gpt-5.2-2025-12-11"
 
-    def test_init_with_custom_model(self, test_settings: Settings) -> None:
-        """Test initialization with custom model."""
-        provider = OpenAIProvider(model="gpt-5", settings=test_settings)
-        assert provider.model == "gpt-5"
+    def test_init_with_invalid_model_raises(self, test_settings: Settings) -> None:
+        """Test initialization rejects non-OpenAI approved models."""
+        with pytest.raises(ValueError):
+            OpenAIProvider(model="claude-opus-4-5-20251101", settings=test_settings)
 
     def test_get_target_size(self, test_settings: Settings) -> None:
         """Test target size from settings."""

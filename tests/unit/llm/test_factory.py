@@ -37,11 +37,13 @@ class TestCreateProvider:
         assert isinstance(provider, OpenAIProvider)
         assert provider.get_model_name() == "gpt-5.2-2025-12-11"
 
-    def test_create_openai_with_custom_model(self, mock_providers: None) -> None:
-        """Test creating OpenAI provider with custom model."""
-        provider = create_provider("openai", model="gpt-5")
-        assert isinstance(provider, OpenAIProvider)
-        assert provider.get_model_name() == "gpt-5"
+    def test_create_openai_with_anthropic_model_rejected(
+        self, mock_providers: None
+    ) -> None:
+        """Test OpenAI provider rejects non-OpenAI approved models."""
+        with pytest.raises(ValueError) as exc_info:
+            create_provider("openai", model="claude-opus-4-5-20251101")
+        assert "not approved" in str(exc_info.value).lower()
 
     def test_create_anthropic_provider(self, mock_providers: None) -> None:
         """Test creating Anthropic provider."""
@@ -49,11 +51,13 @@ class TestCreateProvider:
         assert isinstance(provider, AnthropicProvider)
         assert provider.get_model_name() == "claude-opus-4-5-20251101"
 
-    def test_create_anthropic_with_custom_model(self, mock_providers: None) -> None:
-        """Test creating Anthropic provider with custom model."""
-        provider = create_provider("anthropic", model="claude-3-opus-20240229")
-        assert isinstance(provider, AnthropicProvider)
-        assert provider.get_model_name() == "claude-3-opus-20240229"
+    def test_create_anthropic_with_openai_model_rejected(
+        self, mock_providers: None
+    ) -> None:
+        """Test Anthropic provider rejects non-Anthropic approved models."""
+        with pytest.raises(ValueError) as exc_info:
+            create_provider("anthropic", model="gpt-5.2-2025-12-11")
+        assert "not approved" in str(exc_info.value).lower()
 
     def test_unknown_provider_raises(self) -> None:
         """Test that unknown provider raises ValueError."""

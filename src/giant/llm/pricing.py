@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import TypedDict
 
+from giant.llm.model_registry import APPROVED_MODELS
+
 
 class ModelPricing(TypedDict, total=False):
     """Pricing structure for a model.
@@ -49,11 +51,7 @@ PRICING_USD_PER_1K: dict[str, ModelPricing] = {
     },
 }
 
-# Default pricing for unknown models
-_DEFAULT_PRICING: ModelPricing = {
-    "input": 0.01,
-    "output": 0.03,
-}
+_APPROVED_MODELS_LIST = ", ".join(sorted(APPROVED_MODELS))
 
 
 def get_model_pricing(model: str) -> ModelPricing:
@@ -64,9 +62,17 @@ def get_model_pricing(model: str) -> ModelPricing:
 
     Returns:
         ModelPricing dictionary with input/output costs.
-        Returns default pricing if model is not in the lookup table.
+
+    Raises:
+        ValueError: If `model` is not in the approved registry.
     """
-    return PRICING_USD_PER_1K.get(model, _DEFAULT_PRICING)
+    try:
+        return PRICING_USD_PER_1K[model]
+    except KeyError as e:
+        raise ValueError(
+            f"Unknown model {model!r}. Approved models: {_APPROVED_MODELS_LIST}. "
+            "See docs/models/MODEL_REGISTRY.md."
+        ) from e
 
 
 def calculate_cost(
@@ -88,8 +94,8 @@ def calculate_cost(
         Cost in USD.
     """
     pricing = get_model_pricing(model)
-    input_cost = prompt_tokens * pricing.get("input", 0.01) / 1000
-    output_cost = completion_tokens * pricing.get("output", 0.03) / 1000
+    input_cost = prompt_tokens * pricing["input"] / 1000
+    output_cost = completion_tokens * pricing["output"] / 1000
     return input_cost + output_cost
 
 
@@ -107,7 +113,7 @@ def calculate_image_cost_openai(model: str, image_count: int = 1) -> float:
         Image cost in USD.
     """
     pricing = get_model_pricing(model)
-    base_cost = pricing.get("image_base", 0.00255)
+    base_cost = pricing.get("image_base", 0.0)
     return base_cost * image_count
 
 
@@ -127,7 +133,7 @@ def calculate_image_cost_anthropic(
         Image cost in USD.
     """
     pricing = get_model_pricing(model)
-    per_1k_px = pricing.get("image_per_1k_px", 0.00048)
+    per_1k_px = pricing.get("image_per_1k_px", 0.0)
     return (image_pixels / 1000) * per_1k_px
 
 

@@ -53,11 +53,10 @@ class TestGetModelPricing:
         assert pricing["input"] == 0.002
         assert pricing["output"] == 0.012
 
-    def test_unknown_model_returns_default(self) -> None:
-        """Test that unknown models get default pricing."""
-        pricing = get_model_pricing("unknown-model-xyz")
-        assert pricing["input"] == 0.01
-        assert pricing["output"] == 0.03
+    def test_unknown_model_raises(self) -> None:
+        """Test that unknown models are rejected."""
+        with pytest.raises(ValueError):
+            get_model_pricing("")
 
 
 class TestCalculateCost:
@@ -86,13 +85,10 @@ class TestCalculateCost:
         )
         assert cost == 0.0
 
-    def test_unknown_model_uses_default(self) -> None:
-        """Test that unknown models use default pricing."""
-        cost = calculate_cost(
-            "unknown-model", prompt_tokens=1000, completion_tokens=500
-        )
-        # 1000 * 0.01/1000 + 500 * 0.03/1000 = 0.01 + 0.015 = 0.025
-        assert cost == pytest.approx(0.025)
+    def test_unknown_model_raises(self) -> None:
+        """Test that unknown models are rejected."""
+        with pytest.raises(ValueError):
+            calculate_cost("", prompt_tokens=1000, completion_tokens=500)
 
 
 class TestCalculateImageCostOpenai:

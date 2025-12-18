@@ -95,7 +95,8 @@ PRICING_USD_PER_1K = {
 }
 
 def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    prices = PRICING_USD_PER_1K.get(model, {"input": 0.01, "output": 0.03})
+    # Unknown models are rejected (see docs/models/MODEL_REGISTRY.md)
+    prices = PRICING_USD_PER_1K[model]
     return (prompt_tokens * prices["input"] + completion_tokens * prices["output"]) / 1000
 ```
 

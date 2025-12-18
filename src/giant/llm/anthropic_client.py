@@ -1,7 +1,7 @@
 """Anthropic LLM Provider implementation for GIANT.
 
 This module implements the LLMProvider protocol for Anthropic models
-(Claude 4.5-Sonnet per the paper). It uses Tool Use with forced tool choice
+(Claude Opus 4.5). It uses Tool Use with forced tool choice
 for structured output.
 
 Per Spec-06:
@@ -38,6 +38,7 @@ from giant.llm.converters import (
     get_system_prompt_for_anthropic,
     messages_to_anthropic,
 )
+from giant.llm.model_registry import validate_model_id
 from giant.llm.pricing import calculate_cost, calculate_image_cost_anthropic
 from giant.llm.protocol import (
     LLMError,
@@ -112,6 +113,7 @@ class AnthropicProvider:
 
     def __post_init__(self) -> None:
         """Initialize the Anthropic client and rate limiter."""
+        validate_model_id(self.model, provider="anthropic")
         api_key = self.settings.require_anthropic_key()
         self._client = AsyncAnthropic(api_key=api_key)
         self._limiter = AsyncLimiter(

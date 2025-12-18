@@ -12,12 +12,13 @@ Public API:
 Usage:
     from giant.llm import create_provider, Message, MessageContent
 
-    provider = create_provider("openai", model="gpt-4o")
+    provider = create_provider("openai", model="gpt-5.2-2025-12-11")
     response = await provider.generate_response(messages)
 """
 
 from giant.llm.anthropic_client import AnthropicProvider
 from giant.llm.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
+from giant.llm.model_registry import validate_model_id
 from giant.llm.openai_client import OpenAIProvider
 from giant.llm.pricing import (
     PRICING_USD_PER_1K,
@@ -96,9 +97,13 @@ def create_provider(
     See docs/models/MODEL_REGISTRY.md for approved models and pricing.
     """
     if provider == "openai":
-        return OpenAIProvider(model=model or "gpt-5.2-2025-12-11")
+        chosen_model = model or "gpt-5.2-2025-12-11"
+        validate_model_id(chosen_model, provider="openai")
+        return OpenAIProvider(model=chosen_model)
     elif provider == "anthropic":
-        return AnthropicProvider(model=model or "claude-opus-4-5-20251101")
+        chosen_model = model or "claude-opus-4-5-20251101"
+        validate_model_id(chosen_model, provider="anthropic")
+        return AnthropicProvider(model=chosen_model)
     else:
         raise ValueError(
             f"Unknown provider: {provider}. Supported providers: 'openai', 'anthropic'"

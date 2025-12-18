@@ -1,6 +1,6 @@
 """OpenAI LLM Provider implementation for GIANT.
 
-This module implements the LLMProvider protocol for OpenAI models (GPT-4o, GPT-5).
+This module implements the LLMProvider protocol for OpenAI models (GPT-5.2).
 It uses the OpenAI Responses API with structured output (JSON schema) for
 reliable parsing of StepResponse.
 
@@ -38,6 +38,7 @@ from giant.llm.converters import (
     get_system_prompt_for_openai,
     messages_to_openai_input,
 )
+from giant.llm.model_registry import validate_model_id
 from giant.llm.pricing import calculate_cost, calculate_image_cost_openai
 from giant.llm.protocol import (
     LLMError,
@@ -87,6 +88,7 @@ class OpenAIProvider:
 
     def __post_init__(self) -> None:
         """Initialize the OpenAI client and rate limiter."""
+        validate_model_id(self.model, provider="openai")
         api_key = self.settings.require_openai_key()
         self._client = AsyncOpenAI(api_key=api_key)
         self._limiter = AsyncLimiter(
