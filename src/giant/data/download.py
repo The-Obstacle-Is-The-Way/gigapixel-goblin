@@ -10,12 +10,15 @@ This module is intentionally minimal for Spec-01:
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download
 
 from giant.config import settings
 from giant.utils.logging import configure_logging, get_logger
+
+logger = logging.getLogger(__name__)
 
 MULTIPATHQA_REPO_ID = "tbuckley/MultiPathQA"
 MULTIPATHQA_CSV_FILENAME = "MultiPathQA.csv"
@@ -29,13 +32,21 @@ def download_multipathqa_metadata(
 ) -> Path:
     """Download MultiPathQA metadata CSV to the local `data/` directory."""
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    token = settings.HUGGINGFACE_TOKEN
+    if token is None:
+        logger.debug(
+            "HUGGINGFACE_TOKEN not set, using anonymous access. "
+            "Set token in .env for private/gated datasets."
+        )
+
     csv_path = hf_hub_download(
         repo_id=MULTIPATHQA_REPO_ID,
         filename=MULTIPATHQA_CSV_FILENAME,
         repo_type="dataset",
         local_dir=output_dir,
         force_download=force,
-        token=settings.HUGGINGFACE_TOKEN or None,
+        token=token,
     )
     return Path(csv_path)
 

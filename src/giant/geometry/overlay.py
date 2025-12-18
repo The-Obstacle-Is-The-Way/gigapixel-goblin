@@ -11,6 +11,7 @@ intervals and labeling them with their corresponding Level-0 coordinates.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 if TYPE_CHECKING:
     from giant.wsi.types import WSIMetadata
+
+logger = logging.getLogger(__name__)
 
 # Threshold for K notation in coordinate labels
 _COORD_THRESHOLD_LARGE = 10000  # Use "15K" for >= 10000
@@ -185,6 +188,11 @@ class AxisGuideGenerator:
                 return ImageFont.truetype("Arial.ttf", self.style.font_size)
             except OSError:
                 # Fall back to PIL's default font
+                logger.warning(
+                    "No TrueType fonts available (DejaVuSans.ttf, Arial.ttf). "
+                    "Using low-resolution default font. Install fonts for better "
+                    "quality."
+                )
                 return ImageFont.load_default()
 
     def _format_coordinate(self, coord: int) -> str:

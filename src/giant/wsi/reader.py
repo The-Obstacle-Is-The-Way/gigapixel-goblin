@@ -71,7 +71,7 @@ class WSIReader:
         """
         self._path = Path(path).resolve()
         self._metadata: WSIMetadata | None = None
-        self._slide: openslide.OpenSlide | None
+        self._slide: openslide.OpenSlide | None = None
 
         # Validate file exists
         if not self._path.exists():

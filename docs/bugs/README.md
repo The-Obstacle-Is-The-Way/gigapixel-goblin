@@ -34,10 +34,10 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 | [BUG-001](./BUG-001-boundary-crop-no-handling.md) | Boundary Behavior Not Explicitly Specified (Pad vs Clamp) | **Fixed** (documented + tested) |
 | [BUG-007](./BUG-007-entire-test-suite-mocked.md) | Prior "bogus tests" claim was inaccurate (see doc) | Closed (Doc corrected) |
 | [BUG-008](./BUG-008-api-keys-silent-none.md) | Missing "required key" guardrails at use sites | **Fixed** |
-| [BUG-009](./BUG-009-font-loading-silent-fallback.md) | Font Loading Falls Back Silently | Open (DevEx) |
+| [BUG-009](./BUG-009-font-loading-silent-fallback.md) | Font Loading Falls Back Silently | **Fixed** |
 | [BUG-010](./BUG-010-mpp-nullable-no-guards.md) | Optional MPP Needs Helper/Guards When Used | Open (Future) |
 | [BUG-011](./BUG-011-unused-geometry-validator.md) | GeometryValidator Is Staged for Spec-09 (Not Dead) | Open (Deferred) |
-| [BUG-012](./BUG-012-download-silent-auth.md) | HF Download Auth Behavior Not Surfaced | Open (DevEx) |
+| [BUG-012](./BUG-012-download-silent-auth.md) | HF Download Auth Behavior Not Surfaced | **Fixed** |
 
 ## Key Findings
 
@@ -78,7 +78,7 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 
 ### CAN DEFER
 
-- **BUG-009, BUG-010, BUG-011, BUG-012**: Non-blocking (DevEx/future-proofing)
+- **BUG-010, BUG-011**: Non-blocking (future-proofing / staged for Spec-09)
 
 ### FIXED
 
@@ -88,6 +88,8 @@ The unit test suite is **not** “bogus”: mocking OpenSlide is an intentional 
 - **BUG-004**: Integration tests with opt-in WSI file testing
 - **BUG-005**: Comprehensive single-level slide unit tests
 - **BUG-008**: ConfigError and require_*_key() methods added
+- **BUG-009**: Warning logged when font falls back to default
+- **BUG-012**: Debug log when HF token is not set
 
 ## Audit Methodology
 
