@@ -225,12 +225,15 @@ class GIANTAgent:
 
         except Exception as e:
             logger.exception("Agent run failed with exception")
+            # Preserve partial trajectory if context was initialized
+            trajectory = (
+                self._context.trajectory
+                if hasattr(self, "_context")
+                else Trajectory(wsi_path=wsi_path_str, question=self.question)
+            )
             return RunResult(
                 answer="",
-                trajectory=Trajectory(
-                    wsi_path=wsi_path_str,
-                    question=self.question,
-                ),
+                trajectory=trajectory,
                 total_tokens=self._total_tokens,
                 total_cost=self._total_cost,
                 success=False,
@@ -270,9 +273,9 @@ class GIANTAgent:
 
             # Handle action
             if isinstance(action, FinalAnswerAction):
-                # Early termination with answer
-                logger.warning(
-                    "Model returned answer early at step %d/%d",
+                # Early termination with answer (valid outcome, not a warning)
+                logger.info(
+                    "Model returned answer at step %d/%d",
                     self._context.current_step,
                     self.config.max_steps,
                 )
