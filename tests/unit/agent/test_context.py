@@ -176,10 +176,14 @@ class TestContextManagerGetMessages:
 
         messages = ctx.get_messages(thumbnail_base64="thumb==")
 
-        # Structure: system, user (initial), assistant (turn 0 response)
-        assert messages[0].role == "system"
-        assert messages[1].role == "user"
-        assert messages[2].role == "assistant"
+        # Structure: system, user (initial), assistant (turn 0), user (next step)
+        assert len(messages) == 4
+        assert [m.role for m in messages] == [
+            "system",
+            "user",
+            "assistant",
+            "user",
+        ]
 
     def test_get_messages_three_turns_structure(self) -> None:
         """Test message structure with 3 turns."""
@@ -198,17 +202,10 @@ class TestContextManagerGetMessages:
 
         messages = ctx.get_messages(thumbnail_base64="thumb==")
 
-        # Structure: system, user0, assistant0, user1, assistant1, user2, assistant2
-        # Wait, after turn 0 we have:
-        # - system
-        # - user (initial with thumb)
-        # - assistant (turn 0 reasoning/action)
-        # After turn 1:
-        # - user (crop 1)
-        # - assistant (turn 1)
-        # etc.
-        # So with 3 turns: system + 6 messages = 7 total
-        assert len(messages) == 7
+        # Structure: system, user0, assistant0, user1, assistant1, user2,
+        # assistant2, user3
+        # (ready for the next LLM call after the 3rd crop).
+        assert len(messages) == 8
         roles = [m.role for m in messages]
         assert roles == [
             "system",
@@ -218,6 +215,7 @@ class TestContextManagerGetMessages:
             "assistant",
             "user",
             "assistant",
+            "user",
         ]
 
 
@@ -244,8 +242,8 @@ class TestContextManagerImagePruning:
 
         # All images should be present
         image_count = sum(1 for m in messages for c in m.content if c.type == "image")
-        # Thumbnail + 4 crop images (turn 0 sees thumb, turns 1-4 see crops)
-        assert image_count == 5
+        # Thumbnail + 5 crop images
+        assert image_count == 6
 
     def test_pruning_removes_old_images(self) -> None:
         """Test that old images are replaced with placeholder text."""

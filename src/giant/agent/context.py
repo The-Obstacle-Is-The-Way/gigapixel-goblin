@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from giant.agent.trajectory import Trajectory, Turn
 from giant.geometry.primitives import Region
 from giant.llm.protocol import (
+    BoundingBoxAction,
     FinalAnswerAction,
     Message,
     MessageContent,
@@ -108,7 +109,14 @@ class ContextManager:
         Builds a properly formatted conversation with:
         1. System message (navigation instructions)
         2. Initial user message (question + thumbnail)
-        3. Alternating assistant/user messages for each turn
+        3. Alternating assistant/user messages for each turn.
+
+        Important:
+            This method returns the conversation in the exact state needed for
+            the *next* LLM call. If the most recent turn was a crop, it appends
+            a user message containing the resulting crop image so the model can
+            decide the next action. If the most recent turn was an answer (or
+            the step limit is reached), no additional user message is appended.
 
         Args:
             thumbnail_base64: Base64-encoded thumbnail image.
@@ -131,23 +139,35 @@ class ContextManager:
             )
         )
 
-        # 3. Add turns as alternating assistant/user messages
-        for i, turn in enumerate(self.trajectory.turns):
-            # Assistant message: reasoning + action
+        # 3. Add turns as alternating assistant/user messages.
+        #
+        # Each stored turn contains the model's response for the current step
+        # and (for crop actions) the resulting crop image that should be shown
+        # to the model on the next step.
+        step = 1
+        for turn in self.trajectory.turns:
+            # Assistant message: reasoning + action for the current step
             messages.append(self._build_assistant_message(turn))
 
-            # If not the last turn, add user message for next step
-            if i < len(self.trajectory.turns) - 1:
-                next_turn = self.trajectory.turns[i + 1]
+            action = turn.response.action
+
+            # Terminal: model answered, no further user message needed.
+            if isinstance(action, FinalAnswerAction):
+                break
+
+            # Step guard: no further steps allowed.
+            if step >= self.max_steps:
+                break
+
+            # Crop: append the next user message with the resulting crop image.
+            if isinstance(action, BoundingBoxAction):
+                step += 1
                 messages.append(
                     self._build_user_message_for_turn(
-                        turn=next_turn,
-                        step=i + 2,  # 1-indexed, +1 for next step
+                        turn=turn,
+                        step=step,
                     )
                 )
-            elif i == len(self.trajectory.turns) - 1:
-                # Last turn: no additional user message needed
-                pass
 
         # Apply image pruning if configured
         if self.max_history_images is not None:
@@ -231,37 +251,40 @@ class ContextManager:
         if self.max_history_images is None:
             return messages
 
-        # Count how many crop images we have (excluding thumbnail)
-        crop_count = len(self.trajectory.turns)
-        if crop_count <= self.max_history_images:
+        user_message_indices = [
+            i for i, msg in enumerate(messages) if msg.role == "user"
+        ]
+        if not user_message_indices:
             return messages
 
-        # Calculate which turns to prune (keep last N)
-        turns_to_keep = set(range(crop_count - self.max_history_images, crop_count))
+        # First user message always contains the thumbnail; never prune it.
+        crop_user_message_indices = user_message_indices[1:]
+        if len(crop_user_message_indices) <= self.max_history_images:
+            return messages
 
-        # Prune images from user messages (after the initial one)
+        indices_to_prune = set(crop_user_message_indices[: -self.max_history_images])
+
         pruned_messages: list[Message] = []
-        user_msg_index = 0
+        user_msg_index = 0  # 0-based index among user messages (== step-1)
 
-        for msg in messages:
-            if msg.role == "user":
-                if user_msg_index == 0:
-                    # First user message - keep thumbnail
-                    pruned_messages.append(msg)
-                else:
-                    # Subsequent user messages - check if should prune
-                    # user_msg[k] contains turn[k].image for k > 0
-                    turn_index = user_msg_index
-                    if turn_index not in turns_to_keep:
-                        # Prune: replace image with placeholder
-                        pruned_messages.append(
-                            self._prune_images_from_message(msg, turn_index)
-                        )
-                    else:
-                        pruned_messages.append(msg)
+        for i, msg in enumerate(messages):
+            if msg.role != "user":
+                pruned_messages.append(msg)
+                continue
+
+            if user_msg_index == 0:
+                pruned_messages.append(msg)
                 user_msg_index += 1
+                continue
+
+            if i in indices_to_prune:
+                pruned_messages.append(
+                    self._prune_images_from_message(msg, user_msg_index)
+                )
             else:
                 pruned_messages.append(msg)
+
+            user_msg_index += 1
 
         return pruned_messages
 

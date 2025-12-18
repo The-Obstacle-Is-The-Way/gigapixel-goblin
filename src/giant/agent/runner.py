@@ -271,6 +271,11 @@ class GIANTAgent:
             # Handle action
             if isinstance(action, FinalAnswerAction):
                 # Early termination with answer
+                logger.warning(
+                    "Model returned answer early at step %d/%d",
+                    self._context.current_step,
+                    self.config.max_steps,
+                )
                 return self._handle_answer(step_response)
 
             if isinstance(action, BoundingBoxAction):
@@ -283,9 +288,11 @@ class GIANTAgent:
 
             # Check if we've reached max steps and need to force answer
             if self._context.is_final_step:
-                return await self._force_final_answer()
+                break
 
-        # Shouldn't reach here, but handle gracefully
+        # Force finalization (step limit reached or loop ended).
+        if self._is_budget_exceeded():
+            return await self._handle_budget_exceeded()
         return await self._force_final_answer()
 
     async def _handle_crop(
@@ -425,11 +432,18 @@ class GIANTAgent:
         action = step_response.action
         assert isinstance(action, FinalAnswerAction)
 
-        # Record the answer turn (with thumbnail as the image since no crop)
+        # Record the answer turn with the current observation image
+        observation_image = self._thumbnail_base64
+        observation_region = None
+        if self._context.trajectory.turns:
+            last_turn = self._context.trajectory.turns[-1]
+            observation_image = last_turn.image_base64
+            observation_region = last_turn.region
+
         self._context.add_turn(
-            image_base64=self._thumbnail_base64,
+            image_base64=observation_image,
             response=step_response,
-            region=None,
+            region=observation_region,
         )
 
         logger.info("Agent provided answer: %s", action.answer_text[:100])
@@ -443,7 +457,11 @@ class GIANTAgent:
             error_message=None,
         )
 
-    async def _force_final_answer(self) -> RunResult:
+    async def _force_final_answer(
+        self,
+        *,
+        observation_summary: str | None = None,
+    ) -> RunResult:
         """Force the agent to provide a final answer.
 
         Called when max steps is reached. Retries up to force_answer_retries
@@ -455,11 +473,11 @@ class GIANTAgent:
         logger.info("Forcing final answer at max steps")
 
         # Build observation summary from trajectory
-        observation_summary = self._build_observation_summary()
+        summary = observation_summary or self._build_observation_summary()
 
         force_prompt = FORCE_ANSWER_TEMPLATE.format(
             max_steps=self.config.max_steps,
-            observation_summary=observation_summary,
+            observation_summary=summary,
             question=self.question,
         )
 
@@ -508,8 +526,13 @@ class GIANTAgent:
             self.config.budget_usd,
         )
 
-        # Try to get a final answer
-        result = await self._force_final_answer()
+        budget_note = (
+            f"Budget reached: ${self._total_cost:.4f} >= ${self.config.budget_usd:.4f}."
+        )
+        summary = f"{budget_note}\n\n{self._build_observation_summary()}"
+
+        # Try to get a final answer (explicitly noting budget reached)
+        result = await self._force_final_answer(observation_summary=summary)
 
         # Mark as failure due to budget
         return RunResult(

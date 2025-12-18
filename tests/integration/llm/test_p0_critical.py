@@ -922,8 +922,9 @@ class TestP0_7_ContextAccumulation:
 
         messages = ctx.get_messages(thumbnail_base64="thumb==")
 
-        # Structure: system, user0, assistant0, user1, assistant1, user2, assistant2
-        assert len(messages) == 7
+        # Structure: system, user0, assistant0, user1, assistant1, user2, assistant2, user3
+        # (ready for the next LLM call after the 3rd crop).
+        assert len(messages) == 8
         roles = [m.role for m in messages]
         assert roles == [
             "system",
@@ -933,6 +934,7 @@ class TestP0_7_ContextAccumulation:
             "assistant",
             "user",
             "assistant",
+            "user",
         ]
 
     def test_trajectory_tracks_all_turns(self) -> None:
