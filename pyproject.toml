@@ -92,7 +92,13 @@ select = ["E", "F", "B", "I", "N", "UP", "PL", "RUF"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["PLR2004"]  # Allow magic numbers in tests
+"tests/**/*.py" = [
+    "PLR2004",  # Allow magic numbers in tests
+    "N801",     # Allow test class names with numbers (e.g., TestP0_1_...)
+    "PLC0415",  # Allow imports inside tests
+    "RUF001",   # Allow ambiguous Unicode (intentional in Unicode tests)
+]
+"tests/integration/**/*.py" = ["E501"]  # Allow long lines in integration test mock data
 "src/giant/llm/pricing.py" = ["PLR0913"]  # Allow many args for calculate_total_cost
 "src/giant/prompts/templates.py" = ["E501"]  # Prompt templates need readable lines
 
@@ -113,6 +119,8 @@ addopts = "-ra"
 markers = [
     "cost: live API tests (opt-in, may spend money)",
     "integration: integration tests requiring real WSI files (skipped if no test file)",
+    "mock: tests using mocked HTTP responses",
+    "live: tests requiring real API keys",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
