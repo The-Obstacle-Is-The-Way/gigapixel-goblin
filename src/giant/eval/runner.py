@@ -16,9 +16,10 @@ import json
 import logging
 import re
 from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -46,21 +47,26 @@ class EvaluationConfig(BaseModel):
     """Configuration for benchmark evaluation.
 
     Attributes:
+        mode: Evaluation mode ("giant", "thumbnail", "patch").
         max_steps: Maximum navigation steps per item (default: 20 per paper).
         runs_per_item: Number of runs per item for majority voting (default: 1).
         max_concurrent: Maximum concurrent agent runs.
         max_items: Optional cap on number of items to evaluate (useful for smoke tests).
         skip_missing_wsis: If True, skip CSV rows whose WSI is not present under
             wsi_root.
+        budget_usd: Optional total budget across the whole run (stop early once
+            exceeded).
         save_trajectories: Whether to save full trajectories.
         checkpoint_interval: Save checkpoint every N items.
     """
 
+    mode: Literal["giant", "thumbnail", "patch"] = Field(default="giant")
     max_steps: int = Field(default=20, ge=1)
     runs_per_item: int = Field(default=1, ge=1)
     max_concurrent: int = Field(default=4, ge=1)
     max_items: int | None = Field(default=None)
     skip_missing_wsis: bool = False
+    budget_usd: float | None = Field(default=None, ge=0.0)
     save_trajectories: bool = True
     checkpoint_interval: int = Field(default=10, ge=1)
 
@@ -89,6 +95,16 @@ class EvaluationResults(BaseModel):
     total_cost_usd: float = 0.0
     total_tokens: int = 0
     timestamp: str = ""
+
+
+@dataclass(frozen=True)
+class _ItemRunState:
+    predictions: list[str]
+    labels: list[int | None]
+    total_cost: float
+    total_tokens: int
+    last_trajectory_path: str
+    per_run_errors: list[str | None]
 
 
 class BenchmarkRunner:
@@ -574,6 +590,14 @@ class BenchmarkRunner:
             work_queue.put_nowait(None)
 
         checkpoint_lock = asyncio.Lock()
+        stop_event = asyncio.Event()
+        budget_state = {"total_cost": sum(r.cost_usd for r in checkpoint.results)}
+        if (
+            self.config.budget_usd is not None
+            and budget_state["total_cost"] >= self.config.budget_usd
+        ):
+            stop_event.set()
+
         async with asyncio.TaskGroup() as tg:
             for _ in range(n_workers):
                 tg.create_task(
@@ -581,6 +605,8 @@ class BenchmarkRunner:
                         work_queue=work_queue,
                         checkpoint=checkpoint,
                         checkpoint_lock=checkpoint_lock,
+                        stop_event=stop_event,
+                        budget_state=budget_state,
                     )
                 )
 
@@ -590,6 +616,8 @@ class BenchmarkRunner:
         work_queue: asyncio.Queue[BenchmarkItem | None],
         checkpoint: CheckpointState,
         checkpoint_lock: asyncio.Lock,
+        stop_event: asyncio.Event,
+        budget_state: dict[str, float],
     ) -> None:
         """Worker that processes items and updates checkpoints."""
         while True:
@@ -598,11 +626,26 @@ class BenchmarkRunner:
                 if item is None:
                     return
 
+                if stop_event.is_set():
+                    continue
+
                 result = await self._run_single_item(item)
 
                 async with checkpoint_lock:
                     checkpoint.results.append(result)
                     checkpoint.completed_ids.add(item.benchmark_id)
+                    budget_state["total_cost"] += result.cost_usd
+                    if (
+                        self.config.budget_usd is not None
+                        and budget_state["total_cost"] >= self.config.budget_usd
+                        and not stop_event.is_set()
+                    ):
+                        logger.warning(
+                            "Budget reached, stopping early: %.4f >= %.4f",
+                            budget_state["total_cost"],
+                            self.config.budget_usd,
+                        )
+                        stop_event.set()
 
                     if (
                         len(checkpoint.completed_ids) % self.config.checkpoint_interval
@@ -613,7 +656,7 @@ class BenchmarkRunner:
                 work_queue.task_done()
 
     async def _run_single_item(self, item: BenchmarkItem) -> BenchmarkResult:
-        """Run the GIANT agent on a single benchmark item.
+        """Run a single benchmark item (mode-aware).
 
         Args:
             item: BenchmarkItem to evaluate.
@@ -622,66 +665,13 @@ class BenchmarkRunner:
             BenchmarkResult with prediction and correctness.
         """
         try:
-            # Configure agent
-            agent_config = AgentConfig(
-                max_steps=self.config.max_steps,
-            )
-
-            # Run agent (with majority voting if runs_per_item > 1)
-            predictions = []
-            labels: list[int | None] = []
-            total_cost = 0.0
-            total_tokens = 0
-            last_trajectory_path = ""
-
-            for run_idx in range(self.config.runs_per_item):
-                agent = GIANTAgent(
-                    wsi_path=item.wsi_path,
-                    question=item.prompt,
-                    llm_provider=self.llm_provider,
-                    config=agent_config,
-                )
-
-                run_result = await agent.run()
-                prediction_text = run_result.answer
-                predictions.append(prediction_text)
-                total_cost += run_result.total_cost
-                total_tokens += run_result.total_tokens
-
-                extracted = extract_label(
-                    prediction_text,
-                    benchmark_name=item.benchmark_name,
-                    options=item.options,
-                )
-                labels.append(extracted.label)
-
-                # Save trajectory
-                if self.config.save_trajectories:
-                    last_trajectory_path = self._save_trajectory(
-                        item.benchmark_id,
-                        run_idx,
-                        run_result,
-                    )
-
-            # Apply majority voting if multiple runs
-            final_prediction, final_label = self._select_majority_prediction(
-                predictions=predictions,
-                labels=labels,
-            )
-
-            # Determine correctness
-            correct = final_label == item.truth_label
-
-            return BenchmarkResult(
-                item_id=item.benchmark_id,
-                prediction=final_prediction,
-                predicted_label=final_label,
-                truth_label=item.truth_label,
-                correct=correct,
-                cost_usd=total_cost,
-                total_tokens=total_tokens,
-                trajectory_file=last_trajectory_path,
-            )
+            if self.config.mode == "giant":
+                return await self._run_item_giant(item)
+            if self.config.mode == "thumbnail":
+                return await self._run_item_thumbnail(item)
+            if self.config.mode == "patch":
+                return await self._run_item_patch(item)
+            raise ValueError(f"Unknown evaluation mode: {self.config.mode!r}")
 
         except Exception as e:
             logger.exception("Error running item %s", item.benchmark_id)
@@ -694,6 +684,240 @@ class BenchmarkRunner:
                 trajectory_file="",
                 error=str(e),
             )
+
+    def _build_item_result(
+        self,
+        *,
+        item: BenchmarkItem,
+        state: _ItemRunState,
+    ) -> BenchmarkResult:
+        final_prediction, final_label = self._select_majority_prediction(
+            predictions=state.predictions,
+            labels=state.labels,
+        )
+        correct = final_label == item.truth_label
+        error = None
+        if final_label is None:
+            error = next((e for e in state.per_run_errors if e), None)
+
+        return BenchmarkResult(
+            item_id=item.benchmark_id,
+            prediction=final_prediction,
+            predicted_label=final_label,
+            truth_label=item.truth_label,
+            correct=correct,
+            cost_usd=state.total_cost,
+            total_tokens=state.total_tokens,
+            trajectory_file=state.last_trajectory_path,
+            error=error,
+        )
+
+    async def _run_item_giant(self, item: BenchmarkItem) -> BenchmarkResult:
+        agent_config = AgentConfig(max_steps=self.config.max_steps)
+
+        predictions: list[str] = []
+        labels: list[int | None] = []
+        per_run_errors: list[str | None] = []
+        total_cost = 0.0
+        total_tokens = 0
+        last_trajectory_path = ""
+
+        for run_idx in range(self.config.runs_per_item):
+            agent = GIANTAgent(
+                wsi_path=item.wsi_path,
+                question=item.prompt,
+                llm_provider=self.llm_provider,
+                config=agent_config,
+            )
+
+            run_result = await agent.run()
+            per_run_errors.append(run_result.error_message)
+
+            prediction_text = run_result.answer
+            predictions.append(prediction_text)
+            total_cost += run_result.total_cost
+            total_tokens += run_result.total_tokens
+
+            if run_result.success:
+                extracted = extract_label(
+                    prediction_text,
+                    benchmark_name=item.benchmark_name,
+                    options=item.options,
+                )
+                labels.append(extracted.label)
+            else:
+                labels.append(None)
+
+            if self.config.save_trajectories:
+                last_trajectory_path = self._save_trajectory(
+                    item.benchmark_id,
+                    run_idx,
+                    run_result,
+                )
+
+        state = _ItemRunState(
+            predictions=predictions,
+            labels=labels,
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            last_trajectory_path=last_trajectory_path,
+            per_run_errors=per_run_errors,
+        )
+        return self._build_item_result(item=item, state=state)
+
+    async def _run_item_thumbnail(self, item: BenchmarkItem) -> BenchmarkResult:
+        from giant.core.baselines import (  # noqa: PLC0415
+            BaselineRequest,
+            encode_image_to_base64,
+            run_baseline_answer,
+        )
+        from giant.wsi.reader import WSIReader  # noqa: PLC0415
+
+        with WSIReader(item.wsi_path) as reader:
+            thumbnail = reader.get_thumbnail((1024, 1024))
+
+        image_b64, media_type = encode_image_to_base64(thumbnail)
+        request = BaselineRequest(
+            wsi_path=Path(item.wsi_path),
+            question=item.prompt,
+            image_base64=image_b64,
+            media_type=media_type,
+            context_note="This is a whole-slide thumbnail (no navigation).",
+        )
+
+        predictions: list[str] = []
+        labels: list[int | None] = []
+        per_run_errors: list[str | None] = []
+        total_cost = 0.0
+        total_tokens = 0
+        last_trajectory_path = ""
+
+        for run_idx in range(self.config.runs_per_item):
+            run_result = await run_baseline_answer(
+                llm_provider=self.llm_provider,
+                request=request,
+            )
+            per_run_errors.append(run_result.error_message)
+
+            predictions.append(run_result.answer)
+            total_cost += run_result.total_cost
+            total_tokens += run_result.total_tokens
+
+            if run_result.success:
+                extracted = extract_label(
+                    run_result.answer,
+                    benchmark_name=item.benchmark_name,
+                    options=item.options,
+                )
+                labels.append(extracted.label)
+            else:
+                labels.append(None)
+
+            if self.config.save_trajectories:
+                last_trajectory_path = self._save_trajectory(
+                    item.benchmark_id,
+                    run_idx,
+                    run_result,
+                )
+
+        state = _ItemRunState(
+            predictions=predictions,
+            labels=labels,
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            last_trajectory_path=last_trajectory_path,
+            per_run_errors=per_run_errors,
+        )
+        return self._build_item_result(item=item, state=state)
+
+    async def _run_item_patch(self, item: BenchmarkItem) -> BenchmarkResult:
+        from giant.core.baselines import (  # noqa: PLC0415
+            BaselineRequest,
+            encode_image_to_base64,
+            make_patch_collage,
+            run_baseline_answer,
+        )
+        from giant.vision import (  # noqa: PLC0415
+            N_PATCHES,
+            PATCH_SIZE,
+            TissueSegmentor,
+            sample_patches,
+        )
+        from giant.wsi.reader import WSIReader  # noqa: PLC0415
+
+        with WSIReader(item.wsi_path) as reader:
+            meta = reader.get_metadata()
+            thumbnail = reader.get_thumbnail((2048, 2048))
+
+            segmentor = TissueSegmentor()
+            mask = segmentor.segment(thumbnail)
+            regions = sample_patches(
+                mask,
+                meta,
+                n_patches=N_PATCHES,
+                patch_size=PATCH_SIZE,
+            )
+            patch_images = [
+                reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
+            ]
+
+        collage = make_patch_collage(patch_images, patch_size=PATCH_SIZE)
+        image_b64, media_type = encode_image_to_base64(collage)
+        request = BaselineRequest(
+            wsi_path=Path(item.wsi_path),
+            question=item.prompt,
+            image_base64=image_b64,
+            media_type=media_type,
+            context_note=(
+                "This image is a montage of 30 random 224x224 tissue patches sampled "
+                "from the slide."
+            ),
+        )
+
+        predictions: list[str] = []
+        labels: list[int | None] = []
+        per_run_errors: list[str | None] = []
+        total_cost = 0.0
+        total_tokens = 0
+        last_trajectory_path = ""
+
+        for run_idx in range(self.config.runs_per_item):
+            run_result = await run_baseline_answer(
+                llm_provider=self.llm_provider,
+                request=request,
+            )
+            per_run_errors.append(run_result.error_message)
+
+            predictions.append(run_result.answer)
+            total_cost += run_result.total_cost
+            total_tokens += run_result.total_tokens
+
+            if run_result.success:
+                extracted = extract_label(
+                    run_result.answer,
+                    benchmark_name=item.benchmark_name,
+                    options=item.options,
+                )
+                labels.append(extracted.label)
+            else:
+                labels.append(None)
+
+            if self.config.save_trajectories:
+                last_trajectory_path = self._save_trajectory(
+                    item.benchmark_id,
+                    run_idx,
+                    run_result,
+                )
+
+        state = _ItemRunState(
+            predictions=predictions,
+            labels=labels,
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            last_trajectory_path=last_trajectory_path,
+            per_run_errors=per_run_errors,
+        )
+        return self._build_item_result(item=item, state=state)
 
     def _majority_vote(self, predictions: list[str]) -> str:
         """Apply majority voting to multiple predictions.
