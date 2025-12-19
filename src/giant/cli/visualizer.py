@@ -29,7 +29,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.6;
@@ -274,7 +275,7 @@ def create_trajectory_html(
     Returns:
         Path to the generated HTML file.
     """
-    from giant import __version__
+    from giant import __version__  # noqa: PLC0415
 
     logger = get_logger(__name__)
 

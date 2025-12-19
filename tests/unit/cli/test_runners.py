@@ -82,7 +82,7 @@ class TestRunSingleInference:
 
         with (
             patch("giant.llm.create_provider") as mock_provider,
-            patch("giant.agent.GIANTAgent") as mock_agent_class,
+            patch("giant.agent.GIANTAgent"),
             patch("giant.cli.runners.asyncio.run") as mock_run,
         ):
             mock_result = MagicMock()
