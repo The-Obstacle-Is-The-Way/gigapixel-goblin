@@ -10,8 +10,8 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
-| BUG-018 | P3 | CONCH tool ablation not implemented | Open |
-| BUG-020 | P3 | Official supplementary prompts not incorporated | Open (blocked) |
+| BUG-018 | P3 | Missing CONCH tool integration | Open (blocked on CONCH access) |
+| BUG-020 | P3 | Official system prompts not incorporated | Open (blocked on Supplementary Material) |
 
 ## Archived (Fixed) Bugs
 
@@ -58,7 +58,9 @@ See `archive/` for historical bugs that have been resolved:
 - 6 new bug reports filed (BUG-018 to BUG-023).
 - 3 bugs fixed immediately (BUG-019, BUG-022, BUG-023).
 - 1 bug invalid (BUG-021).
-- 2 gaps documented (BUG-018, BUG-020).
+- 2 reproducibility gaps remain open (BUG-018, BUG-020):
+  - BUG-018: CONCH tool ablation requires gated CONCH access to reproduce Table 3
+  - BUG-020: Paper’s OpenAI/Anthropic system prompts are in Supplementary Material (not available here)
 
 ### Spec-08.5 LLM Integration Checkpoint (2025-12-18)
 
