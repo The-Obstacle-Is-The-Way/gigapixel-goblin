@@ -2,6 +2,13 @@
 
 This directory contains the detailed technical specifications for implementing the GIANT (Gigapixel Image Agent for Navigating Tissue) framework.
 
+> **⚠️ CRITICAL: Data Acquisition Required**
+>
+> Before running benchmarks, you must acquire the actual WSI files (~85-100 GB) from TCGA, GTEx, and PANDA.
+> The MultiPathQA CSV contains only metadata - the slides themselves are not included.
+>
+> **See: [DATA_ACQUISITION.md](../DATA_ACQUISITION.md)** for download instructions.
+
 ## Specification Index
 
 The specifications are designed to be implemented in sequential order, building a vertical slice of the system.
