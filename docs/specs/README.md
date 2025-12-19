@@ -4,10 +4,14 @@ This directory contains the detailed technical specifications for implementing t
 
 > **⚠️ CRITICAL: Data Acquisition Required**
 >
-> Before running benchmarks, you must acquire the actual WSI files (~85-100 GB) from TCGA, GTEx, and PANDA.
+> Before running benchmarks, you must acquire **862 unique WSI files (~95-135 GB)** from TCGA, GTEx, and PANDA.
 > The MultiPathQA CSV contains only metadata - the slides themselves are not included.
 >
-> **See: [DATA_ACQUISITION.md](../DATA_ACQUISITION.md)** for download instructions.
+> - **TCGA:** 474 `.svs` files (for 3 benchmarks: cancer diagnosis, expert VQA, slidebench)
+> - **GTEx:** 191 `.tiff` files (organ classification)
+> - **PANDA:** 197 `.tiff` files (prostate grading)
+>
+> **See: [DATA_ACQUISITION.md](../DATA_ACQUISITION.md)** for download instructions and file lists.
 
 ## Specification Index
 
@@ -71,15 +75,16 @@ graph TD
     S055 --> S09[Spec-09: GIANT Agent]
     S085 --> S09
     S09 --> S10[Spec-10: Eval]
-    S09 --> S12[Spec-12: CLI]
-    S10 --> S12
-    S11 --> S12[Patch baseline mode]
+    S10 --> S115[🛑 Spec-11.5: E2E Validation]
+    S11 --> S115
+    S115 --> S12[Spec-12: CLI]
 
     style S055 fill:#ff6b6b,stroke:#333,stroke-width:3px
     style S085 fill:#ff6b6b,stroke:#333,stroke-width:3px
+    style S115 fill:#ff6b6b,stroke:#333,stroke-width:3px
 ```
 
-**Critical Path:** Spec-01 → Spec-02 → ... → Spec-05 → **🛑 Spec-05.5** → Spec-06 → ... → Spec-08 → **🛑 Spec-08.5** → Spec-09 → Spec-12
+**Critical Path:** Spec-01 → Spec-02 → ... → Spec-05 → **🛑 Spec-05.5** → Spec-06 → ... → Spec-08 → **🛑 Spec-08.5** → Spec-09 → Spec-10 → **🛑 Spec-11.5** → Spec-12
 
 ## Integration Checkpoints
 

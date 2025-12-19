@@ -2,12 +2,27 @@
 
 ## Overview
 
-GIANT evaluates against the **MultiPathQA** benchmark, which comprises 934 WSI-level questions across 868 unique whole-slide images (WSIs). The benchmark metadata (questions, prompts, answers) is available on HuggingFace, but **the WSI files themselves must be acquired separately** from their original sources due to licensing and size constraints.
+GIANT evaluates against the **MultiPathQA** benchmark, which comprises **934 WSI-level questions** across **862 unique whole-slide images (WSIs)**. The benchmark metadata (questions, prompts, answers) is available on HuggingFace, but **the WSI files themselves must be acquired separately** from their original sources due to licensing and size constraints.
 
 **This is a critical operational requirement.** Without the actual WSI files, you cannot:
 - Run the GIANT agent on real pathology images
 - Reproduce the paper's benchmark results
 - Validate the end-to-end system
+
+## MultiPathQA Benchmark Structure
+
+The benchmark contains **5 distinct tasks** spanning 3 data sources:
+
+| Benchmark | Questions | Unique WSIs | Task | Data Source | Metric |
+|-----------|-----------|-------------|------|-------------|--------|
+| `tcga` | 221 | 221 | Cancer Diagnosis (30-way) | TCGA | Balanced Accuracy |
+| `tcga_expert_vqa` | 128 | 76 | Pathologist-Authored VQA | TCGA | Accuracy |
+| `tcga_slidebench` | 197 | 183 | SlideBench VQA | TCGA | Accuracy |
+| `gtex` | 191 | 191 | Organ Classification (20-way) | GTEx | Balanced Accuracy |
+| `panda` | 197 | 197 | Prostate Grading (6-way) | PANDA | Balanced Accuracy |
+| **Total** | **934** | **862** | - | - | - |
+
+**Note:** The 3 TCGA benchmarks share some slides. Total unique TCGA files needed: **474** (not 221).
 
 ## Data Components
 
@@ -15,10 +30,10 @@ GIANT evaluates against the **MultiPathQA** benchmark, which comprises 934 WSI-l
 
 | File | Location | Size | Status |
 |------|----------|------|--------|
-| `MultiPathQA.csv` | `data/multipathqa/` | ~2MB | ✅ Downloaded |
+| `MultiPathQA.csv` | `data/multipathqa/` | ~150KB | Included |
 
 This CSV contains:
-- `benchmark_name`: Task identifier (tcga, gtex, panda, etc.)
+- `benchmark_name`: Task identifier (tcga, gtex, panda, tcga_expert_vqa, tcga_slidebench)
 - `image_path`: Filename of the WSI (e.g., `GTEX-OIZH-0626.tiff`)
 - `prompt`: Question to ask about the slide
 - `answer`: Ground truth label
@@ -26,12 +41,24 @@ This CSV contains:
 
 ### 2. Whole-Slide Images (Must Be Acquired)
 
-| Source | Count | Format | Size (Approx) | License |
-|--------|-------|--------|---------------|---------|
-| **TCGA** | 221 | `.svs` | ~30-50 GB | Open Access |
+| Source | Files Needed | Format | Size (Approx) | License |
+|--------|--------------|--------|---------------|---------|
+| **TCGA** | 474 | `.svs` | ~60-80 GB | Open Access |
 | **GTEx** | 191 | `.tiff` | ~15-25 GB | dbGaP (requires approval) |
 | **PANDA** | 197 | `.tiff` | ~20-30 GB | Kaggle Competition |
-| **Total** | **609** | - | **~65-105 GB** | Mixed |
+| **Total** | **862** | - | **~95-135 GB** | Mixed |
+
+### 3. File Lists (Provided)
+
+We have generated exact file lists from the MultiPathQA CSV:
+
+| File | Contents |
+|------|----------|
+| `data/wsi/tcga_files.txt` | 474 TCGA slide filenames |
+| `data/wsi/gtex_files.txt` | 191 GTEx slide filenames |
+| `data/wsi/panda_files.txt` | 197 PANDA slide filenames |
+
+Use these to verify downloads or create download manifests.
 
 ## Directory Structure
 
@@ -42,18 +69,23 @@ data/
 ├── multipathqa/
 │   └── MultiPathQA.csv          # Benchmark metadata (already here)
 └── wsi/                          # WSI files (you must populate this)
-    ├── tcga/                     # TCGA cancer diagnosis slides
-    │   ├── TCGA-*.svs
-    │   └── ...
+    ├── tcga_files.txt            # File list for TCGA
+    ├── gtex_files.txt            # File list for GTEx
+    ├── panda_files.txt           # File list for PANDA
+    ├── tcga/                     # TCGA slides (all 3 benchmarks)
+    │   ├── TCGA-02-0266-01Z-00-DX1.svs
+    │   ├── TCGA-HT-A616-01Z-00-DX1.svs  # Used in expert_vqa
+    │   ├── TCGA-HC-7080-01Z-00-DX1.svs  # Used in slidebench
+    │   └── ... (474 total)
     ├── gtex/                     # GTEx organ classification slides
-    │   ├── GTEX-*.tiff
-    │   └── ...
+    │   ├── GTEX-OIZH-0626.tiff
+    │   └── ... (191 total)
     └── panda/                    # PANDA prostate grading slides
-        ├── *.tiff
-        └── ...
+        ├── dbf7cc49ae2e9831448c3ca54ad92708.tiff
+        └── ... (197 total)
 ```
 
-The evaluation runner accepts `--wsi-root data/wsi` and resolves each `image_path` from the CSV to the appropriate subdirectory.
+The evaluation runner accepts `--wsi-root data/wsi` and resolves each `image_path` from the CSV to the appropriate subdirectory based on `benchmark_name`.
 
 ## Acquisition Instructions
 
@@ -61,6 +93,7 @@ The evaluation runner accepts `--wsi-root data/wsi` and resolves each `image_pat
 
 **Source:** NIH Genomic Data Commons (GDC)
 **Access:** Open access (no approval required)
+**Files Needed:** 474 `.svs` files (see `data/wsi/tcga_files.txt`)
 **Tool:** GDC Data Transfer Tool
 
 1. **Install GDC Client:**
@@ -71,29 +104,24 @@ The evaluation runner accepts `--wsi-root data/wsi` and resolves each `image_pat
    # Or download from: https://gdc.cancer.gov/access-data/gdc-data-transfer-tool
    ```
 
-2. **Create a manifest file** listing the specific slide UUIDs needed (cross-reference with MultiPathQA.csv)
+2. **Create a manifest file** from the GDC Portal:
+   - Go to https://portal.gdc.cancer.gov/
+   - Filter: Data Type = "Slide Image", Data Format = "SVS"
+   - Use the file list in `data/wsi/tcga_files.txt` to find specific UUIDs
+   - Add to cart and export manifest
 
 3. **Download:**
    ```bash
    gdc-client download -m manifest.txt -d data/wsi/tcga/
    ```
 
-**Alternative (Faster for subset):**
-- Use the GDC Portal web interface: https://portal.gdc.cancer.gov/
-- Filter: Data Type = "Slide Image", Data Format = "SVS"
-- Add to cart and download
-
-**Direct links for specific files:**
-Each TCGA slide has a UUID. Example download:
-```bash
-# Single file example (replace UUID)
-gdc-client download <uuid> -d data/wsi/tcga/
-```
+**Note:** TCGA files are named like `TCGA-02-0266-01Z-00-DX1.svs`. The GDC stores them by UUID, so you may need to map filenames to UUIDs.
 
 ### GTEx (Genotype-Tissue Expression)
 
 **Source:** GTEx Portal
 **Access:** Requires dbGaP approval for some data
+**Files Needed:** 191 `.tiff` files (see `data/wsi/gtex_files.txt`)
 **URL:** https://www.gtexportal.org/
 
 1. **Request Access:**
@@ -115,6 +143,7 @@ gdc-client download <uuid> -d data/wsi/tcga/
 
 **Source:** Kaggle Competition (2020)
 **Access:** Requires Kaggle account and competition rules acceptance
+**Files Needed:** 197 `.tiff` files (see `data/wsi/panda_files.txt`)
 **URL:** https://www.kaggle.com/c/prostate-cancer-grade-assessment
 
 1. **Accept Competition Rules:**
@@ -134,15 +163,17 @@ gdc-client download <uuid> -d data/wsi/tcga/
    unzip data/wsi/panda/prostate-cancer-grade-assessment.zip -d data/wsi/panda/
    ```
 
+   **Warning:** The full PANDA dataset is ~400GB. You only need 197 files for MultiPathQA. After unzipping, you can delete files not in `data/wsi/panda_files.txt`.
+
 ## Verification
 
 After downloading, verify your setup:
 
 ```bash
 # Check file counts
-find data/wsi/tcga -name "*.svs" | wc -l    # Should be ~221
-find data/wsi/gtex -name "*.tiff" | wc -l   # Should be ~191
-find data/wsi/panda -name "*.tiff" | wc -l  # Should be ~197
+find data/wsi/tcga -name "*.svs" 2>/dev/null | wc -l    # Should be 474
+find data/wsi/gtex -name "*.tiff" 2>/dev/null | wc -l   # Should be 191
+find data/wsi/panda -name "*.tiff" 2>/dev/null | wc -l  # Should be 197
 
 # Validate against MultiPathQA.csv
 python -c "
@@ -152,23 +183,35 @@ from pathlib import Path
 csv = pd.read_csv('data/multipathqa/MultiPathQA.csv')
 wsi_root = Path('data/wsi')
 
+# Map benchmark to subdirectory
+benchmark_to_dir = {
+    'tcga': 'tcga',
+    'tcga_expert_vqa': 'tcga',
+    'tcga_slidebench': 'tcga',
+    'gtex': 'gtex',
+    'panda': 'panda',
+}
+
 missing = []
+found = 0
 for _, row in csv.iterrows():
     benchmark = row['benchmark_name']
     image_path = row['image_path']
+    subdir = benchmark_to_dir.get(benchmark, benchmark)
 
-    # Try both direct and subdirectory paths
-    paths_to_try = [
-        wsi_root / image_path,
-        wsi_root / benchmark / image_path,
-    ]
+    full_path = wsi_root / subdir / image_path
+    if full_path.exists():
+        found += 1
+    else:
+        missing.append(f'{subdir}/{image_path}')
 
-    if not any(p.exists() for p in paths_to_try):
-        missing.append(f'{benchmark}/{image_path}')
-
-print(f'Missing: {len(missing)} / {len(csv)} WSIs')
-if missing[:5]:
-    print('Examples:', missing[:5])
+unique_missing = set(missing)
+print(f'Found: {found} / {len(csv)} questions have WSIs')
+print(f'Missing unique files: {len(unique_missing)}')
+if unique_missing:
+    print('First 5 missing:')
+    for m in sorted(unique_missing)[:5]:
+        print(f'  {m}')
 "
 ```
 
@@ -187,22 +230,36 @@ WSI_TEST_FILE=tests/integration/wsi/data/CMU-1-Small-Region.svs \
     uv run pytest tests/integration/wsi/ -v
 ```
 
-## Estimated Download Times
+## Subset Testing
 
-| Dataset | Size | Time (100 Mbps) | Time (1 Gbps) |
-|---------|------|-----------------|---------------|
-| TCGA | ~40 GB | ~1 hour | ~5 min |
-| GTEx | ~20 GB | ~30 min | ~3 min |
-| PANDA | ~25 GB | ~35 min | ~4 min |
-| **Total** | **~85 GB** | **~2 hours** | **~12 min** |
+For validation without downloading all ~100GB, you can start with a subset:
+
+```bash
+# Download first 5 files from each source for Spec-11.5 validation
+# See the file lists in data/wsi/*.txt
+```
+
+Recommended subset sizes:
+- **Minimal:** 5 per source (15 total, ~1-2 GB)
+- **Basic:** 20 per source (60 total, ~5-10 GB)
+- **Full:** All 862 (~95-135 GB)
 
 ## Storage Requirements
 
 | Component | Size |
 |-----------|------|
-| WSI files | ~85-100 GB |
+| WSI files | ~95-135 GB |
 | Working space (crops, trajectories) | ~10-20 GB |
 | **Total recommended** | **~150 GB free** |
+
+## Estimated Download Times
+
+| Dataset | Files | Size | Time (100 Mbps) | Time (1 Gbps) |
+|---------|-------|------|-----------------|---------------|
+| TCGA | 474 | ~70 GB | ~1.5 hours | ~10 min |
+| GTEx | 191 | ~20 GB | ~30 min | ~3 min |
+| PANDA | 197 | ~25 GB | ~35 min | ~4 min |
+| **Total** | **862** | **~115 GB** | **~2.5 hours** | **~17 min** |
 
 ## Troubleshooting
 
@@ -211,6 +268,7 @@ WSI_TEST_FILE=tests/integration/wsi/data/CMU-1-Small-Region.svs \
 1. Check the file exists: `ls data/wsi/tcga/<filename>.svs`
 2. Check file extension case: `.SVS` vs `.svs`
 3. Verify the directory structure matches expected layout
+4. Ensure benchmark-to-directory mapping is correct (all TCGA benchmarks use `tcga/`)
 
 ### OpenSlide errors
 
@@ -229,6 +287,24 @@ print(f'Levels: {slide.level_count}')
 WSIs are large. Check available space:
 ```bash
 df -h data/
+```
+
+### PANDA dataset too large
+
+The full PANDA Kaggle download is ~400GB but we only need 197 files:
+```bash
+# After download, keep only needed files
+cd data/wsi/panda
+while read -r file; do
+    if [ ! -f "$file" ]; then
+        echo "Missing: $file"
+    fi
+done < ../panda_files.txt
+
+# Delete extra files (be careful!)
+# find . -name "*.tiff" | while read f; do
+#     grep -q "$(basename $f)" ../panda_files.txt || rm "$f"
+# done
 ```
 
 ## References
