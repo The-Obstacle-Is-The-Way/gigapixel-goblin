@@ -279,9 +279,13 @@ def create_trajectory_html(
 
     logger = get_logger(__name__)
 
-    # Load trajectory
-    with trajectory_path.open() as f:
-        trajectory = json.load(f)
+    # Load trajectory with error handling
+    try:
+        with trajectory_path.open() as f:
+            trajectory = json.load(f)
+    except json.JSONDecodeError as e:
+        logger.error("Invalid trajectory JSON", path=str(trajectory_path), error=str(e))
+        raise ValueError(f"Invalid trajectory JSON in {trajectory_path}: {e}") from e
 
     # Extract data
     turns = trajectory.get("turns", [])
@@ -397,19 +401,26 @@ def _extract_turn(turn: object) -> tuple[str, str, dict[str, int] | None]:
 
     region = turn.get("region") or turn.get("crop") or None
     if isinstance(region, dict) and region:
-        # Assume numeric entries; fall back to 0.
         return (
             action,
             reasoning_text,
             {
-                "x": int(region.get("x", 0)),
-                "y": int(region.get("y", 0)),
-                "width": int(region.get("width", 0)),
-                "height": int(region.get("height", 0)),
+                "x": _safe_int(region.get("x", 0)),
+                "y": _safe_int(region.get("y", 0)),
+                "width": _safe_int(region.get("width", 0)),
+                "height": _safe_int(region.get("height", 0)),
             },
         )
 
     return action, reasoning_text, None
+
+
+def _safe_int(val: object) -> int:
+    """Safely convert a value to int, returning 0 on failure."""
+    try:
+        return int(val)  # type: ignore[call-overload, no-any-return]
+    except (TypeError, ValueError):
+        return 0
 
 
 def _format_region_html(region: dict[str, int] | None) -> str:

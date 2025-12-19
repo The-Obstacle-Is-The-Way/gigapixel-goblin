@@ -160,43 +160,10 @@ def _run_giant_mode(  # pragma: no cover  # noqa: PLR0913
     total_cost = sum(r.total_cost for r in all_results)
     total_tokens = sum(r.total_tokens for r in all_results)
 
-    if not all_results:
-        return InferenceResult(
-            success=False,
-            answer="",
-            total_cost=0.0,
-            total_tokens=0,
-            trajectory=None,
-            error_message="No runs executed",
-        )
-
-    # Majority vote on answers (stable tie-break by first-seen answer).
-    candidates = [r for r in all_results if r.success and r.answer]
-    if not candidates:
-        candidates = [r for r in all_results if r.answer] or all_results
-
-    answers = [r.answer for r in candidates if r.answer]
-    final_answer = answers[0] if answers else ""
-    agreement = 1.0
-    winning_result = candidates[0]
-
-    if answers:
-        counts = Counter(answers)
-        max_count = max(counts.values())
-        winners = {a for a, c in counts.items() if c == max_count}
-        final_answer = next(a for a in answers if a in winners)
-        agreement = counts[final_answer] / len(answers)
-        winning_result = next(r for r in candidates if r.answer == final_answer)
-
-    return InferenceResult(
-        success=winning_result.success,
-        answer=final_answer,
+    return _summarize_runs(
+        run_results=all_results,
         total_cost=total_cost,
         total_tokens=total_tokens,
-        trajectory=winning_result.trajectory,
-        error_message=winning_result.error_message,
-        runs_answers=answers,
-        agreement=agreement,
     )
 
 
@@ -312,8 +279,8 @@ def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
         image_base64=image_b64,
         media_type=media_type,
         context_note=(
-            "This image is a montage of 30 random 224x224 tissue patches sampled "
-            "from the slide."
+            f"This image is a montage of {N_PATCHES} random {PATCH_SIZE}x{PATCH_SIZE} "
+            "tissue patches sampled from the slide."
         ),
     )
 

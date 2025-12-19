@@ -9,15 +9,12 @@ import json
 import signal
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 import typer
 
 from giant import __version__
 from giant.utils.logging import configure_logging, get_logger
-
-if TYPE_CHECKING:
-    pass
 
 app = typer.Typer(
     name="giant",
@@ -444,10 +441,8 @@ def _configure_logging(verbose: int) -> None:
         level = "WARNING"
     elif verbose == 1:
         level = "INFO"
-    elif verbose >= 2:  # noqa: PLR2004
+    else:  # verbose >= 2
         level = "DEBUG"
-    else:
-        level = "DEBUG"  # Fallback
 
     configure_logging(level=level)
 
