@@ -10,7 +10,11 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
-| — | — | None | — |
+| BUG-018 | P3 | CONCH tool ablation not implemented | Open |
+| BUG-019 | P3 | Axis guide font fallback degrades legibility | Open |
+| BUG-020 | P3 | Official supplementary prompts not incorporated | Open (blocked) |
+| BUG-022 | P4 | MultiPathQA acquisition UX gaps | Open |
+| BUG-023 | P2 | Axis guide labels use “K” abbreviation | Open |
 
 ## Archived (Fixed) Bugs
 
@@ -18,6 +22,7 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-021 | Prompt template edge case (max_steps=1) | Not reproducible (PromptBuilder uses final-step prompt) |
 | BUG-017 | TCGA downloader path traversal | Path validation added |
 | BUG-016 | Agent crop on max_steps=1 | Step guard added |
 | BUG-015 | Visualizer missing images/overlays | Trajectory metadata + HTML/CSS updates |

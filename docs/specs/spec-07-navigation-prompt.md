@@ -67,6 +67,10 @@ Instruction: For Steps 1..{max_steps - 1} you MUST use `crop`. On Step {max_step
 Image: [Thumbnail with Axis Guides]
 ```
 
+**Edge Case: `max_steps=1`**
+
+If `max_steps` is set to `1`, there are no crop steps. The prompt builder should skip the “Steps 1..T−1 must crop” instruction and use the final-step wording immediately (“You MUST use `answer` now”).
+
 **Subsequent Prompts:**
 ```text
 Status: Step {current_step} of {max_steps}.
