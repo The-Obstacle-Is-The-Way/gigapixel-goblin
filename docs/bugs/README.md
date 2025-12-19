@@ -8,7 +8,11 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
-**None.** All tracked bugs have been resolved or archived.
+| ID | Severity | Title | Status |
+|----|----------|-------|--------|
+| BUG-015 | P3 | Visualizer missing images/overlays | Open |
+| BUG-016 | P2 | Agent executes crop when `max_steps=1` | Open |
+| BUG-017 | P4 | TCGA downloader trusts remote `file_name` for paths | Open |
 
 ## Archived (Fixed) Bugs
 
@@ -62,6 +66,15 @@ See `archive/` for historical bugs that have been resolved:
 - BUG-010 (MPP nullable): Not a bug, just future-proofing note. Archived.
 - BUG-011 (GeometryValidator unused): Fixed in Spec-09. Archived.
 - All active bugs cleared. Zero active bugs remaining.
+
+### Audit Bug Hunt (P0-P4) (2025-12-19)
+
+**Audited**: Spec-09 to Spec-12 integration surfaces (agent loop, eval, CLI, visualizer, download helpers).
+
+**Findings**:
+
+- 3 new bugs documented (BUG-015, BUG-016, BUG-017)
+- No new P0/P1 blockers found
 
 ### Spec-05.5 WSI Integration Checkpoint (2025-12-17)
 
