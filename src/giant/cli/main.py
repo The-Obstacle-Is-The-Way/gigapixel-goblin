@@ -73,7 +73,9 @@ def run(  # noqa: PLR0913
     question: Annotated[
         str, typer.Option("--question", "-q", help="Question to answer about the slide")
     ],
-    mode: Annotated[Mode, typer.Option("--mode", "-m", help="Evaluation mode")] = Mode.giant,
+    mode: Annotated[
+        Mode, typer.Option("--mode", "-m", help="Evaluation mode")
+    ] = Mode.giant,
     provider: Annotated[
         Provider, typer.Option("--provider", "-p", help="LLM provider")
     ] = Provider.anthropic,
@@ -81,18 +83,32 @@ def run(  # noqa: PLR0913
         str,
         typer.Option("--model", help="Model name (see docs/models/MODEL_REGISTRY.md)"),
     ] = "claude-sonnet-4-20250514",
-    max_steps: Annotated[int, typer.Option("--max-steps", "-T", help="Max navigation steps")] = 20,
-    runs: Annotated[int, typer.Option("--runs", "-r", help="Number of runs for majority voting")] = 1,
+    max_steps: Annotated[
+        int, typer.Option("--max-steps", "-T", help="Max navigation steps")
+    ] = 20,
+    runs: Annotated[
+        int, typer.Option("--runs", "-r", help="Number of runs for majority voting")
+    ] = 1,
     budget_usd: Annotated[
         float,
-        typer.Option("--budget-usd", help="Stop early if total cost exceeds this USD budget (0 disables)"),
+        typer.Option(
+            "--budget-usd",
+            help="Stop early if total cost exceeds this USD budget (0 disables)",
+        ),
     ] = 0.0,
-    output: Annotated[Path | None, typer.Option("--output", "-o", help="Save trajectory to JSON")] = None,
-    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity (-v, -vv, -vvv)")] = 0,
+    output: Annotated[
+        Path | None, typer.Option("--output", "-o", help="Save trajectory to JSON")
+    ] = None,
+    verbose: Annotated[
+        int,
+        typer.Option(
+            "--verbose", "-v", count=True, help="Increase verbosity (-v, -vv, -vvv)"
+        ),
+    ] = 0,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Run GIANT on a single WSI."""
-    from giant.cli.runners import run_single_inference
+    from giant.cli.runners import run_single_inference  # noqa: PLC0415
 
     _configure_logging(verbose)
     logger = get_logger(__name__)
@@ -152,14 +168,16 @@ def run(  # noqa: PLR0913
             typer.echo(json.dumps({"error": str(e)}))
         else:
             typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()
 def benchmark(  # noqa: PLR0913
     dataset: Annotated[
         str,
-        typer.Argument(help="Dataset name (tcga, panda, gtex, tcga_expert_vqa, tcga_slidebench)"),
+        typer.Argument(
+            help="Dataset name (tcga, panda, gtex, tcga_expert_vqa, tcga_slidebench)"
+        ),
     ],
     csv_path: Annotated[
         Path,
@@ -172,27 +190,47 @@ def benchmark(  # noqa: PLR0913
     output_dir: Annotated[
         Path, typer.Option("--output-dir", "-o", help="Output directory for results")
     ] = Path("results"),
-    mode: Annotated[Mode, typer.Option("--mode", "-m", help="Evaluation mode")] = Mode.giant,
+    mode: Annotated[
+        Mode, typer.Option("--mode", "-m", help="Evaluation mode")
+    ] = Mode.giant,
     provider: Annotated[
         Provider, typer.Option("--provider", "-p", help="LLM provider")
     ] = Provider.anthropic,
-    model: Annotated[str, typer.Option("--model", help="Model name")] = "claude-sonnet-4-20250514",
-    max_steps: Annotated[int, typer.Option("--max-steps", "-T", help="Max navigation steps")] = 20,
-    runs: Annotated[int, typer.Option("--runs", "-r", help="Runs per item for majority voting")] = 1,
-    concurrency: Annotated[int, typer.Option("--concurrency", "-c", help="Max concurrent API calls")] = 4,
+    model: Annotated[
+        str, typer.Option("--model", help="Model name")
+    ] = "claude-sonnet-4-20250514",
+    max_steps: Annotated[
+        int, typer.Option("--max-steps", "-T", help="Max navigation steps")
+    ] = 20,
+    runs: Annotated[
+        int, typer.Option("--runs", "-r", help="Runs per item for majority voting")
+    ] = 1,
+    concurrency: Annotated[
+        int, typer.Option("--concurrency", "-c", help="Max concurrent API calls")
+    ] = 4,
     budget_usd: Annotated[
-        float, typer.Option("--budget-usd", help="Stop early if total cost exceeds budget (0 disables)")
+        float,
+        typer.Option(
+            "--budget-usd", help="Stop early if total cost exceeds budget (0 disables)"
+        ),
     ] = 0.0,
-    max_items: Annotated[int, typer.Option("--max-items", help="Max items to evaluate (0 = all)")] = 0,
+    max_items: Annotated[
+        int, typer.Option("--max-items", help="Max items to evaluate (0 = all)")
+    ] = 0,
     skip_missing: Annotated[
-        bool, typer.Option("--skip-missing/--no-skip-missing", help="Skip missing WSI files")
+        bool,
+        typer.Option("--skip-missing/--no-skip-missing", help="Skip missing WSI files"),
     ] = True,
-    resume: Annotated[bool, typer.Option("--resume/--no-resume", help="Resume from checkpoint")] = True,
-    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")] = 0,
+    resume: Annotated[
+        bool, typer.Option("--resume/--no-resume", help="Resume from checkpoint")
+    ] = True,
+    verbose: Annotated[
+        int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")
+    ] = 0,
     json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Run the full benchmark suite on a dataset."""
-    from giant.cli.runners import run_benchmark as run_benchmark_impl
+    from giant.cli.runners import run_benchmark as run_benchmark_impl  # noqa: PLC0415
 
     _configure_logging(verbose)
     logger = get_logger(__name__)
@@ -258,7 +296,7 @@ def benchmark(  # noqa: PLR0913
             typer.echo(json.dumps({"error": str(e)}))
         else:
             typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()
@@ -269,10 +307,12 @@ def download(
     output_dir: Annotated[
         Path, typer.Option("--output-dir", "-o", help="Output directory")
     ] = Path("data"),
-    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")] = 0,
+    verbose: Annotated[
+        int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")
+    ] = 0,
 ) -> None:
     """Download benchmark datasets from HuggingFace."""
-    from giant.cli.runners import download_multipathqa
+    from giant.cli.runners import download_multipathqa  # noqa: PLC0415
 
     _configure_logging(verbose)
     logger = get_logger(__name__)
@@ -298,7 +338,7 @@ def download(
     except Exception as e:
         logger.exception("Download failed")
         typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command()
@@ -319,10 +359,12 @@ def visualize(
     open_browser: Annotated[
         bool, typer.Option("--open/--no-open", help="Open visualization in browser")
     ] = True,
-    verbose: Annotated[int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")] = 0,
+    verbose: Annotated[
+        int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")
+    ] = 0,
 ) -> None:
     """Generate interactive visualization of navigation trajectory."""
-    from giant.cli.visualizer import create_trajectory_html
+    from giant.cli.visualizer import create_trajectory_html  # noqa: PLC0415
 
     _configure_logging(verbose)
     logger = get_logger(__name__)
@@ -343,7 +385,7 @@ def visualize(
     except Exception as e:
         logger.exception("Visualization failed")
         typer.echo(f"Error: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.callback(invoke_without_command=True)
@@ -359,10 +401,10 @@ def _configure_logging(verbose: int) -> None:
         level = "WARNING"
     elif verbose == 1:
         level = "INFO"
-    elif verbose == 2:
+    elif verbose >= 2:  # noqa: PLR2004
         level = "DEBUG"
     else:
-        level = "DEBUG"  # -vvv and beyond
+        level = "DEBUG"  # Fallback
 
     configure_logging(level=level)
 

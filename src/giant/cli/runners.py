@@ -43,7 +43,7 @@ class BenchmarkResult:
     n_errors: int = 0
 
 
-def run_single_inference(
+def run_single_inference(  # noqa: PLR0913
     *,
     wsi_path: Path,
     question: str,
@@ -65,7 +65,7 @@ def run_single_inference(
     logger = get_logger(__name__)
 
     # Import here to avoid circular imports
-    from giant.cli.main import Mode
+    from giant.cli.main import Mode  # noqa: PLC0415
 
     logger.info(
         "Running inference",
@@ -104,7 +104,7 @@ def run_single_inference(
         )
 
 
-def _run_giant_mode(  # pragma: no cover
+def _run_giant_mode(  # pragma: no cover  # noqa: PLR0913
     *,
     wsi_path: Path,
     question: str,
@@ -115,8 +115,8 @@ def _run_giant_mode(  # pragma: no cover
     budget_usd: float,
 ) -> InferenceResult:
     """Run full GIANT agentic navigation."""
-    from giant.agent import AgentConfig, GIANTAgent
-    from giant.llm import create_provider
+    from giant.agent import AgentConfig, GIANTAgent  # noqa: PLC0415
+    from giant.llm import create_provider  # noqa: PLC0415
 
     llm = create_provider(provider.value, model=model)
 
@@ -133,7 +133,7 @@ def _run_giant_mode(  # pragma: no cover
     all_results = []
     total_cost = 0.0
 
-    for i in range(runs):
+    for _i in range(runs):
         result = asyncio.run(run_once())
         all_results.append(result)
         total_cost += result.total_cost
@@ -161,7 +161,7 @@ def _run_giant_mode(  # pragma: no cover
     )
 
 
-def _run_thumbnail_mode(  # pragma: no cover
+def _run_thumbnail_mode(  # pragma: no cover  # noqa: PLR0913
     *,
     wsi_path: Path,
     question: str,
@@ -171,13 +171,13 @@ def _run_thumbnail_mode(  # pragma: no cover
     budget_usd: float,
 ) -> InferenceResult:
     """Run single-thumbnail baseline (no navigation)."""
-    import base64
-    from io import BytesIO
+    import base64  # noqa: PLC0415
+    import os  # noqa: PLC0415
+    from io import BytesIO  # noqa: PLC0415
 
-    from giant.llm import create_provider
-    from giant.wsi import WSIReader
+    import anthropic  # noqa: PLC0415
 
-    llm = create_provider(provider.value, model=model)
+    from giant.wsi import WSIReader  # noqa: PLC0415
 
     # Get thumbnail
     with WSIReader(wsi_path) as reader:
@@ -189,29 +189,44 @@ def _run_thumbnail_mode(  # pragma: no cover
     image_b64 = base64.b64encode(buffer.getvalue()).decode()
 
     async def run_once() -> tuple[str, float]:
-        # Build prompt with image
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/png",
-                            "data": image_b64,
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": f"You are a pathologist examining this whole-slide image thumbnail. {question}\n\nProvide your answer concisely.",
-                    },
-                ],
-            }
-        ]
+        # Use SDK directly for simple text generation (not structured agent response)
+        client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
-        response = await llm.generate(messages)
-        return response.content, response.usage.cost if response.usage else 0.0
+        message = await client.messages.create(
+            model=model,
+            max_tokens=1024,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/png",
+                                "data": image_b64,
+                            },
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                f"You are a pathologist examining this whole-slide "
+                                f"image thumbnail. {question}\n\n"
+                                f"Provide your answer concisely."
+                            ),
+                        },
+                    ],
+                }
+            ],
+        )
+
+        # Extract text response
+        answer = message.content[0].text if message.content else ""  # type: ignore[union-attr]
+        # Estimate cost (rough approximation)
+        input_cost = message.usage.input_tokens * 0.003
+        output_cost = message.usage.output_tokens * 0.015
+        cost = (input_cost + output_cost) / 1000
+        return answer, cost
 
     # Run multiple times
     all_answers = []
@@ -243,7 +258,7 @@ def _run_thumbnail_mode(  # pragma: no cover
     )
 
 
-def _run_patch_mode(  # pragma: no cover
+def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
     *,
     wsi_path: Path,
     question: str,
@@ -253,14 +268,14 @@ def _run_patch_mode(  # pragma: no cover
     budget_usd: float,
 ) -> InferenceResult:
     """Run CLAM-style random patch baseline."""
-    import base64
-    from io import BytesIO
+    import base64  # noqa: PLC0415
+    import os  # noqa: PLC0415
+    from io import BytesIO  # noqa: PLC0415
 
-    from giant.llm import create_provider
-    from giant.vision import TissueSegmentor, sample_patches
-    from giant.wsi import WSIReader
+    import anthropic  # noqa: PLC0415
 
-    llm = create_provider(provider.value, model=model)
+    from giant.vision import TissueSegmentor, sample_patches  # noqa: PLC0415
+    from giant.wsi import WSIReader  # noqa: PLC0415
 
     # Segment tissue and sample patches
     with WSIReader(wsi_path) as reader:
@@ -284,6 +299,9 @@ def _run_patch_mode(  # pragma: no cover
             patch_images.append(base64.b64encode(buffer.getvalue()).decode())
 
     async def run_once() -> tuple[str, float]:
+        # Use SDK directly for simple text generation (not structured agent response)
+        client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+
         # Build prompt with multiple patches
         content: list[dict[str, Any]] = []
 
@@ -303,13 +321,26 @@ def _run_patch_mode(  # pragma: no cover
         content.append(
             {
                 "type": "text",
-                "text": f"\nThese are {len(patch_images)} random tissue patches from a whole-slide image. {question}\n\nProvide your answer concisely.",
+                "text": (
+                    f"\nThese are {len(patch_images)} random tissue patches from a "
+                    f"whole-slide image. {question}\n\nProvide your answer concisely."
+                ),
             }
         )
 
-        messages = [{"role": "user", "content": content}]
-        response = await llm.generate(messages)
-        return response.content, response.usage.cost if response.usage else 0.0
+        message = await client.messages.create(
+            model=model,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
+        )
+
+        # Extract text response
+        answer = message.content[0].text if message.content else ""  # type: ignore[union-attr]
+        # Estimate cost (rough approximation)
+        input_cost = message.usage.input_tokens * 0.003
+        output_cost = message.usage.output_tokens * 0.015
+        cost = (input_cost + output_cost) / 1000
+        return answer, cost
 
     # Run multiple times
     all_answers = []
@@ -341,7 +372,7 @@ def _run_patch_mode(  # pragma: no cover
     )
 
 
-def run_benchmark(  # pragma: no cover
+def run_benchmark(  # pragma: no cover  # noqa: PLR0913
     *,
     dataset: str,
     csv_path: Path,
@@ -360,10 +391,10 @@ def run_benchmark(  # pragma: no cover
     verbose: int,
 ) -> BenchmarkResult:
     """Run benchmark evaluation on a dataset."""
-    from giant.eval.runner import BenchmarkRunner, EvaluationConfig
-    from giant.llm import create_provider
+    from giant.eval.runner import BenchmarkRunner, EvaluationConfig  # noqa: PLC0415
+    from giant.llm import create_provider  # noqa: PLC0415
 
-    logger = get_logger(__name__)
+    _ = get_logger(__name__)  # Reserved for future logging
 
     llm = create_provider(provider.value, model=model)
 

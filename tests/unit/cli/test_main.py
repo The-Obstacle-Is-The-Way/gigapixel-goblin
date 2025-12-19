@@ -78,7 +78,7 @@ class TestRunCommand:
         wsi = tmp_path / "test.svs"
         wsi.touch()
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Test answer",
@@ -106,7 +106,7 @@ class TestRunCommand:
         wsi = tmp_path / "test.svs"
         wsi.touch()
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Test",
@@ -133,7 +133,7 @@ class TestRunCommand:
         wsi = tmp_path / "test.svs"
         wsi.touch()
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Test",
@@ -153,7 +153,7 @@ class TestRunCommand:
         wsi = tmp_path / "test.svs"
         wsi.touch()
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Test",
@@ -173,7 +173,7 @@ class TestRunCommand:
         wsi = tmp_path / "test.svs"
         wsi.touch()
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Cancer diagnosis",
@@ -194,7 +194,7 @@ class TestRunCommand:
         wsi.touch()
         output = tmp_path / "trajectory.json"
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_trajectory = MagicMock()
             mock_trajectory.to_dict.return_value = {"turns": []}
             mock_run.return_value = MagicMock(
@@ -233,7 +233,7 @@ class TestBenchmarkCommand:
             "tcga,1,slides/a.svs,What?,Cancer,abc123\n"
         )
 
-        with patch("giant.cli.main.run_benchmark_cmd") as mock_bench:
+        with patch("giant.cli.runners.run_benchmark") as mock_bench:
             mock_bench.return_value = MagicMock(
                 metrics={"accuracy": 0.5}, total_cost=1.0
             )
@@ -260,7 +260,7 @@ class TestBenchmarkCommand:
             "benchmark_name,question_id,image_path,question,answer,file_id\n"
         )
 
-        with patch("giant.cli.main.run_benchmark_cmd") as mock_bench:
+        with patch("giant.cli.runners.run_benchmark") as mock_bench:
             mock_bench.return_value = MagicMock(metrics={}, total_cost=0.0)
             result = runner.invoke(
                 app,
@@ -283,7 +283,7 @@ class TestBenchmarkCommand:
         csv_path = tmp_path / "MultiPathQA.csv"
         csv_path.write_text("benchmark_name,question_id\n")
 
-        with patch("giant.cli.main.run_benchmark_cmd") as mock_bench:
+        with patch("giant.cli.runners.run_benchmark") as mock_bench:
             mock_bench.return_value = MagicMock(metrics={}, total_cost=0.0)
             result = runner.invoke(
                 app,
@@ -306,7 +306,7 @@ class TestBenchmarkCommand:
         csv_path = tmp_path / "MultiPathQA.csv"
         csv_path.write_text("benchmark_name,question_id\n")
 
-        with patch("giant.cli.main.run_benchmark_cmd") as mock_bench:
+        with patch("giant.cli.runners.run_benchmark") as mock_bench:
             mock_bench.return_value = MagicMock(metrics={}, total_cost=0.0)
             result = runner.invoke(
                 app,
@@ -334,7 +334,7 @@ class TestDownloadCommand:
     """Tests for `giant download`."""
 
     def test_download_default_dataset(self, tmp_path: Path) -> None:
-        with patch("giant.cli.main.download_dataset") as mock_dl:
+        with patch("giant.cli.runners.download_multipathqa") as mock_dl:
             mock_dl.return_value = True
             result = runner.invoke(
                 app,
@@ -346,7 +346,7 @@ class TestDownloadCommand:
                 assert call_args.get("dataset") == "multipathqa"
 
     def test_download_specific_dataset(self, tmp_path: Path) -> None:
-        with patch("giant.cli.main.download_dataset") as mock_dl:
+        with patch("giant.cli.runners.download_multipathqa") as mock_dl:
             mock_dl.return_value = True
             result = runner.invoke(
                 app,
@@ -395,7 +395,7 @@ class TestVisualizeCommand:
         )
         output_html = tmp_path / "viz.html"
 
-        with patch("giant.cli.main.generate_visualization") as mock_viz:
+        with patch("giant.cli.visualizer.create_trajectory_html") as mock_viz:
             mock_viz.return_value = output_html
             result = runner.invoke(
                 app,
@@ -423,7 +423,7 @@ class TestVerbosityFlags:
         wsi = tmp_path / "test.svs"
         wsi.touch()
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Test",
@@ -442,7 +442,7 @@ class TestVerbosityFlags:
         wsi = tmp_path / "test.svs"
         wsi.touch()
 
-        with patch("giant.cli.main.run_inference") as mock_run:
+        with patch("giant.cli.runners.run_single_inference") as mock_run:
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Test",
