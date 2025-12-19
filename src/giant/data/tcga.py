@@ -115,9 +115,19 @@ def _download_gdc_file(
 
     Layout: out_dir/<file_id>/<file_name>
     """
+    # Validate file_id safety
+    fid = Path(file.file_id)
+    if fid.is_absolute() or fid.drive or ".." in fid.parts or fid.name != file.file_id:
+        raise ValueError(f"Invalid file_id {file.file_id!r}")
+
     # Validate file_name safety
     fname = Path(file.file_name)
-    if fname.is_absolute() or ".." in fname.parts or fname.name != file.file_name:
+    if (
+        fname.is_absolute()
+        or fname.drive
+        or ".." in fname.parts
+        or fname.name != file.file_name
+    ):
         raise ValueError(f"Invalid file_name {file.file_name!r}")
 
     dest_dir = out_dir / file.file_id

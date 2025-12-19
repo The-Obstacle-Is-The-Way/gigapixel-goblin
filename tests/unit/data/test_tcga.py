@@ -449,6 +449,24 @@ class TestDownloadGdcFile:
 class TestDownloadGdcFileSecurity:
     """Tests for security hardening of downloads."""
 
+    def test_raises_on_traversal_file_id(self, tmp_path: Path) -> None:
+        """Raises when file_id contains traversal characters."""
+        file = GdcFile("../evil", "test.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_id"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_subdir_file_id(self, tmp_path: Path) -> None:
+        """Raises when file_id contains path separators."""
+        file = GdcFile("subdir/evil", "test.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_id"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
     def test_raises_on_traversal_filename(self, tmp_path: Path) -> None:
         """Raises when file_name contains traversal characters."""
         file = GdcFile("abc123", "../evil.svs", 100)
