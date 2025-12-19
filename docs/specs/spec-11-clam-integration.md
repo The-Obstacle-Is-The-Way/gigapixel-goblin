@@ -13,13 +13,13 @@ This specification covers the tissue segmentation + random patch sampling needed
 - [Spec-02: WSI Data Layer & OpenSlide Integration](./spec-02-wsi-data.md)
 
 ## Acceptance Criteria
-- [ ] `TissueSegmentor` supports `backend={"clam","parity"}` (default `parity` in CI; `clam` enabled when installed).
-- [ ] Produces a binary mask (Tissue/Background) from the WSI thumbnail.
-- [ ] Implements Otsu's thresholding + morphological closing (CLAM default behavior).
-- [ ] `RandomPatchSampler` implemented: Returns `N=30` random `Region`s (Level-0 coords) of size `PATCH_SIZE=224×224` whose center overlaps tissue mask.
-- [ ] **Determinism:** RNG seeding via `seed` parameter for reproducible sampling.
-- [ ] **Majority vote aggregation:** `aggregate_predictions(predictions: list[str]) -> str` with deterministic tie-breaking (alphabetical).
-- [ ] Dependencies `opencv-python`, `scipy`, and `scikit-image` verified in `pyproject.toml`.
+- [x] `TissueSegmentor` supports `backend={"clam","parity"}` (both run the CLAM-parity implementation; the `clam` name is reserved for future optional external CLAM integration).
+- [x] Produces a binary mask (Tissue/Background) from the WSI thumbnail.
+- [x] Implements Otsu's thresholding + morphological closing (CLAM default behavior).
+- [x] `RandomPatchSampler` implemented: Returns `N=30` random `Region`s (Level-0 coords) of size `PATCH_SIZE=224×224` whose center overlaps tissue mask.
+- [x] **Determinism:** RNG seeding via `seed` parameter for reproducible sampling.
+- [x] **Majority vote aggregation:** `aggregate_predictions(predictions: list[str]) -> str` with deterministic tie-breaking (alphabetical).
+- [x] Dependencies `opencv-python`, `scipy`, and `scikit-image` verified in `pyproject.toml`.
 
 ## Technical Design
 

@@ -222,13 +222,29 @@ __marimo__/
 /_literature/
 
 # Downloaded data (WSIs are huge)
-/data/
-/tests/integration/wsi/data/
+# Ignore actual WSI files but keep structure and docs
+/data/wsi/**/*.svs
+/data/wsi/**/*.tiff
+/data/wsi/**/*.tif
+/data/wsi/**/*.ndpi
+/data/wsi/**/*.mrxs
+# Keep README and .gitkeep files
+!/data/wsi/README.md
+!/data/wsi/**/.gitkeep
+# MultiPathQA metadata is fine to track (small CSV)
+!/data/multipathqa/
+
+# Integration test WSI data (downloaded separately)
+/tests/integration/wsi/data/*.svs
+/tests/integration/wsi/data/*.tiff
+
+# Global WSI patterns (fallback)
 *.svs
 *.ndpi
 *.mrxs
-*.tiff
-*.tif
+# Be more specific with tiff to avoid false positives
+# *.tiff
+# *.tif
 !tests/fixtures/*.tiff
 
 # Benchmark results (generated)
