@@ -35,59 +35,64 @@ def csv_path(tmp_path: Path) -> Path:
             f,
             fieldnames=[
                 "benchmark_name",
-                "id",
+                "benchmark_id",
                 "image_path",
                 "prompt",
                 "options",
                 "answer",
                 "is_valid",
+                "file_id",
             ],
         )
         writer.writeheader()
         writer.writerow(
             {
                 "benchmark_name": "tcga",
-                "id": "TCGA-001",
+                "benchmark_id": "TCGA-001",
                 "image_path": "slide1.svs",
                 "prompt": "What is this?",
                 "options": json.dumps(["Lung", "Breast", "Colon"]),
                 "answer": "1",
                 "is_valid": "True",
+                "file_id": "uuid-1",
             }
         )
         writer.writerow(
             {
                 "benchmark_name": "tcga",
-                "id": "TCGA-002",
+                "benchmark_id": "TCGA-002",
                 "image_path": "slide2.svs",
                 "prompt": "Choose: {options}",
                 "options": "Lung|Breast",
                 "answer": "Lung",
                 "is_valid": "True",
+                "file_id": "uuid-2",
             }
         )
         # Invalid row (filtered out)
         writer.writerow(
             {
                 "benchmark_name": "tcga",
-                "id": "TCGA-003",
+                "benchmark_id": "TCGA-003",
                 "image_path": "slide3.svs",
                 "prompt": "Invalid",
                 "options": "",
                 "answer": "1",
                 "is_valid": "False",
+                "file_id": "uuid-3",
             }
         )
         # Different benchmark (filtered out)
         writer.writerow(
             {
                 "benchmark_name": "panda",
-                "id": "PANDA-001",
+                "benchmark_id": "PANDA-001",
                 "image_path": "panda.svs",
                 "prompt": "Grade?",
                 "options": "",
                 "answer": "2",
                 "is_valid": "True",
+                "file_id": "panda-1",
             }
         )
     return csv_file
@@ -113,6 +118,22 @@ class TestResolveWsiPath:
         (runner.wsi_root / "tcga" / "slide.svs").write_text("not a real slide")
         resolved = runner._resolve_wsi_path("slide.svs", "tcga")
         assert resolved == runner.wsi_root / "tcga" / "slide.svs"
+
+    def test_tcga_alias_benchmarks_resolve_under_tcga_dir(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        (runner.wsi_root / "tcga").mkdir(parents=True)
+        (runner.wsi_root / "tcga" / "slide.svs").write_text("not a real slide")
+        resolved = runner._resolve_wsi_path("slide.svs", "tcga_expert_vqa")
+        assert resolved == runner.wsi_root / "tcga" / "slide.svs"
+
+    def test_finds_gdc_client_file_id_dir(self, runner: BenchmarkRunner) -> None:
+        file_id = "uuid-123"
+        (runner.wsi_root / "tcga" / file_id).mkdir(parents=True)
+        downloaded = runner.wsi_root / "tcga" / file_id / "slide.something.svs"
+        downloaded.write_text("not a real slide")
+        resolved = runner._resolve_wsi_path("slide.svs", "tcga", file_id=file_id)
+        assert resolved == downloaded
 
 
 class TestTruthLabelParsing:
@@ -232,9 +253,63 @@ class TestLoadBenchmarkItems:
         assert items[0].benchmark_id == "TCGA-001"
         assert items[0].truth_label == 1
         assert items[0].options == ["Lung", "Breast", "Colon"]
+        assert items[0].file_id == "uuid-1"
         assert items[1].benchmark_id == "TCGA-002"
         assert items[1].truth_label == 1  # "Lung" matches first option
         assert "1. Lung" in items[1].prompt  # {options} was substituted
+        assert items[1].file_id == "uuid-2"
+
+    def test_loads_duplicate_image_paths_with_unique_benchmark_ids(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "expert.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "benchmark_id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                    "file_id",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga_expert_vqa",
+                    "benchmark_id": "Q-001",
+                    "image_path": "same_slide.svs",
+                    "prompt": "Q1?",
+                    "options": json.dumps(["A", "B"]),
+                    "answer": "1",
+                    "is_valid": "True",
+                    "file_id": "uuid-same",
+                }
+            )
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga_expert_vqa",
+                    "benchmark_id": "Q-002",
+                    "image_path": "same_slide.svs",
+                    "prompt": "Q2?",
+                    "options": json.dumps(["A", "B"]),
+                    "answer": "2",
+                    "is_valid": "True",
+                    "file_id": "uuid-same",
+                }
+            )
+
+        (runner.wsi_root / "tcga").mkdir(parents=True)
+        (runner.wsi_root / "tcga" / "same_slide.svs").write_text("slide")
+
+        items = runner.load_benchmark_items(csv_file, "tcga_expert_vqa")
+        assert [i.benchmark_id for i in items] == ["Q-001", "Q-002"]
+        expected = str(runner.wsi_root / "tcga" / "same_slide.svs")
+        assert all(i.wsi_path == expected for i in items)
 
     def test_raises_on_missing_csv(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(FileNotFoundError, match="MultiPathQA CSV not found"):
@@ -255,24 +330,26 @@ class TestLoadBenchmarkItems:
                 f,
                 fieldnames=[
                     "benchmark_name",
-                    "id",
+                    "benchmark_id",
                     "image_path",
                     "prompt",
                     "options",
                     "answer",
                     "is_valid",
+                    "file_id",
                 ],
             )
             writer.writeheader()
             writer.writerow(
                 {
                     "benchmark_name": "tcga",
-                    "id": "BAD-001",
+                    "benchmark_id": "BAD-001",
                     "image_path": "bad.svs",
                     "prompt": "Q?",
                     "options": "",
                     "answer": "",  # Empty answer
                     "is_valid": "True",
+                    "file_id": "uuid-bad",
                 }
             )
 
@@ -283,6 +360,56 @@ class TestLoadBenchmarkItems:
 
         with pytest.raises(ValueError, match="Invalid truth label"):
             runner.load_benchmark_items(csv_file, "tcga")
+
+    def test_skips_missing_wsis_when_enabled(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "missing.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "benchmark_id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                    "file_id",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga",
+                    "benchmark_id": "HAS-WSI",
+                    "image_path": "present.svs",
+                    "prompt": "Q?",
+                    "options": json.dumps(["A", "B"]),
+                    "answer": "1",
+                    "is_valid": "True",
+                    "file_id": "uuid-present",
+                }
+            )
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga",
+                    "benchmark_id": "MISSING-WSI",
+                    "image_path": "missing.svs",
+                    "prompt": "Q?",
+                    "options": json.dumps(["A", "B"]),
+                    "answer": "1",
+                    "is_valid": "True",
+                    "file_id": "uuid-missing",
+                }
+            )
+
+        runner.wsi_root.mkdir(parents=True)
+        (runner.wsi_root / "present.svs").write_text("present")
+
+        items = runner.load_benchmark_items(csv_file, "tcga", skip_missing_wsis=True)
+        assert [i.benchmark_id for i in items] == ["HAS-WSI"]
 
 
 class TestValidateRunId:
@@ -362,6 +489,8 @@ class TestEvaluationConfig:
         assert config.max_steps == 20
         assert config.runs_per_item == 1
         assert config.max_concurrent == 4
+        assert config.max_items is None
+        assert config.skip_missing_wsis is False
         assert config.checkpoint_interval == 10
 
     def test_custom_config(self) -> None:
@@ -369,6 +498,8 @@ class TestEvaluationConfig:
             max_steps=50,
             runs_per_item=5,
             max_concurrent=2,
+            max_items=10,
+            skip_missing_wsis=True,
             checkpoint_interval=5,
         )
         assert config.max_steps == 50
