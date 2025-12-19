@@ -2,7 +2,15 @@
 
 ## Severity: P3 (Low Priority) - Future-Proofing
 
-## Status: Open (Only relevant once MPP is used)
+## Status: ARCHIVED (2025-12-19) - Not an active bug
+
+## Archive Reason
+
+This is not an active bug. Per the original description: "Today, no production code uses MPP values, so there is no active bug."
+
+This document serves as a **future-proofing reminder** for when physical-unit features are implemented. The nullable `mpp_x`/`mpp_y` fields are correct by design (many slides lack calibration data). The mitigation patterns below should be applied when physical measurements are added.
+
+---
 
 ## Description
 
