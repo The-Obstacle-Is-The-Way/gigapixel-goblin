@@ -8,12 +8,7 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
-### P3 - Low Priority (Deferred / Future-Proofing)
-
-| ID | Title | Status |
-|----|-------|--------|
-| [BUG-010](./BUG-010-mpp-nullable-no-guards.md) | Optional MPP Needs Helper/Guards When Used | Open (Future) |
-| [BUG-011](./BUG-011-unused-geometry-validator.md) | GeometryValidator Is Staged for Spec-09 | Open (Deferred) |
+**None.** All tracked bugs have been resolved or archived.
 
 ## Archived (Fixed) Bugs
 
@@ -29,6 +24,8 @@ See `archive/` for historical bugs that have been resolved:
 | BUG-007 | Test Suite Mocked (claim inaccurate) | Documentation corrected |
 | BUG-008 | API Keys Silent None | ConfigError added |
 | BUG-009 | Font Loading Silent Fallback | Warning log added |
+| BUG-010 | MPP Nullable No Guards | Archived (future-proofing note, no active bug) |
+| BUG-011 | Unused GeometryValidator | Fixed in Spec-09 (now used in agent runner) |
 | BUG-012 | HF Download Silent Auth | Debug log added |
 | BUG-013 | Silent Zero-Cost on Missing Usage Data | Fail fast on missing usage + tests |
 | BUG-014 | Environment Secrets Management Gap | .env docs + test fixes + schema fixes |
@@ -55,6 +52,15 @@ See `archive/` for historical bugs that have been resolved:
 - Fixed: Anthropic JSON string parsing, OpenAI oneOf schema issue
 - Fixed: Test skipif now detects keys from .env file
 
+### Spec-12 CLI Merge + Bug Housekeeping (2025-12-19)
+
+**Audited**: BUG-010, BUG-011 from deferred list
+
+**Findings**:
+- BUG-010 (MPP nullable): Not a bug, just future-proofing note. Archived.
+- BUG-011 (GeometryValidator unused): Fixed in Spec-09. Archived.
+- All active bugs cleared. Zero active bugs remaining.
+
 ### Spec-05.5 WSI Integration Checkpoint (2025-12-17)
 
 **Audited**: Specs 01-05 (WSI data layer, cropping, levels)
@@ -63,4 +69,4 @@ See `archive/` for historical bugs that have been resolved:
 - 17 WSI integration tests added
 - 12 bugs documented
 - 9 bugs fixed
-- 2 deferred to Spec-09 (BUG-010, BUG-011)
+- 2 deferred to Spec-09 (BUG-010, BUG-011) — now resolved

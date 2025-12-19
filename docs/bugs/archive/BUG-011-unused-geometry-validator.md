@@ -2,11 +2,29 @@
 
 ## Severity: P3 (Low Priority) - Staged for Spec-09
 
-## Status: Open (Deferred until Spec-09)
+## Status: RESOLVED (Archived 2025-12-19)
 
-## Description
+## Resolution
 
-`GeometryValidator` is currently unused in production code, but this is intentional: Spec-09 explicitly places bbox validation in the agent loop (“strict by default; clamp only as an explicit, test-covered recovery path”). Until Spec-09 is implemented, `GeometryValidator` is a staged utility.
+**Fixed in Spec-09 implementation.** The `GeometryValidator` is now fully integrated into `GIANTAgent.run()`:
+
+- Imported at `src/giant/agent/runner.py:33`
+- Used for strict validation at lines 325-329:
+  ```python
+  try:
+      self._validator.validate(region, self._slide_bounds, strict=True)
+  except ValidationError as e:
+      logger.warning("Invalid crop region: %s", e)
+      return await self._handle_invalid_region(action, messages, str(e))
+  ```
+
+This follows Spec-09's design: "strict by default; clamp only as an explicit, test-covered recovery path."
+
+---
+
+## Original Description (Historical)
+
+`GeometryValidator` is currently unused in production code, but this is intentional: Spec-09 explicitly places bbox validation in the agent loop ("strict by default; clamp only as an explicit, test-covered recovery path"). Until Spec-09 is implemented, `GeometryValidator` is a staged utility.
 
 ### The Unused Code
 
