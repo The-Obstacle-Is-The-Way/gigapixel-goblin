@@ -180,6 +180,27 @@ class TestEdgeCases:
         patches = sample_patches(mask, simple_metadata, n_patches=5, seed=42)
         assert len(patches) >= 1  # At least some patches
 
+    def test_raises_when_center_overlap_impossible(self) -> None:
+        """Test strict center-over-tissue contract is enforced after clamping."""
+        small_metadata = WSIMetadata(
+            path="/test/small.svs",
+            width=500,
+            height=500,
+            level_count=1,
+            level_dimensions=((500, 500),),
+            level_downsamples=(1.0,),
+            vendor="test",
+            mpp_x=0.25,
+            mpp_y=0.25,
+        )
+        # Single tissue pixel in the corner: any in-bounds 224x224 patch will have
+        # a center far from (0,0) after clamping, so the contract cannot be met.
+        mask = np.zeros((50, 50), dtype=np.uint8)
+        mask[0, 0] = 255
+
+        with pytest.raises(ValueError, match="Unable to sample"):
+            sample_patches(mask, small_metadata, n_patches=1, seed=42)
+
     def test_full_tissue_mask(self, simple_metadata: WSIMetadata) -> None:
         """Test fully filled tissue mask."""
         full_mask = np.full((100, 100), 255, dtype=np.uint8)

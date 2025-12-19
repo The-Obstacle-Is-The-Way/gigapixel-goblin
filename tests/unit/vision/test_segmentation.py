@@ -27,6 +27,18 @@ class TestTissueSegmentor:
         with pytest.raises(ValueError, match="Unsupported backend"):
             TissueSegmentor(backend="invalid")
 
+    def test_clam_backend_is_supported(self) -> None:
+        """Test 'clam' backend is accepted and runs (CLAM-parity implementation)."""
+        image = Image.new("RGB", (50, 50), color=(255, 255, 255))
+        tissue = Image.new("RGB", (20, 20), color=(200, 100, 150))
+        image.paste(tissue, (15, 15))
+
+        mask_parity = TissueSegmentor(backend="parity").segment(image)
+        mask_clam = TissueSegmentor(backend="clam").segment(image)
+
+        assert mask_clam.shape == (50, 50)
+        assert np.array_equal(mask_parity, mask_clam)
+
     def test_segment_returns_binary_mask(self) -> None:
         """Test segmentation returns binary mask."""
         segmentor = TissueSegmentor(backend="parity")
@@ -116,6 +128,18 @@ class TestMorphologicalClosing:
 
 class TestEdgeCases:
     """Tests for edge cases in segmentation."""
+
+    def test_removes_small_components(self) -> None:
+        """Test tiny tissue components are removed to reduce sampling noise."""
+        segmentor = TissueSegmentor(backend="parity")
+        image = Image.new("RGB", (100, 100), color=(255, 255, 255))
+        # 5x5 component area=25 < MIN_TISSUE_AREA=100
+        tissue = Image.new("RGB", (5, 5), color=(200, 100, 150))
+        image.paste(tissue, (0, 0))
+
+        mask = segmentor.segment(image)
+
+        assert np.sum(mask) == 0
 
     def test_very_small_image(self) -> None:
         """Test segmentation handles very small images."""

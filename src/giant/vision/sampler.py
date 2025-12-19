@@ -44,7 +44,21 @@ def sample_patches(
 
     Raises:
         ValueError: If no tissue detected in mask.
+        ValueError: If unable to sample the requested number of patches.
     """
+    if n_patches <= 0:
+        raise ValueError(f"n_patches must be > 0, got {n_patches}")
+    if patch_size <= 0:
+        raise ValueError(f"patch_size must be > 0, got {patch_size}")
+    if patch_size > wsi_metadata.width or patch_size > wsi_metadata.height:
+        raise ValueError(
+            f"patch_size {patch_size} exceeds slide dimensions "
+            f"{wsi_metadata.width}x{wsi_metadata.height}"
+        )
+    expected_ndim = 2
+    if mask.ndim != expected_ndim:
+        raise ValueError(f"mask must be 2D (H,W), got shape {mask.shape}")
+
     rng = np.random.default_rng(seed)
 
     # Find all tissue pixel coordinates (y, x format in numpy)
@@ -52,9 +66,11 @@ def sample_patches(
     if len(tissue_coords) == 0:
         raise ValueError("No tissue detected in slide")
 
+    mask_height, mask_width = mask.shape
+
     # Scale factors: thumbnail → Level-0
-    scale_x = wsi_metadata.width / mask.shape[1]
-    scale_y = wsi_metadata.height / mask.shape[0]
+    scale_x = wsi_metadata.width / mask_width
+    scale_y = wsi_metadata.height / mask_height
 
     patches: list[Region] = []
     attempts = 0
@@ -77,8 +93,27 @@ def sample_patches(
         x = max(0, min(x, wsi_metadata.width - patch_size))
         y = max(0, min(y, wsi_metadata.height - patch_size))
 
+        center_x = x + patch_size // 2
+        center_y = y + patch_size // 2
+
+        # Ensure the final clamped patch still satisfies the contract:
+        # its center overlaps tissue in the mask coordinate space.
+        mask_x = int(center_x * mask_width / wsi_metadata.width)
+        mask_y = int(center_y * mask_height / wsi_metadata.height)
+        mask_x = max(0, min(mask_x, mask_width - 1))
+        mask_y = max(0, min(mask_y, mask_height - 1))
+        if mask[mask_y, mask_x] <= 0:
+            attempts += 1
+            continue
+
         patches.append(Region(x=x, y=y, width=patch_size, height=patch_size))
         attempts += 1
+
+    if len(patches) < n_patches:
+        raise ValueError(
+            f"Unable to sample {n_patches} patches from tissue mask "
+            f"after {attempts} attempts"
+        )
 
     return patches
 
