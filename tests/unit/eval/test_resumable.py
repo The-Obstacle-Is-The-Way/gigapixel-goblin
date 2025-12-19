@@ -171,6 +171,40 @@ class TestCheckpointManager:
                 config={"max_steps": 10},
             )
 
+    def test_load_or_create_allows_added_default_like_keys(
+        self, checkpoint_manager: CheckpointManager
+    ) -> None:
+        state = CheckpointState(
+            run_id="added-default-keys",
+            benchmark_name="tcga",
+            config={"max_steps": 20},
+        )
+        checkpoint_manager.save(state)
+
+        loaded = checkpoint_manager.load_or_create(
+            "added-default-keys",
+            "tcga",
+            config={"max_steps": 20, "strict_font_check": False},
+        )
+        assert loaded.run_id == "added-default-keys"
+
+    def test_load_or_create_new_non_default_key_raises(
+        self, checkpoint_manager: CheckpointManager
+    ) -> None:
+        state = CheckpointState(
+            run_id="added-non-default-keys",
+            benchmark_name="tcga",
+            config={"max_steps": 20},
+        )
+        checkpoint_manager.save(state)
+
+        with pytest.raises(ValueError, match="config mismatch"):
+            checkpoint_manager.load_or_create(
+                "added-non-default-keys",
+                "tcga",
+                config={"max_steps": 20, "strict_font_check": True},
+            )
+
     def test_delete_existing(self, checkpoint_manager: CheckpointManager) -> None:
         """Test deleting an existing checkpoint."""
         state = CheckpointState(run_id="to-delete", benchmark_name="tcga")

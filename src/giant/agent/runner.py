@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from giant.agent.context import ContextManager
 from giant.agent.trajectory import Trajectory
 from giant.core.crop_engine import CropEngine
-from giant.geometry.overlay import OverlayService
+from giant.geometry.overlay import AxisGuideGenerator, OverlayService, OverlayStyle
 from giant.geometry.primitives import Region, Size
 from giant.geometry.validators import GeometryValidator, ValidationError
 from giant.llm.protocol import (
@@ -123,6 +123,7 @@ class AgentConfig:
         budget_usd: Optional cost limit (force answer if exceeded).
         thumbnail_size: Size for initial thumbnail generation.
         force_answer_retries: Retries for forcing answer at max steps.
+        strict_font_check: If True, fail if axis label fonts are missing.
     """
 
     max_steps: int = 5
@@ -130,6 +131,7 @@ class AgentConfig:
     budget_usd: float | None = None
     thumbnail_size: int = 1024
     force_answer_retries: int = 3
+    strict_font_check: bool = False
 
 
 # =============================================================================
@@ -196,7 +198,10 @@ class GIANTAgent:
 
         # Initialize components
         self._validator = GeometryValidator()
-        self._overlay_service = OverlayService()
+        overlay_style = OverlayStyle(strict_font_check=self.config.strict_font_check)
+        self._overlay_service = OverlayService(
+            generator=AxisGuideGenerator(style=overlay_style)
+        )
         self._total_tokens = 0
         self._total_cost = 0.0
         self._consecutive_errors = 0

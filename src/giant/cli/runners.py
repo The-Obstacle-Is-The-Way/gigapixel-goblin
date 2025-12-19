@@ -7,12 +7,15 @@ bridging the CLI interface to the core GIANT components.
 from __future__ import annotations
 
 import asyncio
+import csv
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from giant.data.schemas import BENCHMARK_TASKS
+from giant.eval.wsi_resolver import WSIPathResolver
 from giant.utils.logging import get_logger
 
 if TYPE_CHECKING:
@@ -45,6 +48,108 @@ class BenchmarkResult:
     n_errors: int
 
 
+@dataclass(frozen=True)
+class DataCheckResult:
+    """Result from `giant check-data` validation."""
+
+    dataset: str
+    rows: int
+    total: int
+    found: int
+    missing: int
+    missing_paths: list[str] = field(default_factory=list)
+
+    def missing_examples(self, *, limit: int = 20) -> list[str]:
+        return self.missing_paths[:limit]
+
+    def format_message(self, *, wsi_root: Path) -> str:
+        if self.total == 0:
+            return f"No valid rows found for {self.dataset!r} in MultiPathQA.csv."
+        if self.missing == 0:
+            return (
+                f"All WSIs present for {self.dataset}: {self.found}/{self.total} "
+                f"under {wsi_root}"
+            )
+        return (
+            f"Missing {self.missing}/{self.total} WSIs for {self.dataset} under "
+            f"{wsi_root}"
+        )
+
+
+def check_data(
+    *,
+    dataset: str,
+    csv_path: Path,
+    wsi_root: Path,
+) -> DataCheckResult:
+    """Validate that WSI files referenced by MultiPathQA exist under `wsi_root`."""
+    logger = get_logger(__name__)
+
+    if dataset not in BENCHMARK_TASKS:
+        raise ValueError(
+            f"Unknown dataset {dataset!r}. Valid options: "
+            f"{list(BENCHMARK_TASKS.keys())}"
+        )
+
+    csv_path = Path(csv_path)
+    if not csv_path.exists():
+        raise FileNotFoundError(f"MultiPathQA CSV not found: {csv_path}")
+
+    resolver = WSIPathResolver(Path(wsi_root))
+
+    rows = 0
+    targets: set[tuple[str, str | None]] = set()
+
+    with csv_path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+
+        if reader.fieldnames is None or "image_path" not in reader.fieldnames:
+            raise ValueError("MultiPathQA CSV missing required column: image_path")
+
+        for row in reader:
+            rows += 1
+            if row.get("benchmark_name") != dataset:
+                continue
+            if row.get("is_valid", "True").lower() != "true":
+                continue
+
+            image_path = row.get("image_path")
+            if not image_path:
+                raise ValueError("Missing image_path in CSV row")
+            file_id = row.get("file_id") or None
+            targets.add((image_path, file_id))
+
+    missing_paths: list[str] = []
+    for image_path, file_id in sorted(targets, key=lambda t: (t[0], t[1] or "")):
+        try:
+            resolver.resolve(image_path, dataset, file_id=file_id)
+        except FileNotFoundError:
+            missing_paths.append(image_path)
+
+    total = len(targets)
+    missing_paths = sorted(set(missing_paths))
+    missing = len(missing_paths)
+    found = total - missing
+
+    logger.info(
+        "Data check complete: dataset=%s rows=%d total=%d found=%d missing=%d",
+        dataset,
+        rows,
+        total,
+        found,
+        missing,
+    )
+
+    return DataCheckResult(
+        dataset=dataset,
+        rows=rows,
+        total=total,
+        found=found,
+        missing=missing,
+        missing_paths=missing_paths,
+    )
+
+
 def run_single_inference(  # noqa: PLR0913
     *,
     wsi_path: Path,
@@ -53,6 +158,7 @@ def run_single_inference(  # noqa: PLR0913
     provider: Provider,
     model: str,
     max_steps: int,
+    strict_font_check: bool = False,
     runs: int,
     budget_usd: float,
     verbose: int,
@@ -83,6 +189,7 @@ def run_single_inference(  # noqa: PLR0913
             provider=provider,
             model=model,
             max_steps=max_steps,
+            strict_font_check=strict_font_check,
             runs=runs,
             budget_usd=budget_usd,
         )
@@ -113,6 +220,7 @@ def _run_giant_mode(  # pragma: no cover  # noqa: PLR0913
     provider: Provider,
     model: str,
     max_steps: int,
+    strict_font_check: bool = False,
     runs: int,
     budget_usd: float,
 ) -> InferenceResult:
@@ -146,6 +254,7 @@ def _run_giant_mode(  # pragma: no cover  # noqa: PLR0913
                 config=AgentConfig(
                     max_steps=max_steps,
                     budget_usd=remaining_budget,
+                    strict_font_check=strict_font_check,
                 )
             )
             results.append(result)
@@ -322,6 +431,7 @@ def run_benchmark(  # pragma: no cover  # noqa: PLR0913
     provider: Provider,
     model: str,
     max_steps: int,
+    strict_font_check: bool = False,
     runs: int,
     concurrency: int,
     budget_usd: float,
@@ -344,6 +454,7 @@ def run_benchmark(  # pragma: no cover  # noqa: PLR0913
         max_items=max_items if max_items > 0 else None,
         skip_missing_wsis=skip_missing,
         budget_usd=budget_usd if budget_usd > 0 else None,
+        strict_font_check=strict_font_check,
     )
 
     runner = BenchmarkRunner(

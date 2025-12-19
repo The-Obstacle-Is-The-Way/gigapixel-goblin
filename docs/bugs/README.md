@@ -81,7 +81,7 @@ See `archive/` for historical bugs that have been resolved:
 
 - BUG-010 (MPP nullable): Not a bug, just future-proofing note. Archived.
 - BUG-011 (GeometryValidator unused): Fixed in Spec-09. Archived.
-- All active bugs cleared. Zero active bugs remaining.
+- Deferred list cleared (BUG-010/BUG-011 archived).
 
 ### Audit Bug Hunt (P0-P4) (2025-12-19)
 

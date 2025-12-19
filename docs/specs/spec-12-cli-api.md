@@ -15,11 +15,14 @@ This specification defines the user-facing command-line interface (CLI) for GIAN
 - [x] `giant run` supports `--runs N` for majority voting (GIANT x5).
 - [x] `giant run` supports `--provider {openai,anthropic}` and `--model` selection.
 - [x] `giant run` supports `--budget-usd` to cap total spend and fail fast.
+- [x] `giant run` supports `--strict-font-check` to fail if axis label fonts are missing.
 - [x] `giant benchmark <dataset>` runs the evaluation pipeline with resume support.
 - [x] `giant benchmark` supports `--wsi-root <dir>` to resolve `image_path` entries from MultiPathQA metadata to local slide files.
 - [x] `giant benchmark` supports `--budget-usd` to cap total spend and fail fast.
+- [x] `giant benchmark` supports `--strict-font-check` to fail if axis label fonts are missing.
 - [x] `giant benchmark` handles SIGINT/SIGTERM gracefully by writing a final checkpoint before exiting.
 - [x] `giant download` downloads MultiPathQA metadata (`MultiPathQA.csv`) from HuggingFace.
+- [x] `giant check-data <dataset>` validates that required WSIs exist under `--wsi-root`.
 - [x] `giant visualize <result.json>` outputs trajectory visualization.
 - [x] Logging verbosity controllable via `-v` / `-vv` / `-vvv` flags.
 - [x] `--json` flag outputs machine-readable JSON for all commands.
@@ -58,6 +61,7 @@ def run(
     provider: Provider = typer.Option(Provider.openai, "--provider", "-p"),
     model: str = typer.Option("gpt-5.2", "--model", help="Model name (see docs/models/MODEL_REGISTRY.md)"),
     max_steps: int = typer.Option(20, "--max-steps", "-T", help="Max navigation steps"),
+    strict_font_check: bool = typer.Option(False, "--strict-font-check/--no-strict-font-check", help="Fail if TrueType fonts are unavailable for axis labels"),
     runs: int = typer.Option(1, "--runs", "-r", help="Number of runs for majority voting"),
     budget_usd: float = typer.Option(0.0, "--budget-usd", help="Stop early if total cost exceeds this USD budget (0 disables)"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Save trajectory to JSON"),
@@ -75,6 +79,7 @@ def benchmark(
     provider: Provider = typer.Option(Provider.openai, "--provider", "-p"),
     model: str = typer.Option("gpt-5.2", "--model"),
     max_steps: int = typer.Option(20, "--max-steps", "-T"),
+    strict_font_check: bool = typer.Option(False, "--strict-font-check/--no-strict-font-check", help="Fail if TrueType fonts are unavailable for axis labels"),
     runs: int = typer.Option(1, "--runs", "-r", help="Runs per item for majority voting"),
     concurrency: int = typer.Option(4, "--concurrency", "-c", help="Max concurrent API calls"),
     wsi_root: Path = typer.Option(Path("./wsi"), "--wsi-root", help="Root directory containing WSIs referenced by MultiPathQA.csv"),
@@ -92,6 +97,17 @@ def download(
     verbose: int = typer.Option(0, "--verbose", "-v", count=True),
 ):
     """Download benchmark datasets from HuggingFace."""
+    ...
+
+@app.command()
+def check_data(
+    dataset: str = typer.Argument(..., help="Dataset name (tcga, panda, gtex, tcga_expert_vqa, tcga_slidebench)"),
+    csv_path: Path = typer.Option(Path("data/multipathqa/MultiPathQA.csv"), "--csv-path", help="Path to MultiPathQA.csv"),
+    wsi_root: Path = typer.Option(Path("data/wsi"), "--wsi-root", help="Root directory containing WSIs"),
+    verbose: int = typer.Option(0, "--verbose", "-v", count=True),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+):
+    """Validate that WSI files for a benchmark exist locally."""
     ...
 
 @app.command()
@@ -175,7 +191,6 @@ src/giant/cli/
 ├── main.py         # Typer app with all commands
 ├── runners.py      # Mode-specific runner wrappers
 ├── visualizer.py   # HTML generation for trajectories
-└── formatters.py   # JSON/text output formatting
 
 tests/unit/cli/
 ├── test_main.py

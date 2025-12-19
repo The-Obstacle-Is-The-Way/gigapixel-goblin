@@ -19,6 +19,46 @@ from giant.data.schemas import BenchmarkResult
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_LIKE_VALUES: tuple[object, ...] = (
+    None,
+    False,
+    0,
+    0.0,
+    "",
+    (),
+    [],
+    {},
+)
+
+
+def _is_default_like(value: object) -> bool:
+    return value in _DEFAULT_LIKE_VALUES
+
+
+def _configs_equivalent(existing: dict[str, Any], new: dict[str, Any]) -> bool:
+    """Compare configs while allowing additive default-like keys.
+
+    This lets newer versions resume older checkpoints when new config keys are
+    introduced with default values (e.g., False/None/0), without weakening the
+    guardrail against resuming with materially different settings.
+    """
+    all_keys = set(existing) | set(new)
+    for key in all_keys:
+        if key in existing and key in new:
+            if existing[key] != new[key]:
+                return False
+            continue
+
+        if key in existing:
+            if not _is_default_like(existing[key]):
+                return False
+            continue
+
+        if not _is_default_like(new[key]):
+            return False
+
+    return True
+
 
 class CheckpointState(BaseModel):
     """State saved at each checkpoint.
@@ -127,7 +167,11 @@ class CheckpointManager:
                     f"{existing.benchmark_name!r}, not {benchmark_name!r}. "
                     "Use a new run_id or delete the checkpoint."
                 )
-            if config is not None and existing.config and existing.config != config:
+            if (
+                config is not None
+                and existing.config
+                and not _configs_equivalent(existing.config, config)
+            ):
                 raise ValueError(
                     f"Checkpoint {run_id!r} config mismatch. "
                     "Refusing to resume with different settings. "

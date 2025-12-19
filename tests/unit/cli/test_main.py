@@ -390,6 +390,85 @@ class TestDownloadCommand:
 
 
 # =============================================================================
+# Check-Data Command
+# =============================================================================
+
+
+class TestCheckDataCommand:
+    """Tests for `giant check-data`."""
+
+    def test_check_data_success(self, tmp_path: Path) -> None:
+        wsi_root = tmp_path / "wsi"
+        (wsi_root / "tcga").mkdir(parents=True)
+        (wsi_root / "tcga" / "slide.svs").touch()
+
+        csv_path = tmp_path / "MultiPathQA.csv"
+        csv_path.write_text("benchmark_name,image_path,is_valid\ntcga,slide.svs,True\n")
+
+        result = runner.invoke(
+            app,
+            [
+                "check-data",
+                "tcga",
+                "--csv-path",
+                str(csv_path),
+                "--wsi-root",
+                str(wsi_root),
+            ],
+        )
+        assert result.exit_code == 0, result.stdout
+        assert "All WSIs present" in result.stdout
+
+    def test_check_data_missing_files(self, tmp_path: Path) -> None:
+        wsi_root = tmp_path / "wsi"
+        wsi_root.mkdir(parents=True)
+
+        csv_path = tmp_path / "MultiPathQA.csv"
+        csv_path.write_text(
+            "benchmark_name,image_path,is_valid\ntcga,missing.svs,True\n"
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "check-data",
+                "tcga",
+                "--csv-path",
+                str(csv_path),
+                "--wsi-root",
+                str(wsi_root),
+            ],
+        )
+        assert result.exit_code == 1, result.stdout
+        assert "Missing" in result.stdout
+
+    def test_check_data_json_output(self, tmp_path: Path) -> None:
+        wsi_root = tmp_path / "wsi"
+        (wsi_root / "tcga").mkdir(parents=True)
+        (wsi_root / "tcga" / "slide.svs").touch()
+
+        csv_path = tmp_path / "MultiPathQA.csv"
+        csv_path.write_text("benchmark_name,image_path,is_valid\ntcga,slide.svs,True\n")
+
+        result = runner.invoke(
+            app,
+            [
+                "check-data",
+                "tcga",
+                "--csv-path",
+                str(csv_path),
+                "--wsi-root",
+                str(wsi_root),
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, result.stdout
+        data = json.loads(result.stdout)
+        assert data["status"] == "success"
+        assert data["missing"] == 0
+
+
+# =============================================================================
 # Visualize Command
 # =============================================================================
 
@@ -521,6 +600,7 @@ class TestHelpText:
         assert "run" in result.stdout
         assert "benchmark" in result.stdout
         assert "download" in result.stdout
+        assert "check-data" in result.stdout
         assert "visualize" in result.stdout
 
     def test_run_help_shows_options(self) -> None:

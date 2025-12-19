@@ -2,12 +2,12 @@
 
 ## Severity: P2 (Paper/spec mismatch impacting navigation)
 
-## Status: Open
+## Status: Closed (Fixed)
 
 ## Description
 The paper specifies that the thumbnail’s axis guides are “labeled with **absolute level-0 pixel coordinates**.” Specs mirror this expectation (examples like `10000`, `20000`, `15000`).
 
-The current implementation formats larger coordinates using “K” notation (e.g., `15000 → "15K"`), controlled by hard-coded thresholds:
+The implementation previously formatted larger coordinates using “K” notation (e.g., `15000 → "15K"`), controlled by hard-coded thresholds:
 
 ```python
 _COORD_THRESHOLD_LARGE = 10000  # 15000 -> "15K"
@@ -24,9 +24,11 @@ _COORD_THRESHOLD_MEDIUM = 1000  # 1500  -> "1.5K"
 ## Evidence
 - Paper: `_literature/markdown/giant/giant.md` states labels are absolute level-0 pixel coordinates.
 - Spec: `docs/specs/spec-03-coordinates.md` describes rendering labels like `"15000"`.
-- Code: `src/giant/geometry/overlay.py` uses `_format_coordinate()` to emit “K” abbreviations.
+- Historical code: `src/giant/geometry/overlay.py` formatted coordinates with “K” abbreviations.
 
-## Proposed Fix
-1. Render **full integer coordinates** on axis guide labels (no abbreviations) to match the paper/spec text.
-2. If compact formatting is desired, make it explicit and configurable (e.g., an `OverlayStyle.label_format` enum, or dual labels like `15000 (15K)`).
-3. Move formatting thresholds into `OverlayStyle` only if abbreviations remain supported.
+## Resolution
+- Removed “K” abbreviations; axis labels now render as absolute integers (paper/spec-faithful).
+- Added unit coverage in `tests/unit/geometry/test_overlay.py` to prevent regressions.
+
+## Follow-ups (Optional)
+- If compact labels are desired for human debugging, make the behavior explicit and configurable (defaulting to paper-faithful absolute integers).
