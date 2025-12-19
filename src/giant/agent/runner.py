@@ -273,8 +273,8 @@ class GIANTAgent:
 
             # Handle action
             if isinstance(action, FinalAnswerAction):
-                # Early termination with answer (valid outcome, not a warning)
-                logger.info(
+                # Early termination with answer (accepted, but out-of-contract)
+                logger.warning(
                     "Model returned answer at step %d/%d",
                     self._context.current_step,
                     self.config.max_steps,

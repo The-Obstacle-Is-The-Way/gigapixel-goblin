@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class BoundingBoxAction(BaseModel):
     """Action to crop a region from the current view.
 
-    The bounding box coordinates are in the current view's pixel space.
+    The bounding box coordinates are in **Level-0 (full-slide)** pixel space.
     The agent uses this to "zoom in" on a region of interest.
     """
 

@@ -1,0 +1,375 @@
+"""Tests for giant.eval.runner module (Spec-10)."""
+
+from __future__ import annotations
+
+import csv
+import json
+from pathlib import Path
+
+import pytest
+
+from giant.data.schemas import BenchmarkResult
+from giant.eval.runner import BenchmarkRunner, EvaluationConfig
+
+
+class _DummyProvider:
+    def get_model_name(self) -> str:
+        return "gpt-5.2"
+
+
+@pytest.fixture
+def runner(tmp_path: Path) -> BenchmarkRunner:
+    return BenchmarkRunner(
+        llm_provider=_DummyProvider(),  # type: ignore[arg-type]
+        wsi_root=tmp_path / "wsi",
+        output_dir=tmp_path / "out",
+    )
+
+
+@pytest.fixture
+def csv_path(tmp_path: Path) -> Path:
+    """Create a test CSV file."""
+    csv_file = tmp_path / "test.csv"
+    with csv_file.open("w", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "benchmark_name",
+                "id",
+                "image_path",
+                "prompt",
+                "options",
+                "answer",
+                "is_valid",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "benchmark_name": "tcga",
+                "id": "TCGA-001",
+                "image_path": "slide1.svs",
+                "prompt": "What is this?",
+                "options": json.dumps(["Lung", "Breast", "Colon"]),
+                "answer": "1",
+                "is_valid": "True",
+            }
+        )
+        writer.writerow(
+            {
+                "benchmark_name": "tcga",
+                "id": "TCGA-002",
+                "image_path": "slide2.svs",
+                "prompt": "Choose: {options}",
+                "options": "Lung|Breast",
+                "answer": "Lung",
+                "is_valid": "True",
+            }
+        )
+        # Invalid row (filtered out)
+        writer.writerow(
+            {
+                "benchmark_name": "tcga",
+                "id": "TCGA-003",
+                "image_path": "slide3.svs",
+                "prompt": "Invalid",
+                "options": "",
+                "answer": "1",
+                "is_valid": "False",
+            }
+        )
+        # Different benchmark (filtered out)
+        writer.writerow(
+            {
+                "benchmark_name": "panda",
+                "id": "PANDA-001",
+                "image_path": "panda.svs",
+                "prompt": "Grade?",
+                "options": "",
+                "answer": "2",
+                "is_valid": "True",
+            }
+        )
+    return csv_file
+
+
+class TestResolveWsiPath:
+    def test_rejects_absolute_path(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="absolute paths are not allowed"):
+            runner._resolve_wsi_path("/etc/passwd", "tcga")
+
+    def test_rejects_path_traversal(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="path traversal"):
+            runner._resolve_wsi_path("../secret.svs", "tcga")
+
+    def test_finds_direct_path(self, runner: BenchmarkRunner) -> None:
+        runner.wsi_root.mkdir(parents=True)
+        (runner.wsi_root / "slide.svs").write_text("not a real slide")
+        resolved = runner._resolve_wsi_path("slide.svs", "tcga")
+        assert resolved == runner.wsi_root / "slide.svs"
+
+    def test_finds_benchmark_subdir_path(self, runner: BenchmarkRunner) -> None:
+        (runner.wsi_root / "tcga").mkdir(parents=True)
+        (runner.wsi_root / "tcga" / "slide.svs").write_text("not a real slide")
+        resolved = runner._resolve_wsi_path("slide.svs", "tcga")
+        assert resolved == runner.wsi_root / "tcga" / "slide.svs"
+
+
+class TestTruthLabelParsing:
+    def test_parses_integer_label(self, runner: BenchmarkRunner) -> None:
+        assert runner._parse_truth_label(" 2 ", "tcga", None) == 2
+
+    def test_parses_string_label_case_insensitive(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        assert runner._parse_truth_label("LiVeR", "gtex", ["heart", "liver"]) == 2
+
+    def test_rejects_empty_label(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="Empty truth label"):
+            runner._parse_truth_label("  ", "tcga", None)
+
+    def test_rejects_unparseable_label(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="Could not parse truth label"):
+            runner._parse_truth_label("???", "tcga", None)
+
+
+class TestMajorityVote:
+    def test_votes_on_labels_when_available(self, runner: BenchmarkRunner) -> None:
+        pred, label = runner._select_majority_prediction(
+            predictions=["A", "1", "B"],
+            labels=[1, 1, 2],
+        )
+        assert label == 1
+        assert pred in {"A", "1"}
+
+    def test_falls_back_to_string_vote_when_all_labels_none(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        pred, label = runner._select_majority_prediction(
+            predictions=["foo", "bar", "bar"],
+            labels=[None, None, None],
+        )
+        assert label is None
+        assert pred == "bar"
+
+
+class TestComputeMetrics:
+    def test_errors_count_as_incorrect(self, runner: BenchmarkRunner) -> None:
+        results = [
+            BenchmarkResult(
+                item_id="1",
+                prediction="1",
+                predicted_label=1,
+                truth_label=1,
+                correct=True,
+                trajectory_file="",
+            ),
+            BenchmarkResult(
+                item_id="2",
+                prediction="",
+                predicted_label=None,
+                truth_label=2,
+                correct=False,
+                trajectory_file="",
+                error="boom",
+            ),
+        ]
+
+        metrics = runner._compute_metrics(results, benchmark_name="tcga_slidebench")
+        assert metrics["point_estimate"] == 0.5
+        assert metrics["n_total"] == 2
+        assert metrics["n_errors"] == 1
+        assert metrics["n_extraction_failures"] == 0
+
+    def test_extraction_failures_count_as_incorrect(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        results = [
+            BenchmarkResult(
+                item_id="1",
+                prediction="1",
+                predicted_label=1,
+                truth_label=1,
+                correct=True,
+                trajectory_file="",
+            ),
+            BenchmarkResult(
+                item_id="2",
+                prediction="unparseable",
+                predicted_label=None,
+                truth_label=2,
+                correct=False,
+                trajectory_file="",
+                error=None,
+            ),
+        ]
+
+        metrics = runner._compute_metrics(results, benchmark_name="tcga_slidebench")
+        assert metrics["point_estimate"] == 0.5
+        assert metrics["n_total"] == 2
+        assert metrics["n_errors"] == 0
+        assert metrics["n_extraction_failures"] == 1
+
+    def test_empty_results_returns_error(self, runner: BenchmarkRunner) -> None:
+        metrics = runner._compute_metrics([], benchmark_name="tcga")
+        assert "error" in metrics
+        assert metrics["error"] == "No results to compute metrics"
+
+
+class TestLoadBenchmarkItems:
+    def test_loads_items_from_csv(
+        self, runner: BenchmarkRunner, csv_path: Path, tmp_path: Path
+    ) -> None:
+        # Create WSI files
+        wsi_root = tmp_path / "wsi"
+        wsi_root.mkdir()
+        (wsi_root / "slide1.svs").write_text("slide1")
+        (wsi_root / "slide2.svs").write_text("slide2")
+
+        items = runner.load_benchmark_items(csv_path, "tcga")
+
+        assert len(items) == 2
+        assert items[0].benchmark_id == "TCGA-001"
+        assert items[0].truth_label == 1
+        assert items[0].options == ["Lung", "Breast", "Colon"]
+        assert items[1].benchmark_id == "TCGA-002"
+        assert items[1].truth_label == 1  # "Lung" matches first option
+        assert "1. Lung" in items[1].prompt  # {options} was substituted
+
+    def test_raises_on_missing_csv(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(FileNotFoundError, match="MultiPathQA CSV not found"):
+            runner.load_benchmark_items(Path("/nonexistent/file.csv"), "tcga")
+
+    def test_raises_on_unknown_benchmark(
+        self, runner: BenchmarkRunner, csv_path: Path
+    ) -> None:
+        with pytest.raises(ValueError, match="Unknown benchmark"):
+            runner.load_benchmark_items(csv_path, "nonexistent_benchmark")
+
+    def test_raises_on_invalid_truth_label(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "bad.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga",
+                    "id": "BAD-001",
+                    "image_path": "bad.svs",
+                    "prompt": "Q?",
+                    "options": "",
+                    "answer": "",  # Empty answer
+                    "is_valid": "True",
+                }
+            )
+
+        # Create the WSI file
+        wsi_root = tmp_path / "wsi"
+        wsi_root.mkdir()
+        (wsi_root / "bad.svs").write_text("bad")
+
+        with pytest.raises(ValueError, match="Invalid truth label"):
+            runner.load_benchmark_items(csv_file, "tcga")
+
+
+class TestValidateRunId:
+    def test_rejects_absolute_path_run_id(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="Invalid run_id"):
+            runner._validate_run_id("/etc/passwd")
+
+    def test_rejects_path_traversal_run_id(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="Invalid run_id"):
+            runner._validate_run_id("../escape")
+
+    def test_rejects_subdir_run_id(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="Invalid run_id"):
+            runner._validate_run_id("subdir/runid")
+
+    def test_accepts_valid_run_id(self, runner: BenchmarkRunner) -> None:
+        # Should not raise
+        runner._validate_run_id("valid-run-id_2024")
+
+
+class TestSafeFilenameComponent:
+    def test_sanitizes_special_chars(self, runner: BenchmarkRunner) -> None:
+        result = runner._safe_filename_component("item/with:special*chars")
+        assert "/" not in result
+        assert ":" not in result
+        assert "*" not in result
+
+    def test_preserves_safe_chars(self, runner: BenchmarkRunner) -> None:
+        result = runner._safe_filename_component("item_123.test-run")
+        assert result == "item_123.test-run"
+
+
+class TestWsiNotFound:
+    def test_raises_on_missing_wsi(self, runner: BenchmarkRunner) -> None:
+        runner.wsi_root.mkdir(parents=True)
+        with pytest.raises(FileNotFoundError, match="WSI not found"):
+            runner._resolve_wsi_path("nonexistent.svs", "tcga")
+
+
+class TestSelectMajorityPrediction:
+    def test_raises_on_length_mismatch(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="must have the same length"):
+            runner._select_majority_prediction(
+                predictions=["a", "b"],
+                labels=[1],
+            )
+
+    def test_raises_on_empty_predictions(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="must not be empty"):
+            runner._select_majority_prediction(
+                predictions=[],
+                labels=[],
+            )
+
+    def test_single_prediction_returns_as_is(self, runner: BenchmarkRunner) -> None:
+        pred, label = runner._select_majority_prediction(
+            predictions=["only one"],
+            labels=[42],
+        )
+        assert pred == "only one"
+        assert label == 42
+
+    def test_deterministic_tiebreak(self, runner: BenchmarkRunner) -> None:
+        # Labels 1 and 2 each appear once - tie
+        pred, label = runner._select_majority_prediction(
+            predictions=["first", "second"],
+            labels=[1, 2],
+        )
+        # Should return the first one seen (deterministic)
+        assert label == 1
+        assert pred == "first"
+
+
+class TestEvaluationConfig:
+    def test_default_config(self) -> None:
+        config = EvaluationConfig()
+        assert config.max_steps == 20
+        assert config.runs_per_item == 1
+        assert config.max_concurrent == 4
+        assert config.checkpoint_interval == 10
+
+    def test_custom_config(self) -> None:
+        config = EvaluationConfig(
+            max_steps=50,
+            runs_per_item=5,
+            max_concurrent=2,
+            checkpoint_interval=5,
+        )
+        assert config.max_steps == 50
+        assert config.runs_per_item == 5
