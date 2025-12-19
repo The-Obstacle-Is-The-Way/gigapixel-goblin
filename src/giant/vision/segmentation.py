@@ -88,7 +88,7 @@ class TissueSegmentor:
         """
         # Convert PIL Image to numpy array
         if image.mode != "RGB":
-            # Try to convert, but warn about grayscale
+            # Reject grayscale, but try to convert other modes
             if image.mode == "L":
                 raise ValueError(
                     "Grayscale images not supported. Please provide RGB image."
