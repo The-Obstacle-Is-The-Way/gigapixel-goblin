@@ -2,7 +2,7 @@
 
 ## Severity: P4 (Future) - Security Hardening / Defense-in-Depth
 
-## Status: Open
+## Status: Fixed (2025-12-19)
 
 ## Description
 
@@ -44,3 +44,8 @@ Optionally, sanitize:
 ## Testing Required
 
 - Unit test: `file_name="../evil.svs"` raises `ValueError` (or is sanitized to a safe name).
+
+## Resolution
+
+- Added basename/path-traversal validation before writing downloads in `src/giant/data/tcga.py`.
+- Verified by `tests/unit/data/test_tcga.py::TestDownloadGdcFileSecurity`.

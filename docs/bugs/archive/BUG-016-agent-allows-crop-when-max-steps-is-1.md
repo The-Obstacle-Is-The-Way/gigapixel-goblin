@@ -2,7 +2,7 @@
 
 ## Severity: P2 (High Priority) - Correctness / Contract
 
-## Status: Open
+## Status: Fixed (2025-12-19)
 
 ## Description
 
@@ -57,3 +57,8 @@ Optionally:
 ## Testing Required
 
 - New unit test: `max_steps=1` + model returns crop → crop engine is not called and agent forces answer.
+
+## Resolution
+
+- Added a final-step guard in `GIANTAgent._navigation_loop()` so `crop` actions are rejected on `current_step == max_steps` (forces answer immediately; no crop executed).
+- Verified by `tests/unit/agent/test_runner.py::TestGIANTAgentLoopLimit::test_crop_at_max_steps_ignored`.

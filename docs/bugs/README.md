@@ -10,7 +10,7 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
-| | | None | |
+| — | — | None | — |
 
 ## Archived (Fixed) Bugs
 

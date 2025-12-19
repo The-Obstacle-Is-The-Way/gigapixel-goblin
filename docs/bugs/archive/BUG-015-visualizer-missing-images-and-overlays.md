@@ -2,7 +2,7 @@
 
 ## Severity: P3 (Low Priority) - UX / Debuggability
 
-## Status: Open
+## Status: Fixed (2025-12-19)
 
 ## Description
 
@@ -57,3 +57,9 @@ Optionally (but spec-aligned):
 - Unit test: HTML includes `<img>` tags when `image_base64` is present.
 - Unit test: Crop images and thumbnail are wired correctly per step.
 - Regression test: Existing “minimal” trajectory shapes still render without exceptions.
+
+## Resolution
+
+- Implemented thumbnail + per-step image rendering and crop overlays in `src/giant/cli/visualizer.py`.
+- Added trajectory metadata needed for overlays (`slide_width`, `slide_height`, `thumbnail_base64`) in `src/giant/agent/trajectory.py` and populated by the agent in `src/giant/agent/runner.py`.
+- Verified by `tests/unit/cli/test_visualizer.py` (including `test_renders_images_and_overlays`).
