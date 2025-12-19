@@ -43,10 +43,12 @@ This CSV contains:
 
 | Source | Files Needed | Format | Size (Approx) | License |
 |--------|--------------|--------|---------------|---------|
-| **TCGA** | 474 | `.svs` | ~60-80 GB | Open Access |
-| **GTEx** | 191 | `.tiff` | ~15-25 GB | dbGaP (requires approval) |
-| **PANDA** | 197 | `.tiff` | ~20-30 GB | Kaggle Competition |
-| **Total** | **862** | - | **~95-135 GB** | Mixed |
+| **TCGA** | 474 | `.svs` | **~472 GiB total** (GDC API sum of `file_size`) | Open Access |
+| **GTEx** | 191 | `.tiff` | Varies (see notes below) | GTEx Portal (terms vary) |
+| **PANDA** | 197 | `.tiff` | Varies; Kaggle packaging is large | Kaggle Competition |
+| **Total** | **862** | - | **≥ ~472 GiB** (TCGA alone) | Mixed |
+
+**Reality check:** the earlier “~95–135 GB total” estimate was wrong by an order of magnitude. TCGA alone is ~472 GiB for the 474 slides referenced by MultiPathQA.
 
 ### 3. File Lists (Provided)
 
@@ -94,7 +96,7 @@ The evaluation runner accepts `--wsi-root data/wsi` and resolves each `image_pat
 **Source:** NIH Genomic Data Commons (GDC)
 **Access:** Open access (no approval required)
 **Files Needed:** 474 `.svs` files (see `data/wsi/tcga_files.txt`)
-**Tool:** GDC Data Transfer Tool
+**Tool:** GDC Data Transfer Tool (recommended) or direct download via GDC API
 
 1. **Install GDC Client:**
    ```bash
@@ -107,7 +109,7 @@ The evaluation runner accepts `--wsi-root data/wsi` and resolves each `image_pat
 2. **Create a manifest file** from the GDC Portal:
    - Go to https://portal.gdc.cancer.gov/
    - Filter: Data Type = "Slide Image", Data Format = "SVS"
-   - Use the file list in `data/wsi/tcga_files.txt` to find specific UUIDs
+   - Use the file list in `data/wsi/tcga_files.txt` to find specific slides
    - Add to cart and export manifest
 
 3. **Download:**
@@ -115,29 +117,33 @@ The evaluation runner accepts `--wsi-root data/wsi` and resolves each `image_pat
    gdc-client download -m manifest.txt -d data/wsi/tcga/
    ```
 
-**Note:** TCGA files are named like `TCGA-02-0266-01Z-00-DX1.svs`. The GDC stores them by UUID, so you may need to map filenames to UUIDs.
+**Important:** MultiPathQA includes a `file_id` column for TCGA rows (the GDC UUID). Also note that GDC’s downloaded `file_name` is UUID-suffixed (e.g. `TCGA-...-DX1.<uuid>.svs`), and `gdc-client` typically stores files under `data/wsi/tcga/<file_id>/<file_name>`.
+
+The evaluation runner supports this default `gdc-client` layout (no manual renaming required), as long as you keep the `file_id` column in `MultiPathQA.csv`.
+
+**Helper (recommended for planning / smoke data):**
+
+```bash
+# Estimate TCGA total size (uses GDC API, no download)
+uv run python -m giant.data.tcga estimate
+
+# Download the N smallest TCGA slides into data/wsi/tcga/<file_id>/<file_name>
+uv run python -m giant.data.tcga download --smallest 5
+```
 
 ### GTEx (Genotype-Tissue Expression)
 
 **Source:** GTEx Portal
-**Access:** Requires dbGaP approval for some data
+**Access:** Terms vary; verify your access/terms before bulk download
 **Files Needed:** 191 `.tiff` files (see `data/wsi/gtex_files.txt`)
 **URL:** https://www.gtexportal.org/
 
-1. **Request Access:**
-   - Some GTEx histology images require dbGaP authorization
-   - Apply at: https://dbgap.ncbi.nlm.nih.gov/
-
-2. **Download via GTEx Portal:**
+1. **Download via GTEx Portal:**
    - Navigate to: https://www.gtexportal.org/home/histologyPage
    - Filter by tissue type
    - Download individual slides or bulk
 
-3. **Alternative - AWS Open Data:**
-   ```bash
-   # GTEx data is available on AWS Open Data
-   aws s3 sync s3://gtex-resources/histology/ data/wsi/gtex/ --no-sign-request
-   ```
+**Note:** The previously documented `s3://gtex-resources/histology/` bucket does not exist (NoSuchBucket). If you have a correct bulk-download source (AWS/GCP/etc), add it here once verified.
 
 ### PANDA (Prostate Cancer Grade Assessment)
 
@@ -203,6 +209,18 @@ for _, row in csv.iterrows():
     if full_path.exists():
         found += 1
     else:
+        # Support gdc-client TCGA layout: <wsi_root>/<subdir>/<file_id>/<downloaded filename>
+        file_id = str(row.get("file_id", "")).strip()
+        file_id_dir = wsi_root / subdir / file_id
+        suffix = Path(image_path).suffix.lower()
+
+        if file_id and file_id_dir.is_dir() and suffix:
+            if any(
+                p.is_file() and p.suffix.lower() == suffix for p in file_id_dir.iterdir()
+            ):
+                found += 1
+                continue
+
         missing.append(f'{subdir}/{image_path}')
 
 unique_missing = set(missing)
@@ -240,26 +258,27 @@ For validation without downloading all ~100GB, you can start with a subset:
 ```
 
 Recommended subset sizes:
-- **Minimal:** 5 per source (15 total, ~1-2 GB)
-- **Basic:** 20 per source (60 total, ~5-10 GB)
-- **Full:** All 862 (~95-135 GB)
+- **Minimal:** 1–5 per source (expect multiple GiB depending on slide sizes)
+- **Basic:** 10–20 per source
+- **Full:** All 862 (hundreds of GiB; TCGA alone is ~472 GiB)
 
 ## Storage Requirements
 
 | Component | Size |
 |-----------|------|
-| WSI files | ~95-135 GB |
-| Working space (crops, trajectories) | ~10-20 GB |
-| **Total recommended** | **~150 GB free** |
+| TCGA WSIs (474) | ~472 GiB |
+| GTEx WSIs (191) | Varies |
+| PANDA WSIs (197) | Varies |
+| Working space (crops, trajectories) | ~10–50+ GiB (depends on run size) |
+| **Total recommended** | **Plan for many hundreds of GiB free** |
 
 ## Estimated Download Times
 
-| Dataset | Files | Size | Time (100 Mbps) | Time (1 Gbps) |
-|---------|-------|------|-----------------|---------------|
-| TCGA | 474 | ~70 GB | ~1.5 hours | ~10 min |
-| GTEx | 191 | ~20 GB | ~30 min | ~3 min |
-| PANDA | 197 | ~25 GB | ~35 min | ~4 min |
-| **Total** | **862** | **~115 GB** | **~2.5 hours** | **~17 min** |
+Download time varies widely by source and mirror. As a rough rule of thumb:
+
+`time ≈ size / bandwidth`
+
+Example: TCGA is ~472 GiB. At 100 Mbps sustained, that’s on the order of ~10–11 hours (ignoring overhead/retries).
 
 ## Troubleshooting
 

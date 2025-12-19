@@ -4,7 +4,8 @@ This directory contains the detailed technical specifications for implementing t
 
 > **⚠️ CRITICAL: Data Acquisition Required**
 >
-> Before running benchmarks, you must acquire **862 unique WSI files (~95-135 GB)** from TCGA, GTEx, and PANDA.
+> Before running benchmarks, you must acquire **862 unique WSI files** from TCGA, GTEx, and PANDA.
+> **TCGA alone is ~472 GiB** for the 474 slides referenced by MultiPathQA, so plan for many hundreds of GiB of storage.
 > The MultiPathQA CSV contains only metadata - the slides themselves are not included.
 >
 > - **TCGA:** 474 `.svs` files (for 3 benchmarks: cancer diagnosis, expert VQA, slidebench)

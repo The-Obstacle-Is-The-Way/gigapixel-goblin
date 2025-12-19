@@ -2,7 +2,9 @@
 
 This directory contains the Whole-Slide Image (WSI) files required for running the MultiPathQA benchmark.
 
-**This directory is gitignored** - WSI files are too large (~95-135 GB total) to commit to version control.
+**This directory is gitignored** - WSI files are too large to commit to version control.
+
+**Reality check:** TCGA alone is ~472 GiB for the 474 slides referenced by MultiPathQA. Total storage across TCGA + GTEx + PANDA is many hundreds of GiB (plus working space for crops/trajectories).
 
 ## MultiPathQA Benchmark Summary
 
@@ -26,11 +28,11 @@ data/wsi/
 ├── gtex_files.txt      # List of 191 GTEx filenames needed
 ├── panda_files.txt     # List of 197 PANDA filenames needed
 ├── tcga/               # TCGA slides (all 3 benchmarks)
-│   └── *.svs           # 474 files, ~60-80 GB
+│   └── ...             # TCGA slides are large (total ~472 GiB for MultiPathQA)
 ├── gtex/               # GTEx Organ Classification slides
-│   └── *.tiff          # 191 files, ~15-25 GB
+│   └── *.tiff
 └── panda/              # PANDA Prostate Grading slides
-    └── *.tiff          # 197 files, ~20-30 GB
+    └── *.tiff
 ```
 
 ## File Lists
@@ -52,7 +54,7 @@ See the full acquisition guide: **[docs/DATA_ACQUISITION.md](../../docs/DATA_ACQ
 | Dataset | Source | Command |
 |---------|--------|---------|
 | TCGA | GDC Portal | `gdc-client download -m manifest.txt -d data/wsi/tcga/` |
-| GTEx | GTEx Portal / AWS | `aws s3 sync s3://gtex-resources/histology/ data/wsi/gtex/` |
+| GTEx | GTEx Portal | Download from https://www.gtexportal.org/home/histologyPage |
 | PANDA | Kaggle | `kaggle competitions download -c prostate-cancer-grade-assessment` |
 
 ## Verification
@@ -73,15 +75,7 @@ done
 
 ## Usage
 
-Once populated, run the benchmark:
+Spec-12 will add a stable CLI. Until then, use the Python entry points documented in:
 
-```bash
-# Run GIANT on a single benchmark
-giant eval --benchmark tcga --wsi-root data/wsi
-
-# Run on all 5 benchmarks
-giant eval --benchmark all --wsi-root data/wsi
-
-# Run with specific sample size for testing
-giant eval --benchmark gtex --wsi-root data/wsi --sample-size 10
-```
+- `docs/specs/spec-10-evaluation.md`
+- `docs/specs/spec-11.5-e2e-validation-checkpoint.md`

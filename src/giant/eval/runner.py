@@ -49,6 +49,9 @@ class EvaluationConfig(BaseModel):
         max_steps: Maximum navigation steps per item (default: 20 per paper).
         runs_per_item: Number of runs per item for majority voting (default: 1).
         max_concurrent: Maximum concurrent agent runs.
+        max_items: Optional cap on number of items to evaluate (useful for smoke tests).
+        skip_missing_wsis: If True, skip CSV rows whose WSI is not present under
+            wsi_root.
         save_trajectories: Whether to save full trajectories.
         checkpoint_interval: Save checkpoint every N items.
     """
@@ -56,6 +59,8 @@ class EvaluationConfig(BaseModel):
     max_steps: int = Field(default=20, ge=1)
     runs_per_item: int = Field(default=1, ge=1)
     max_concurrent: int = Field(default=4, ge=1)
+    max_items: int | None = Field(default=None)
+    skip_missing_wsis: bool = False
     save_trajectories: bool = True
     checkpoint_interval: int = Field(default=10, ge=1)
 
@@ -128,6 +133,8 @@ class BenchmarkRunner:
         self,
         csv_path: Path | str,
         benchmark_name: str,
+        *,
+        skip_missing_wsis: bool = False,
     ) -> list[BenchmarkItem]:
         """Load benchmark items from MultiPathQA CSV.
 
@@ -154,6 +161,7 @@ class BenchmarkRunner:
 
         task_info = BENCHMARK_TASKS[benchmark_name]
         items = []
+        missing_wsis = 0
 
         with csv_path.open(newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -165,9 +173,29 @@ class BenchmarkRunner:
                 if row.get("is_valid", "True").lower() != "true":
                     continue
 
+                benchmark_id = (
+                    row.get("benchmark_id")
+                    or row.get("id")  # legacy / test fixtures
+                    or row.get("image_path")
+                )
+                if not benchmark_id:
+                    raise ValueError("Missing benchmark_id in CSV row")
+
+                file_id = row.get("file_id") or None
+
                 # Resolve WSI path
                 image_path = row["image_path"]
-                wsi_path = self._resolve_wsi_path(image_path, benchmark_name)
+                try:
+                    wsi_path = self._resolve_wsi_path(
+                        image_path,
+                        benchmark_name,
+                        file_id=file_id,
+                    )
+                except FileNotFoundError:
+                    if skip_missing_wsis:
+                        missing_wsis += 1
+                        continue
+                    raise
 
                 # Parse options if present
                 options = None
@@ -202,7 +230,8 @@ class BenchmarkRunner:
 
                 item = BenchmarkItem(
                     benchmark_name=benchmark_name,
-                    benchmark_id=row.get("id", row.get("image_path", "")),
+                    benchmark_id=benchmark_id,
+                    file_id=file_id,
                     image_path=image_path,
                     prompt=prompt,
                     options=options,
@@ -213,22 +242,120 @@ class BenchmarkRunner:
                 items.append(item)
 
         logger.info(
-            "Loaded %d items for benchmark %s",
+            "Loaded %d items for benchmark %s (skipped %d missing WSIs)",
             len(items),
             benchmark_name,
+            missing_wsis,
         )
         return items
 
-    def _resolve_wsi_path(self, image_path: str, benchmark_name: str) -> Path:
+    @staticmethod
+    def _wsi_subdir_for_benchmark(benchmark_name: str) -> str:
+        """Map a benchmark name to the expected WSI subdirectory under wsi_root."""
+        if benchmark_name in {"tcga", "tcga_expert_vqa", "tcga_slidebench"}:
+            return "tcga"
+        return benchmark_name
+
+    @staticmethod
+    def _validate_file_id(file_id: str) -> None:
+        file_id_path = Path(file_id)
+        if (
+            file_id_path.is_absolute()
+            or ".." in file_id_path.parts
+            or file_id_path.name != file_id
+        ):
+            raise ValueError(
+                f"Invalid file_id {file_id!r}: must be a simple filename "
+                "(no path traversal)."
+            )
+
+    def _try_resolve_file_id_dir(
+        self,
+        *,
+        image_rel: Path,
+        wsi_subdir: str,
+        file_id: str,
+    ) -> Path | None:
+        """Resolve a WSI from a per-file_id directory (e.g., gdc-client layout)."""
+        self._validate_file_id(file_id)
+
+        candidate_dirs = [
+            self.wsi_root / wsi_subdir / file_id,
+            self.wsi_root / file_id,
+        ]
+        suffix = image_rel.suffix.lower()
+
+        for file_id_dir in candidate_dirs:
+            if not file_id_dir.is_dir():
+                continue
+
+            candidates = [p for p in file_id_dir.iterdir() if p.is_file()]
+            if suffix:
+                candidates = [p for p in candidates if p.suffix.lower() == suffix]
+
+            if len(candidates) == 1:
+                return candidates[0]
+
+            if len(candidates) > 1:
+                stem = image_rel.stem
+                prefix_matches = [
+                    p
+                    for p in candidates
+                    if p.name.startswith(stem) or p.name.startswith(f"{stem}.")
+                ]
+                if len(prefix_matches) == 1:
+                    return prefix_matches[0]
+
+        return None
+
+    def _try_resolve_uuid_suffixed_filename(
+        self,
+        *,
+        image_rel: Path,
+        wsi_subdir: str,
+    ) -> Path | None:
+        """Resolve a uuid-suffixed TCGA filename in a directory.
+
+        Example: TCGA-...-DX1.<uuid>.svs
+        """
+        if not image_rel.suffix:
+            return None
+
+        pattern = f"{image_rel.stem}.*{image_rel.suffix}"
+        for candidate_dir in (self.wsi_root / wsi_subdir, self.wsi_root):
+            if not candidate_dir.is_dir():
+                continue
+
+            matches = sorted(p for p in candidate_dir.glob(pattern) if p.is_file())
+            if len(matches) == 1:
+                return matches[0]
+            if len(matches) > 1:
+                raise FileNotFoundError(
+                    f"WSI resolution ambiguous for {image_rel.name!r}: "
+                    f"found multiple candidates under {candidate_dir}"
+                )
+
+        return None
+
+    def _resolve_wsi_path(
+        self,
+        image_path: str,
+        benchmark_name: str,
+        *,
+        file_id: str | None = None,
+    ) -> Path:
         """Resolve WSI path under wsi_root.
 
         Tries:
         1. wsi_root / image_path
-        2. wsi_root / benchmark_name / image_path
+        2. wsi_root / wsi_subdir / image_path
+        3. (TCGA/GDC) wsi_root / wsi_subdir / file_id / <downloaded filename>
+        4. (TCGA/GDC) wsi_root / wsi_subdir / image_stem.*<suffix>
 
         Args:
             image_path: Filename from CSV.
             benchmark_name: Benchmark name for subdirectory.
+            file_id: Optional dataset identifier for locating downloaded files.
 
         Returns:
             Resolved path to WSI file.
@@ -247,15 +374,34 @@ class BenchmarkRunner:
                 f"Invalid image_path {image_path!r}: path traversal is not allowed."
             )
 
+        wsi_subdir = self._wsi_subdir_for_benchmark(benchmark_name)
+
         # Try direct path
         direct_path = self.wsi_root / image_rel
         if direct_path.exists():
             return direct_path
 
         # Try benchmark subdirectory
-        subdir_path = self.wsi_root / benchmark_name / image_rel
+        subdir_path = self.wsi_root / wsi_subdir / image_rel
         if subdir_path.exists():
             return subdir_path
+
+        # Try gdc-client style downloads (wsi_subdir/file_id/<uuid-suffixed filename>)
+        if file_id is not None:
+            resolved = self._try_resolve_file_id_dir(
+                image_rel=image_rel,
+                wsi_subdir=wsi_subdir,
+                file_id=file_id,
+            )
+            if resolved is not None:
+                return resolved
+
+        resolved = self._try_resolve_uuid_suffixed_filename(
+            image_rel=image_rel,
+            wsi_subdir=wsi_subdir,
+        )
+        if resolved is not None:
+            return resolved
 
         raise FileNotFoundError(
             f"WSI not found: tried {direct_path} and {subdir_path}. "
@@ -331,7 +477,11 @@ class BenchmarkRunner:
         self._validate_run_id(run_id)
 
         # Load items
-        items = self.load_benchmark_items(csv_path, benchmark_name)
+        items = self.load_benchmark_items(
+            csv_path,
+            benchmark_name,
+            skip_missing_wsis=self.config.skip_missing_wsis,
+        )
 
         # Load or create checkpoint
         checkpoint = self._checkpoint_manager.load_or_create(
@@ -344,6 +494,10 @@ class BenchmarkRunner:
         pending_items = [
             item for item in items if item.benchmark_id not in checkpoint.completed_ids
         ]
+        if self.config.max_items is not None:
+            if self.config.max_items < 1:
+                raise ValueError("config.max_items must be >= 1 when provided")
+            pending_items = pending_items[: self.config.max_items]
 
         logger.info(
             "Running evaluation: %d pending, %d completed",

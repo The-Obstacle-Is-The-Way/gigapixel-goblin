@@ -32,7 +32,7 @@ The benchmark contains **5 distinct tasks** spanning 3 data sources:
 - TCGA: **474** `.svs` files (all 3 TCGA benchmarks combined)
 - GTEx: **191** `.tiff` files
 - PANDA: **197** `.tiff` files
-- **Total: 862 unique WSI files (~95-135 GB)**
+- **Total: 862 unique WSI files (TCGA alone is ~472 GiB; total is many hundreds of GiB)**
 
 File lists are provided in `data/wsi/{tcga,gtex,panda}_files.txt`.
 
@@ -71,7 +71,7 @@ Before running this checkpoint, you MUST have:
           print(f'{subdir}: directory not found')
           continue
 
-      wsi_files = list(dir_path.glob('*.svs')) + list(dir_path.glob('*.tiff'))
+      wsi_files = list(dir_path.rglob('*.svs')) + list(dir_path.rglob('*.tiff'))
       print(f'{subdir}: {len(wsi_files)} files found')
 
       for wsi in wsi_files[:3]:  # Test first 3
@@ -87,14 +87,14 @@ Before running this checkpoint, you MUST have:
 - [ ] **Cropping pipeline works at all levels:**
   ```bash
   python -c "
+  from giant.core import CropEngine
   from giant.wsi import WSIReader
-  from giant.crop import crop_region
   from giant.geometry import Region
   from pathlib import Path
 
   # Find a TCGA slide
   tcga_dir = Path('data/wsi/tcga')
-  wsi_file = next(tcga_dir.glob('*.svs'), None)
+  wsi_file = next(tcga_dir.rglob('*.svs'), None)
   if not wsi_file:
       print('No TCGA slides found')
       exit(1)
@@ -108,11 +108,12 @@ Before running this checkpoint, you MUST have:
           width=meta.width // 2,
           height=meta.height // 2
       )
-      crop = crop_region(reader, region, target_size=1000)
+      engine = CropEngine(reader)
+      cropped = engine.crop(region, target_size=1000)
       print(f'Source: {wsi_file.name}')
       print(f'Region: {region}')
-      print(f'Crop shape: {crop.size}')
-      crop.save('/tmp/test_crop.png')
+      print(f'Crop shape: {cropped.image.size}')
+      cropped.image.save('/tmp/test_crop.png')
       print('Saved to /tmp/test_crop.png')
   "
   ```
@@ -128,7 +129,7 @@ Before running this checkpoint, you MUST have:
   from pathlib import Path
 
   tcga_dir = Path('data/wsi/tcga')
-  wsi_file = next(tcga_dir.glob('*.svs'), None)
+  wsi_file = next(tcga_dir.rglob('*.svs'), None)
   if not wsi_file:
       print('No TCGA slides found')
       exit(1)
@@ -152,7 +153,7 @@ Before running this checkpoint, you MUST have:
   from pathlib import Path
 
   tcga_dir = Path('data/wsi/tcga')
-  wsi_file = next(tcga_dir.glob('*.svs'), None)
+  wsi_file = next(tcga_dir.rglob('*.svs'), None)
   if not wsi_file:
       print('No TCGA slides found')
       exit(1)
@@ -174,31 +175,38 @@ Before running this checkpoint, you MUST have:
 
 - [ ] **Agent can navigate a real WSI:**
   ```bash
-  # Run agent on a single slide (costs ~$0.10-0.50 depending on iterations)
+  # Run agent on a single slide (costs vary by model/steps)
   python -c "
-  from giant.agent import GIANTAgent
-  from giant.wsi import WSIReader
+  import asyncio
   from giant.llm import create_provider
+  from giant.agent import AgentConfig, GIANTAgent
   from pathlib import Path
 
   provider = create_provider('anthropic')  # or 'openai'
 
   tcga_dir = Path('data/wsi/tcga')
-  wsi_file = next(tcga_dir.glob('*.svs'), None)
+  wsi_file = next(tcga_dir.rglob('*.svs'), None)
   if not wsi_file:
       print('No TCGA slides found')
-      exit(1)
+      raise SystemExit(1)
 
-  with WSIReader(wsi_file) as reader:
-      agent = GIANTAgent(reader, provider)
-      result = agent.run(
+  async def main() -> None:
+      agent = GIANTAgent(
+          wsi_path=wsi_file,
           question='What type of cancer is shown in this slide?',
-          max_iterations=5,
+          llm_provider=provider,
+          config=AgentConfig(max_steps=5),
       )
+      result = await agent.run()
       print(f'Source: {wsi_file.name}')
+      print(f'Success: {result.success}')
       print(f'Answer: {result.answer}')
-      print(f'Iterations: {len(result.trajectory)}')
-      print(f'Cost: \${result.cost_usd:.4f}')
+      print(f'Turns: {len(result.trajectory.turns)}')
+      print(f'Cost: \${result.total_cost:.4f}')
+      if result.error_message:
+          print(f'Error: {result.error_message}')
+
+  asyncio.run(main())
   "
   ```
 
@@ -206,25 +214,41 @@ Before running this checkpoint, you MUST have:
 
 - [ ] **Benchmark runner can process items from all 5 benchmarks:**
   ```bash
-  # Run on 2 items from each benchmark (costs ~$2-5)
+  # Run on up to 2 items from each benchmark (costs vary).
+  # If you only have a subset of WSIs locally, this will skip missing slides.
   python -c "
-  from giant.eval import BenchmarkRunner, EvaluationConfig
+  import asyncio
+  from pathlib import Path
 
-  config = EvaluationConfig(
-      wsi_root='data/wsi',
-      provider='anthropic',
-      max_iterations=5,
-      sample_size=2,  # Only 2 items per benchmark for validation
-  )
+  from giant.eval.runner import BenchmarkRunner, EvaluationConfig
+  from giant.llm import create_provider
 
-  runner = BenchmarkRunner(config)
+  async def main() -> None:
+      provider = create_provider('anthropic')  # or 'openai'
+      runner = BenchmarkRunner(
+          llm_provider=provider,
+          wsi_root=Path('data/wsi'),
+          output_dir=Path('results/e2e_validation'),
+          config=EvaluationConfig(
+              max_steps=5,
+              max_concurrent=1,
+              max_items=2,
+              skip_missing_wsis=True,
+          ),
+      )
 
-  # Test all 5 benchmarks
-  benchmarks = ['tcga', 'tcga_expert_vqa', 'tcga_slidebench', 'gtex', 'panda']
-  results = runner.run(benchmarks=benchmarks)
+      csv_path = Path('data/multipathqa/MultiPathQA.csv')
+      benchmarks = ['tcga', 'tcga_expert_vqa', 'tcga_slidebench', 'gtex', 'panda']
 
-  for r in results:
-      print(f'{r.benchmark}: {r.accuracy:.1%} ({r.correct}/{r.total})')
+      for bm in benchmarks:
+          results = await runner.run_benchmark(
+              benchmark_name=bm,
+              csv_path=csv_path,
+              run_id=f'e2e_{bm}',
+          )
+          print(f\"{bm}: {results.metrics}\")
+
+  asyncio.run(main())
   "
   ```
 
@@ -253,7 +277,29 @@ Before running this checkpoint, you MUST have:
 - [ ] **Run full benchmark on one task:**
   ```bash
   # Full TCGA cancer diagnosis benchmark (~$50-100, ~2-4 hours)
-  giant eval --benchmark tcga --wsi-root data/wsi --output results/tcga_full.json
+  python -c "
+  import asyncio
+  from pathlib import Path
+
+  from giant.eval.runner import BenchmarkRunner, EvaluationConfig
+  from giant.llm import create_provider
+
+  async def main() -> None:
+      provider = create_provider('anthropic')  # or 'openai'
+      runner = BenchmarkRunner(
+          llm_provider=provider,
+          wsi_root=Path('data/wsi'),
+          output_dir=Path('results/tcga_full'),
+          config=EvaluationConfig(max_steps=20),
+      )
+      await runner.run_benchmark(
+          benchmark_name='tcga',
+          csv_path=Path('data/multipathqa/MultiPathQA.csv'),
+          run_id='tcga_full',
+      )
+
+  asyncio.run(main())
+  "
   ```
 
 - [ ] **Compare results to paper baseline:**

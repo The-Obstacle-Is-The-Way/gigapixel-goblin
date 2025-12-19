@@ -121,7 +121,13 @@ def download_sample_wsi(output_dir: Path) -> Path:
 - Loads from a standard directory structure or a JSON manifest.
 - Loads `MultiPathQA.csv` and filters `is_valid == True`.
 - Resolves `image_path` to a local WSI path under a required `wsi_root` directory.
-  - Resolution strategy (robust): try `wsi_root / image_path`, then `wsi_root / benchmark_name / image_path`, then fail with a clear error.
+  - Resolution strategy (robust):
+    - Try `wsi_root / image_path` (flat layout)
+    - Then try `wsi_root / wsi_subdir / image_path` (recommended layout), where:
+      - `tcga`, `tcga_expert_vqa`, `tcga_slidebench` → `tcga/`
+      - All others → `<benchmark_name>/`
+    - For TCGA, also support the default `gdc-client` layout: `wsi_root / tcga / <file_id> / <downloaded file_name>`.
+    - Otherwise fail with a clear error.
 - Parses `options` from the CSV (when present) and substitutes `{options}` into `prompt` before sending to the agent.
 - Canonicalizes `truth_label`:
   - If CSV `answer` is an integer string: `truth_label = int(answer)` (MultiPathQA uses 1-based indices for options tasks).

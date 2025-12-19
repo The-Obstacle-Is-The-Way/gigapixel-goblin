@@ -46,7 +46,11 @@ class BenchmarkItem(BaseModel):
 
     Attributes:
         benchmark_name: Task name (tcga, gtex, panda, tcga_expert_vqa, tcga_slidebench).
-        benchmark_id: Row identifier or slide identifier from CSV.
+        benchmark_id: Row identifier from MultiPathQA.csv (unique per question).
+        file_id: Dataset-specific identifier from MultiPathQA.csv.
+            - TCGA benchmarks: GDC UUID (used for download + provenance)
+            - GTEx: GTEX sample ID (base name of the .tiff)
+            - PANDA: TIFF filename
         image_path: Filename from MultiPathQA.csv (resolved under --wsi-root).
         prompt: Question prompt template (may include {options}).
         options: Answer options for multiple-choice (None for open-ended).
@@ -57,6 +61,7 @@ class BenchmarkItem(BaseModel):
 
     benchmark_name: str
     benchmark_id: str
+    file_id: str | None = None
     image_path: str
     prompt: str
     options: list[str] | None = None
