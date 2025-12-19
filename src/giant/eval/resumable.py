@@ -158,10 +158,10 @@ class CheckpointManager:
         data = state.model_dump()
         data["completed_ids"] = list(data["completed_ids"])
 
-        # Write atomically via temp file
+        # Write atomically via temp file (replace() is atomic on both POSIX and Windows)
         temp_path = path.with_suffix(".tmp")
         temp_path.write_text(json.dumps(data, indent=2))
-        temp_path.rename(path)
+        temp_path.replace(path)
 
         logger.debug(
             "Checkpoint saved: %d items completed",

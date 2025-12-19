@@ -156,3 +156,18 @@ class TestBootstrapMetric:
         truths = [1, 1, 1, 1, 1, 1, 1, 1, 2, 2]
         result = bootstrap_metric(predictions, truths, balanced_accuracy)
         assert result.mean == pytest.approx(1.0, abs=0.05)
+
+    def test_raises_on_empty_predictions(self) -> None:
+        """Test that empty predictions raise ValueError."""
+        with pytest.raises(ValueError, match="Inputs must not be empty"):
+            bootstrap_metric([], [1, 2, 3], accuracy)
+
+    def test_raises_on_empty_truths(self) -> None:
+        """Test that empty truths raise ValueError."""
+        with pytest.raises(ValueError, match="Inputs must not be empty"):
+            bootstrap_metric([1, 2, 3], [], accuracy)
+
+    def test_raises_on_length_mismatch(self) -> None:
+        """Test that mismatched lengths raise ValueError."""
+        with pytest.raises(ValueError, match="must have the same length"):
+            bootstrap_metric([1, 2], [1, 2, 3], accuracy)

@@ -93,6 +93,14 @@ class TestExtractLabelMultipleChoice:
         result = extract_label(prediction, benchmark_name="tcga", options=options)
         assert result.label == 1
 
+    def test_extract_option_text_longer_first(self) -> None:
+        """Test that longer options are matched before shorter substrings."""
+        # "heart" should match before "art" even though "art" is first in list
+        options = ["art", "heart", "lung"]
+        prediction = "This is a heart sample"
+        result = extract_label(prediction, benchmark_name="gtex", options=options)
+        assert result.label == 2  # "heart" is option 2
+
     def test_letter_only_for_4_options(self) -> None:
         """Test letter extraction only applies for 4-option questions."""
         options = ["Lung carcinoma", "Breast carcinoma"]  # Only 2 options

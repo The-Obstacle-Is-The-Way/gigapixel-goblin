@@ -128,7 +128,15 @@ def bootstrap_metric(
 
     Returns:
         BootstrapResult with mean, std, and confidence interval.
+
+    Raises:
+        ValueError: If inputs are empty or have mismatched lengths.
     """
+    if not predictions or not truths:
+        raise ValueError("Inputs must not be empty")
+    if len(predictions) != len(truths):
+        raise ValueError("predictions and truths must have the same length")
+
     rng = np.random.default_rng(seed)
     n = len(predictions)
 

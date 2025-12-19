@@ -64,9 +64,13 @@ def _extract_from_options(text: str, options: list[str]) -> int | None:
         if 1 <= k <= len(options):
             return k
 
-    # Option text match (case-insensitive)
+    # Option text match (case-insensitive, longest-first to avoid false positives)
     lowered = text.lower()
-    for i, opt in enumerate(options, start=1):
+    # Sort by length descending to match "heart" before "art"
+    sorted_options = sorted(
+        enumerate(options, start=1), key=lambda x: len(x[1]), reverse=True
+    )
+    for i, opt in sorted_options:
         if opt.lower() in lowered:
             return i
 
