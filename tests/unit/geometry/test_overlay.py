@@ -10,7 +10,7 @@ Tests AxisGuideGenerator and OverlayService including:
 from __future__ import annotations
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageFont
 
 from giant.geometry.overlay import AxisGuideGenerator, OverlayService, OverlayStyle
 from giant.wsi.types import WSIMetadata
@@ -242,20 +242,35 @@ class TestAxisGuideGeneratorCoordinateLabels:
     def test_format_coordinate_thousands(self) -> None:
         """Test coordinate formatting for 1000-9999."""
         generator = AxisGuideGenerator()
-        result = generator._format_coordinate(1500)
-        assert "K" in result or result == "1500"  # May be "1.5K" or "1500"
+        assert generator._format_coordinate(1500) == "1500"
 
     def test_format_coordinate_ten_thousands(self) -> None:
         """Test coordinate formatting for >= 10000."""
         generator = AxisGuideGenerator()
         result = generator._format_coordinate(15000)
-        assert result == "15K"
+        assert result == "15000"
 
     def test_format_coordinate_large(self) -> None:
         """Test coordinate formatting for very large values."""
         generator = AxisGuideGenerator()
         result = generator._format_coordinate(100000)
-        assert result == "100K"
+        assert result == "100000"
+
+    def test_strict_font_check_raises_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test strict font check raises error when fonts are missing."""
+
+        def mock_truetype(*args: object, **kwargs: object) -> None:
+            raise OSError("Mocked font failure")
+
+        monkeypatch.setattr(ImageFont, "truetype", mock_truetype)
+
+        style = OverlayStyle(strict_font_check=True)
+        generator = AxisGuideGenerator(style=style)
+
+        with pytest.raises(RuntimeError, match="No TrueType fonts available"):
+            generator._get_font()
 
 
 class TestOverlayService:

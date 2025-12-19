@@ -378,6 +378,112 @@ def download(
 
 
 @app.command()
+def check_data(
+    dataset: Annotated[
+        str,
+        typer.Argument(
+            help="Dataset name (tcga, panda, gtex, tcga_expert_vqa, tcga_slidebench)"
+        ),
+    ],
+    csv_path: Annotated[
+        Path,
+        typer.Option("--csv-path", exists=True, help="Path to MultiPathQA.csv"),
+    ] = Path("data/multipathqa/MultiPathQA.csv"),
+    wsi_root: Annotated[
+        Path,
+        typer.Option("--wsi-root", exists=True, help="Root directory containing WSIs"),
+    ] = Path("data/wsi"),
+    verbose: Annotated[
+        int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")
+    ] = 0,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
+) -> None:
+    """Validate that WSI files for a benchmark exist locally."""
+    from giant.eval.runner import BenchmarkRunner  # noqa: PLC0415
+    from giant.llm.protocol import LLMResponse, Message  # noqa: PLC0415
+
+    # Define a minimal dummy provider to satisfy BenchmarkRunner
+    class DummyProvider:
+        async def generate_response(self, messages: list[Message]) -> LLMResponse:
+            raise NotImplementedError("This provider is for data checking only")
+
+        def get_model_name(self) -> str:
+            return "dummy"
+
+        def get_target_size(self) -> int:
+            return 1000
+
+    _configure_logging(verbose)
+    logger = get_logger(__name__)
+
+    logger.info("Checking data", dataset=dataset, wsi_root=str(wsi_root))
+
+    try:
+        # Use a dummy provider since we only need the runner's path resolution logic
+        runner = BenchmarkRunner(
+            llm_provider=DummyProvider(),
+            wsi_root=wsi_root,
+            output_dir=Path("tmp"),  # Not used
+        )
+
+        try:
+            items = runner.load_benchmark_items(
+                csv_path=csv_path,
+                benchmark_name=dataset,
+                skip_missing_wsis=False,
+            )
+            n_items = len(items)
+            status = "success"
+            message = f"Found all {n_items} items for {dataset}"
+        except Exception as e:
+            # Re-run with skip_missing_wsis=True to count how many ARE found
+            try:
+                partial_items = runner.load_benchmark_items(
+                    csv_path=csv_path,
+                    benchmark_name=dataset,
+                    skip_missing_wsis=True,
+                )
+                n_found = len(partial_items)
+                status = "partial"
+                message = f"Found {n_found} items. Error resolving others: {e}"
+            except Exception:
+                status = "error"
+                message = str(e)
+
+            if not json_output:
+                # If we are not in JSON mode, re-raise to print error and exit 1
+                raise
+
+        if json_output:
+            typer.echo(
+                json.dumps(
+                    {
+                        "dataset": dataset,
+                        "status": status,
+                        "message": message,
+                        "wsi_root": str(wsi_root),
+                    },
+                    indent=2,
+                )
+            )
+        else:
+            typer.echo(message)
+
+        if status == "error":
+            raise typer.Exit(1)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        logger.exception("Data check failed")
+        if json_output:
+            typer.echo(json.dumps({"error": str(e)}))
+        else:
+            typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1) from None
+
+
+@app.command()
 def visualize(
     trajectory_path: Annotated[
         Path,

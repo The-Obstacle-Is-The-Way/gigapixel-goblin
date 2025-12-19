@@ -11,10 +11,7 @@ This directory tracks bugs discovered during integration checkpoint audits.
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
 | BUG-018 | P3 | CONCH tool ablation not implemented | Open |
-| BUG-019 | P3 | Axis guide font fallback degrades legibility | Open |
 | BUG-020 | P3 | Official supplementary prompts not incorporated | Open (blocked) |
-| BUG-022 | P4 | MultiPathQA acquisition UX gaps | Open |
-| BUG-023 | P2 | Axis guide labels use “K” abbreviation | Open |
 
 ## Archived (Fixed) Bugs
 
@@ -22,6 +19,9 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-023 | Axis guide labels use “K” abbreviation | Fixed (K-notation removed, strict integers used) |
+| BUG-022 | MultiPathQA acquisition UX gaps | Fixed (`giant check-data` command added) |
+| BUG-019 | Axis guide font fallback degrades legibility | Fixed (Strict font check added to overlay config) |
 | BUG-021 | Prompt template edge case (max_steps=1) | Not reproducible (PromptBuilder uses final-step prompt) |
 | BUG-017 | TCGA downloader path traversal | Path validation added |
 | BUG-016 | Agent crop on max_steps=1 | Step guard added |
@@ -49,6 +49,16 @@ See `archive/` for historical bugs that have been resolved:
 - **P4 (Future)**: Scaffolding for upcoming specs.
 
 ## Checkpoint History
+
+### Audit (2025-12-19) - Paper Gap Analysis
+
+**Audited**: Full codebase vs GIANT paper and Specs.
+
+**Findings**:
+- 6 new bug reports filed (BUG-018 to BUG-023).
+- 3 bugs fixed immediately (BUG-019, BUG-022, BUG-023).
+- 1 bug invalid (BUG-021).
+- 2 gaps documented (BUG-018, BUG-020).
 
 ### Spec-08.5 LLM Integration Checkpoint (2025-12-18)
 

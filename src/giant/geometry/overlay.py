@@ -22,10 +22,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Threshold for K notation in coordinate labels
-_COORD_THRESHOLD_LARGE = 10000  # Use "15K" for >= 10000
-_COORD_THRESHOLD_MEDIUM = 1000  # Use "1.5K" for >= 1000
-
 
 @dataclass(frozen=True)
 class OverlayStyle:
@@ -38,6 +34,7 @@ class OverlayStyle:
         font_size: Font size for coordinate labels.
         label_padding: Padding from edge for labels in pixels.
         num_guides: Number of guide lines per axis (default 4).
+        strict_font_check: If True, raise error if no TrueType font is found.
     """
 
     line_color: tuple[int, int, int, int] = (255, 0, 0, 180)  # Semi-transparent red
@@ -46,6 +43,7 @@ class OverlayStyle:
     font_size: int = 12
     label_padding: int = 5
     num_guides: int = 4
+    strict_font_check: bool = False
 
 
 class AxisGuideGenerator:
@@ -89,6 +87,7 @@ class AxisGuideGenerator:
         Raises:
             ValueError: If thumbnail_size or slide_dimensions contain
                 non-positive values.
+            RuntimeError: If strict_font_check is True and no valid font found.
 
         Example:
             >>> generator = AxisGuideGenerator()
@@ -178,6 +177,9 @@ class AxisGuideGenerator:
 
         Returns:
             Font object for drawing text.
+
+        Raises:
+            RuntimeError: If strict_font_check is True and no TrueType font found.
         """
         try:
             # Try to load a common sans-serif font
@@ -187,6 +189,11 @@ class AxisGuideGenerator:
                 # Try Arial on Windows/Mac
                 return ImageFont.truetype("Arial.ttf", self.style.font_size)
             except OSError:
+                if self.style.strict_font_check:
+                    raise RuntimeError(
+                        "No TrueType fonts available (DejaVuSans.ttf, Arial.ttf). "
+                        "Strict font check is enabled. Install system fonts."
+                    ) from None
                 # Fall back to PIL's default font
                 logger.warning(
                     "No TrueType fonts available (DejaVuSans.ttf, Arial.ttf). "
@@ -198,18 +205,14 @@ class AxisGuideGenerator:
     def _format_coordinate(self, coord: int) -> str:
         """Format a coordinate value for display.
 
-        Uses K notation for large values (e.g., 15000 -> "15K").
+        Uses absolute integer coordinates as per GIANT paper.
 
         Args:
             coord: Coordinate value in pixels.
 
         Returns:
-            Formatted string representation.
+            Formatted string representation (e.g., "15000").
         """
-        if coord >= _COORD_THRESHOLD_LARGE:
-            return f"{coord // 1000}K"
-        if coord >= _COORD_THRESHOLD_MEDIUM:
-            return f"{coord / 1000:.1f}K"
         return str(coord)
 
     def _draw_label(
