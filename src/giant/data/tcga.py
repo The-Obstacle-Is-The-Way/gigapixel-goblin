@@ -105,6 +105,29 @@ def estimate_tcga_size(csv_path: Path) -> tuple[int, list[GdcFile]]:
     return total_bytes, files
 
 
+def _is_safe_filename(filename: str) -> bool:
+    """Validate that filename is a safe basename without path components.
+
+    This uses character-based checks (not Path parsing) to ensure
+    platform-independent security. On Unix, backslashes are valid filename
+    characters but we reject them anyway because:
+    1. They indicate cross-platform path traversal attempts
+    2. GDC file IDs/names should never contain path separators
+    """
+    if not filename or filename in (".", ".."):
+        return False
+    # Reject path separators (both Unix and Windows)
+    if "/" in filename or "\\" in filename:
+        return False
+    # Reject parent directory references
+    if ".." in filename:
+        return False
+    # Reject absolute path indicators (Windows drive letters)
+    if ":" in filename:
+        return False
+    return True
+
+
 def _download_gdc_file(
     *,
     file: GdcFile,
@@ -115,6 +138,12 @@ def _download_gdc_file(
 
     Layout: out_dir/<file_id>/<file_name>
     """
+    # Validate file_id and file_name safety (platform-independent)
+    if not _is_safe_filename(file.file_id):
+        raise ValueError(f"Invalid file_id {file.file_id!r}")
+    if not _is_safe_filename(file.file_name):
+        raise ValueError(f"Invalid file_name {file.file_name!r}")
+
     dest_dir = out_dir / file.file_id
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / file.file_name

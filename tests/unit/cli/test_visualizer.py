@@ -288,3 +288,46 @@ class TestCreateTrajectoryHtml:
         assert "Cancer" in html
         assert "Zooming for detail" in html
         assert "crop" in html
+
+    def test_renders_images_and_overlays(self, tmp_path: Path) -> None:
+        """Test rendering of images and crop overlays."""
+        trajectory = {
+            "wsi_path": "/path/to/slide.svs",
+            "slide_width": 1000,
+            "slide_height": 1000,
+            "thumbnail_base64": "thumb_b64",
+            "turns": [
+                {
+                    "step_index": 0,
+                    "image_base64": "step1_b64",
+                    "response": {"reasoning": "r", "action": "crop"},
+                    "region": {"x": 100, "y": 100, "width": 200, "height": 200},
+                }
+            ],
+        }
+        traj_path = tmp_path / "images.json"
+        traj_path.write_text(json.dumps(trajectory))
+        output_path = tmp_path / "output.html"
+
+        with patch("giant.cli.visualizer.webbrowser.open"):
+            create_trajectory_html(
+                trajectory_path=traj_path,
+                output_path=output_path,
+                open_browser=False,
+            )
+
+        content = output_path.read_text()
+
+        # Check thumbnail
+        assert '<img src="data:image/jpeg;base64,thumb_b64"' in content
+
+        # Check step image
+        assert '<img src="data:image/jpeg;base64,step1_b64"' in content
+
+        # Check overlay (100/1000 = 10%)
+        # Note: exact string match might be brittle depending on float formatting
+        # so checking for substring presence is safer
+        assert "left: 10.00%" in content
+        assert "top: 10.00%" in content
+        assert "width: 20.00%" in content
+        assert "height: 20.00%" in content

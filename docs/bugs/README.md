@@ -8,7 +8,9 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
-**None.** All tracked bugs have been resolved or archived.
+| ID | Severity | Title | Status |
+|----|----------|-------|--------|
+| — | — | None | — |
 
 ## Archived (Fixed) Bugs
 
@@ -16,6 +18,9 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-017 | TCGA downloader path traversal | Path validation added |
+| BUG-016 | Agent crop on max_steps=1 | Step guard added |
+| BUG-015 | Visualizer missing images/overlays | Trajectory metadata + HTML/CSS updates |
 | BUG-001 | Boundary Crop Behavior | Documented + tested |
 | BUG-002 | Spec Contradiction on Upsampling | Spec-05.5 updated |
 | BUG-003 | Huge Region No Protection | Memory guard added |
@@ -62,6 +67,15 @@ See `archive/` for historical bugs that have been resolved:
 - BUG-010 (MPP nullable): Not a bug, just future-proofing note. Archived.
 - BUG-011 (GeometryValidator unused): Fixed in Spec-09. Archived.
 - All active bugs cleared. Zero active bugs remaining.
+
+### Audit Bug Hunt (P0-P4) (2025-12-19)
+
+**Audited**: Spec-09 to Spec-12 integration surfaces (agent loop, eval, CLI, visualizer, download helpers).
+
+**Findings**:
+
+- 3 new bugs documented (BUG-015, BUG-016, BUG-017)
+- No new P0/P1 blockers found
 
 ### Spec-05.5 WSI Integration Checkpoint (2025-12-17)
 

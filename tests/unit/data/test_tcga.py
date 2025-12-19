@@ -446,6 +446,93 @@ class TestDownloadGdcFile:
         assert result.read_bytes() == file_content
 
 
+class TestDownloadGdcFileSecurity:
+    """Tests for security hardening of downloads."""
+
+    def test_raises_on_traversal_file_id(self, tmp_path: Path) -> None:
+        """Raises when file_id contains traversal characters."""
+        file = GdcFile("../evil", "test.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_id"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_subdir_file_id(self, tmp_path: Path) -> None:
+        """Raises when file_id contains path separators."""
+        file = GdcFile("subdir/evil", "test.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_id"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_traversal_filename(self, tmp_path: Path) -> None:
+        """Raises when file_name contains traversal characters."""
+        file = GdcFile("abc123", "../evil.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_name"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_absolute_path(self, tmp_path: Path) -> None:
+        """Raises when file_name is an absolute path."""
+        file = GdcFile("abc123", "/etc/passwd", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_name"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_subdir(self, tmp_path: Path) -> None:
+        """Raises when file_name contains path separators."""
+        file = GdcFile("abc123", "subdir/test.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_name"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    # --- Backslash-based traversal (Windows-style, cross-platform security) ---
+
+    def test_raises_on_backslash_traversal_file_id(self, tmp_path: Path) -> None:
+        """Raises when file_id contains backslash traversal (Windows-style)."""
+        file = GdcFile("..\\..\\evil", "test.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_id"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_backslash_in_filename(self, tmp_path: Path) -> None:
+        """Raises when file_name contains backslash separators."""
+        file = GdcFile("abc123", "sub\\dir\\evil.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_name"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_windows_drive_in_filename(self, tmp_path: Path) -> None:
+        """Raises when file_name contains Windows drive letter."""
+        file = GdcFile("abc123", "C:\\Windows\\evil.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_name"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+    def test_raises_on_colon_in_file_id(self, tmp_path: Path) -> None:
+        """Raises when file_id contains colon (drive letter indicator)."""
+        file = GdcFile("C:evil", "test.svs", 100)
+        out_dir = tmp_path / "downloads"
+        out_dir.mkdir(parents=True)
+
+        with pytest.raises(ValueError, match="Invalid file_id"):
+            _download_gdc_file(file=file, out_dir=out_dir, reserve_bytes=0)
+
+
 # =============================================================================
 # main() CLI tests
 # =============================================================================

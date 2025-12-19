@@ -156,6 +156,29 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
             font-size: 0.8rem;
             color: var(--text-secondary);
         }}
+        .thumbnail-container {{
+            position: relative;
+            display: inline-block;
+            margin-bottom: 2rem;
+            max-width: 100%;
+        }}
+        .thumbnail-img {{
+            max-width: 100%;
+            border-radius: 8px;
+            display: block;
+        }}
+        .crop-overlay {{
+            position: absolute;
+            border: 2px solid var(--highlight);
+            background: rgba(233, 69, 96, 0.2);
+            pointer-events: none;
+        }}
+        .step-image {{
+            margin-top: 1rem;
+            max-width: 100%;
+            border-radius: 4px;
+            border: 1px solid var(--accent);
+        }}
         footer {{
             text-align: center;
             margin-top: 2rem;
@@ -187,6 +210,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
                 <div class="label">Status</div>
             </div>
         </div>
+
+        {thumbnail_html}
 
         <div class="answer-box">
             <h3>Final Answer</h3>
@@ -230,6 +255,7 @@ _STEP_TEMPLATE = """
             <div class="reasoning">{reasoning}</div>
         </div>
         {region_html}
+        {image_html}
     </div>
 </div>
 """
@@ -295,17 +321,56 @@ def create_trajectory_html(
     total_cost = _get_total_cost(trajectory)
     success = _get_success_label(trajectory)
 
+    slide_width = _safe_int(trajectory.get("slide_width"))
+    slide_height = _safe_int(trajectory.get("slide_height"))
+    thumbnail_base64 = trajectory.get("thumbnail_base64")
+
+    # Generate thumbnail HTML with overlays
+    thumbnail_html = ""
+    if thumbnail_base64:
+        overlays = []
+        for turn in turns:
+            _, _, region = _extract_turn(turn)
+            if region and slide_width > 0 and slide_height > 0:
+                left = (region["x"] / slide_width) * 100
+                top = (region["y"] / slide_height) * 100
+                width = (region["width"] / slide_width) * 100
+                height = (region["height"] / slide_height) * 100
+                overlays.append(
+                    f'<div class="crop-overlay" style="left: {left:.2f}%; '
+                    f'top: {top:.2f}%; width: {width:.2f}%; height: {height:.2f}%;">'
+                    "</div>"
+                )
+
+        thumbnail_html = (
+            f'<div class="thumbnail-container">\n'
+            f'    <img src="data:image/jpeg;base64,{thumbnail_base64}" '
+            f'class="thumbnail-img" alt="WSI Thumbnail">\n'
+            f"    {''.join(overlays)}\n"
+            f"</div>"
+        )
+
     # Generate steps HTML
     steps_html_parts = []
     for i, turn in enumerate(turns, 1):
         action, reasoning, region = _extract_turn(turn)
         region_html = _format_region_html(region)
 
+        # Step image
+        image_html = ""
+        image_base64 = turn.get("image_base64")
+        if image_base64:
+            image_html = (
+                f'<img src="data:image/jpeg;base64,{image_base64}" '
+                f'class="step-image" alt="Step View">'
+            )
+
         step_html = _STEP_TEMPLATE.format(
             step_num=i,
             action=action,
             reasoning=_escape_html(reasoning),
             region_html=region_html,
+            image_html=image_html,
         )
         steps_html_parts.append(step_html)
 
@@ -319,6 +384,7 @@ def create_trajectory_html(
         success=success,
         answer=_escape_html(answer),
         steps_html=steps_html,
+        thumbnail_html=thumbnail_html,
         version=__version__,
     )
 
