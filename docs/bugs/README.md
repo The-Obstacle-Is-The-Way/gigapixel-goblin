@@ -10,9 +10,7 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
-| BUG-015 | P3 | Visualizer missing images/overlays | Open |
-| BUG-016 | P2 | Agent executes crop when `max_steps=1` | Open |
-| BUG-017 | P4 | TCGA downloader trusts remote `file_name` for paths | Open |
+| | | None | |
 
 ## Archived (Fixed) Bugs
 
@@ -20,6 +18,9 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-017 | TCGA downloader path traversal | Path validation added |
+| BUG-016 | Agent crop on max_steps=1 | Step guard added |
+| BUG-015 | Visualizer missing images/overlays | Trajectory metadata + HTML/CSS updates |
 | BUG-001 | Boundary Crop Behavior | Documented + tested |
 | BUG-002 | Spec Contradiction on Upsampling | Spec-05.5 updated |
 | BUG-003 | Huge Region No Protection | Memory guard added |

@@ -278,6 +278,45 @@ class TestGIANTAgentLoopLimit:
         assert result.success is False
         assert "retries" in result.error_message.lower()
 
+    @pytest.mark.asyncio
+    async def test_crop_at_max_steps_ignored(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        """Test that crop attempt on final step is ignored and forces answer."""
+        # 1. Model tries to crop on step 1 (max_steps=1)
+        # 2. Agent should ignore crop and force answer
+        # 3. Model provides answer
+        mock_llm_provider.generate_response.side_effect = [
+            make_crop_response(1000, 2000, 500, 500, "I want to crop"),
+            make_answer_response("Forced answer", "Fine, I will answer"),
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(max_steps=1),
+                )
+
+                result = await agent.run()
+
+        # Should be successful with the answer
+        assert result.success is True
+        assert result.answer == "Forced answer"
+
+        # Crucially: CropEngine.crop should NOT have been called
+        mock_crop_engine.crop.assert_not_called()
+
+        # Trajectory should have only 1 turn (the answer), not 2 (crop + answer)
+        # The crop attempt should not be recorded as a turn if it was intercepted
+        assert len(result.trajectory.turns) == 1
+        assert isinstance(result.trajectory.turns[0].response.action, FinalAnswerAction)
+
 
 class TestGIANTAgentErrorRecovery:
     """Tests for error handling and recovery."""

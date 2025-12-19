@@ -61,3 +61,12 @@ class Trajectory(BaseModel):
         default=None,
         description="Final answer (if completed)",
     )
+    slide_width: int | None = Field(
+        default=None, description="Width of the WSI level 0"
+    )
+    slide_height: int | None = Field(
+        default=None, description="Height of the WSI level 0"
+    )
+    thumbnail_base64: str | None = Field(
+        default=None, description="Initial WSI thumbnail"
+    )

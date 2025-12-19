@@ -220,6 +220,11 @@ class GIANTAgent:
                 # Step 0: Generate thumbnail with axis guides
                 self._thumbnail_base64 = self._generate_thumbnail(reader)
 
+                # Populate visualization metadata
+                self._context.trajectory.slide_width = self._slide_bounds.width
+                self._context.trajectory.slide_height = self._slide_bounds.height
+                self._context.trajectory.thumbnail_base64 = self._thumbnail_base64
+
                 # Run navigation loop
                 return await self._navigation_loop()
 
@@ -246,6 +251,8 @@ class GIANTAgent:
         Returns:
             RunResult from completed navigation.
         """
+        forced_summary: str | None = None
+
         while self._context.current_step <= self.config.max_steps:
             # Check budget constraint
             if self._is_budget_exceeded():
@@ -282,6 +289,22 @@ class GIANTAgent:
                 return self._handle_answer(step_response)
 
             if isinstance(action, BoundingBoxAction):
+                # Check if we are at the final step.
+                # If so, do NOT handle crop, but force answer immediately.
+                if self._context.is_final_step:
+                    logger.warning(
+                        "Model returned crop at final step %d, forcing answer.",
+                        self._context.current_step,
+                    )
+                    base_summary = self._build_observation_summary()
+                    note = (
+                        "\n(Note: You attempted to crop on the final step, but "
+                        "the step limit has been reached. You must answer now "
+                        "based on previous observations.)"
+                    )
+                    forced_summary = base_summary + note
+                    break
+
                 # Attempt to execute crop
                 result = await self._handle_crop(step_response, action, messages)
                 if result is not None:
@@ -296,7 +319,7 @@ class GIANTAgent:
         # Force finalization (step limit reached or loop ended).
         if self._is_budget_exceeded():
             return await self._handle_budget_exceeded()
-        return await self._force_final_answer()
+        return await self._force_final_answer(observation_summary=forced_summary)
 
     async def _handle_crop(
         self,
