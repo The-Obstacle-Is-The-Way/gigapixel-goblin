@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import signal
-import sys
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -78,11 +77,11 @@ def run(  # noqa: PLR0913
     ] = Mode.giant,
     provider: Annotated[
         Provider, typer.Option("--provider", "-p", help="LLM provider")
-    ] = Provider.anthropic,
+    ] = Provider.openai,
     model: Annotated[
         str,
         typer.Option("--model", help="Model name (see docs/models/MODEL_REGISTRY.md)"),
-    ] = "claude-sonnet-4-20250514",
+    ] = "gpt-5.2",
     max_steps: Annotated[
         int, typer.Option("--max-steps", "-T", help="Max navigation steps")
     ] = 20,
@@ -133,15 +132,25 @@ def run(  # noqa: PLR0913
             verbose=verbose,
         )
 
-        # Save trajectory if requested
-        if output and hasattr(result, "trajectory") and result.trajectory:
-            traj_dict = (
-                result.trajectory.to_dict()
-                if hasattr(result.trajectory, "to_dict")
-                else {"turns": []}
-            )
-            output.write_text(json.dumps(traj_dict, indent=2))
-            logger.info("Trajectory saved", path=str(output))
+        turns_count = _trajectory_turn_count(result.trajectory)
+
+        # Save run artifact (trajectory + metadata) if requested.
+        if output is not None:
+            trajectory_dict = _trajectory_to_dict(result.trajectory)
+            artifact = {
+                **trajectory_dict,
+                "answer": result.answer,
+                "success": result.success,
+                "total_cost": result.total_cost,
+                "mode": mode.value,
+                "provider": provider.value,
+                "model": model,
+                "runs": runs,
+                "agreement": result.agreement,
+                "runs_answers": result.runs_answers,
+            }
+            output.write_text(json.dumps(artifact, indent=2))
+            logger.info("Run artifact saved", path=str(output))
 
         # Output results
         if json_output:
@@ -149,14 +158,17 @@ def run(  # noqa: PLR0913
                 "success": result.success,
                 "answer": result.answer,
                 "total_cost": result.total_cost,
-                "turns": len(result.trajectory.turns) if result.trajectory else 0,
+                "agreement": result.agreement,
+                "turns": turns_count,
             }
             typer.echo(json.dumps(output_data, indent=2))
         else:
             typer.echo(f"\nAnswer: {result.answer}")
             typer.echo(f"Cost: ${result.total_cost:.4f}")
-            if result.trajectory:
-                typer.echo(f"Turns: {len(result.trajectory.turns)}")
+            if runs > 1:
+                typer.echo(f"Agreement: {result.agreement:.0%}")
+            if turns_count:
+                typer.echo(f"Turns: {turns_count}")
 
         raise typer.Exit(0 if result.success else 1)
 
@@ -195,10 +207,8 @@ def benchmark(  # noqa: PLR0913
     ] = Mode.giant,
     provider: Annotated[
         Provider, typer.Option("--provider", "-p", help="LLM provider")
-    ] = Provider.anthropic,
-    model: Annotated[
-        str, typer.Option("--model", help="Model name")
-    ] = "claude-sonnet-4-20250514",
+    ] = Provider.openai,
+    model: Annotated[str, typer.Option("--model", help="Model name")] = "gpt-5.2",
     max_steps: Annotated[
         int, typer.Option("--max-steps", "-T", help="Max navigation steps")
     ] = 20,
@@ -235,17 +245,14 @@ def benchmark(  # noqa: PLR0913
     _configure_logging(verbose)
     logger = get_logger(__name__)
 
-    # Set up signal handlers for graceful shutdown
-    shutdown_requested = False
-
+    # Set up signal handlers for graceful shutdown (translate SIGTERM into a
+    # KeyboardInterrupt so asyncio cancellation paths can checkpoint).
     def signal_handler(signum: int, frame: object) -> None:
-        nonlocal shutdown_requested
-        if shutdown_requested:
-            logger.warning("Force exit requested")
-            sys.exit(1)
-        shutdown_requested = True
-        logger.info("Shutdown requested, finishing current item...")
+        logger.warning("Shutdown requested", signal=signum)
+        raise KeyboardInterrupt()
 
+    original_sigint = signal.getsignal(signal.SIGINT)
+    original_sigterm = signal.getsignal(signal.SIGTERM)
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
@@ -279,15 +286,36 @@ def benchmark(  # noqa: PLR0913
         )
 
         if json_output:
-            typer.echo(json.dumps(result.metrics, indent=2))
+            typer.echo(
+                json.dumps(
+                    {
+                        "dataset": dataset,
+                        "mode": mode.value,
+                        "provider": provider.value,
+                        "model": model,
+                        "metrics": result.metrics,
+                        "total_cost": result.total_cost,
+                        "n_items": result.n_items,
+                        "n_errors": result.n_errors,
+                        "run_id": result.run_id,
+                        "results_path": str(result.results_path),
+                    },
+                    indent=2,
+                )
+            )
         else:
             typer.echo(f"\nBenchmark: {dataset}")
             typer.echo(f"Mode: {mode.value}")
             typer.echo(f"Results: {result.metrics}")
             typer.echo(f"Total cost: ${result.total_cost:.2f}")
+            typer.echo(f"Run ID: {result.run_id}")
+            typer.echo(f"Results file: {result.results_path}")
 
         raise typer.Exit(0)
 
+    except KeyboardInterrupt:
+        logger.warning("Benchmark interrupted (checkpoint saved if possible)")
+        raise typer.Exit(1) from None
     except typer.Exit:
         raise
     except Exception as e:
@@ -297,22 +325,29 @@ def benchmark(  # noqa: PLR0913
         else:
             typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
+    finally:
+        signal.signal(signal.SIGINT, original_sigint)
+        signal.signal(signal.SIGTERM, original_sigterm)
 
 
 @app.command()
 def download(
     dataset: Annotated[
-        str, typer.Argument(help="Dataset to download (multipathqa, tcga)")
+        str, typer.Argument(help="Dataset to download (multipathqa)")
     ] = "multipathqa",
     output_dir: Annotated[
         Path, typer.Option("--output-dir", "-o", help="Output directory")
     ] = Path("data"),
+    force: Annotated[
+        bool, typer.Option("--force", help="Re-download even if file exists")
+    ] = False,
     verbose: Annotated[
         int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")
     ] = 0,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Download benchmark datasets from HuggingFace."""
-    from giant.cli.runners import download_multipathqa  # noqa: PLC0415
+    from giant.cli.runners import download_dataset  # noqa: PLC0415
 
     _configure_logging(verbose)
     logger = get_logger(__name__)
@@ -320,24 +355,28 @@ def download(
     logger.info("Starting download", dataset=dataset, output_dir=str(output_dir))
 
     try:
-        success = download_multipathqa(
+        result = download_dataset(
             dataset=dataset,
             output_dir=output_dir,
+            force=force,
             verbose=verbose,
         )
 
-        if success:
-            typer.echo(f"Downloaded {dataset} to {output_dir}")
-            raise typer.Exit(0)
+        if json_output:
+            typer.echo(json.dumps(result, indent=2))
         else:
-            typer.echo(f"Download failed for {dataset}", err=True)
-            raise typer.Exit(1)
+            typer.echo(f"Downloaded {dataset} to {result['path']}")
+
+        raise typer.Exit(0)
 
     except typer.Exit:
         raise
     except Exception as e:
         logger.exception("Download failed")
-        typer.echo(f"Error: {e}", err=True)
+        if json_output:
+            typer.echo(json.dumps({"error": str(e)}))
+        else:
+            typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1) from None
 
 
@@ -362,6 +401,7 @@ def visualize(
     verbose: Annotated[
         int, typer.Option("--verbose", "-v", count=True, help="Increase verbosity")
     ] = 0,
+    json_output: Annotated[bool, typer.Option("--json", help="Output as JSON")] = False,
 ) -> None:
     """Generate interactive visualization of navigation trajectory."""
     from giant.cli.visualizer import create_trajectory_html  # noqa: PLC0415
@@ -377,7 +417,10 @@ def visualize(
             output_path=output,
             open_browser=open_browser,
         )
-        typer.echo(f"Visualization saved to {html_path}")
+        if json_output:
+            typer.echo(json.dumps({"html_path": str(html_path)}))
+        else:
+            typer.echo(f"Visualization saved to {html_path}")
         raise typer.Exit(0)
 
     except typer.Exit:
@@ -407,6 +450,25 @@ def _configure_logging(verbose: int) -> None:
         level = "DEBUG"  # Fallback
 
     configure_logging(level=level)
+
+
+def _trajectory_to_dict(trajectory: object | None) -> dict[str, object]:
+    if trajectory is None:
+        return {}
+    if isinstance(trajectory, dict):
+        return dict(trajectory)
+
+    model_dump = getattr(trajectory, "model_dump", None)
+    if callable(model_dump):
+        dumped = model_dump()
+        if isinstance(dumped, dict):
+            return dumped
+    return {}
+
+
+def _trajectory_turn_count(trajectory: object | None) -> int:
+    turns = getattr(trajectory, "turns", None)
+    return len(turns) if isinstance(turns, list) else 0
 
 
 if __name__ == "__main__":  # pragma: no cover

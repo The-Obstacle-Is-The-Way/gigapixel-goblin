@@ -9,21 +9,21 @@ This specification defines the user-facing command-line interface (CLI) for GIAN
 - [Spec-11: CLAM Integration](./spec-11-clam-integration.md) (for patch baseline)
 
 ## Acceptance Criteria
-- [ ] `giant` command exists and is registered as console script.
-- [ ] `giant run <path> --question <q>` executes the agent and prints the answer + cost.
-- [ ] `giant run` supports `--mode {giant,thumbnail,patch}` for baseline comparison.
-- [ ] `giant run` supports `--runs N` for majority voting (GIANT x5).
-- [ ] `giant run` supports `--provider {openai,anthropic}` and `--model` selection.
-- [ ] `giant run` supports `--budget-usd` to cap total spend and fail fast.
-- [ ] `giant benchmark <dataset>` runs the evaluation pipeline with resume support.
-- [ ] `giant benchmark` supports `--wsi-root <dir>` to resolve `image_path` entries from MultiPathQA metadata to local slide files.
-- [ ] `giant benchmark` supports `--budget-usd` to cap total spend and fail fast.
-- [ ] `giant benchmark` handles SIGINT/SIGTERM gracefully by writing a final checkpoint before exiting.
-- [ ] `giant download` downloads MultiPathQA metadata (`MultiPathQA.csv`) from HuggingFace.
-- [ ] `giant visualize <result.json>` outputs trajectory visualization.
-- [ ] Logging verbosity controllable via `-v` / `-vv` / `-vvv` flags.
-- [ ] `--json` flag outputs machine-readable JSON for all commands.
-- [ ] Exit codes: 0=success, 1=error, 2=invalid args.
+- [x] `giant` command exists and is registered as console script.
+- [x] `giant run <path> --question <q>` executes the agent and prints the answer + cost.
+- [x] `giant run` supports `--mode {giant,thumbnail,patch}` for baseline comparison.
+- [x] `giant run` supports `--runs N` for majority voting (GIANT x5).
+- [x] `giant run` supports `--provider {openai,anthropic}` and `--model` selection.
+- [x] `giant run` supports `--budget-usd` to cap total spend and fail fast.
+- [x] `giant benchmark <dataset>` runs the evaluation pipeline with resume support.
+- [x] `giant benchmark` supports `--wsi-root <dir>` to resolve `image_path` entries from MultiPathQA metadata to local slide files.
+- [x] `giant benchmark` supports `--budget-usd` to cap total spend and fail fast.
+- [x] `giant benchmark` handles SIGINT/SIGTERM gracefully by writing a final checkpoint before exiting.
+- [x] `giant download` downloads MultiPathQA metadata (`MultiPathQA.csv`) from HuggingFace.
+- [x] `giant visualize <result.json>` outputs trajectory visualization.
+- [x] Logging verbosity controllable via `-v` / `-vv` / `-vvv` flags.
+- [x] `--json` flag outputs machine-readable JSON for all commands.
+- [x] Exit codes: 0=success, 1=error, 2=invalid args.
 
 ## Technical Design
 

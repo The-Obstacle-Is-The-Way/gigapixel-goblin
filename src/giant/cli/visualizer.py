@@ -285,29 +285,17 @@ def create_trajectory_html(
 
     # Extract data
     turns = trajectory.get("turns", [])
-    answer = trajectory.get("answer", "No answer recorded")
+    answer = _get_answer(trajectory)
     wsi_path = trajectory.get("wsi_path", "Unknown")
     wsi_name = Path(wsi_path).name if wsi_path else "Unknown"
-    total_cost = trajectory.get("total_cost", 0.0)
-    success = "Success" if trajectory.get("success", True) else "Failed"
+    total_cost = _get_total_cost(trajectory)
+    success = _get_success_label(trajectory)
 
     # Generate steps HTML
     steps_html_parts = []
     for i, turn in enumerate(turns, 1):
-        action = turn.get("action", "unknown")
-        reasoning = turn.get("reasoning", turn.get("thought", "No reasoning recorded"))
-
-        # Region info if available
-        region = turn.get("region", turn.get("crop", {}))
-        if region:
-            region_html = _REGION_TEMPLATE.format(
-                x=region.get("x", 0),
-                y=region.get("y", 0),
-                width=region.get("width", 0),
-                height=region.get("height", 0),
-            )
-        else:
-            region_html = ""
+        action, reasoning, region = _extract_turn(turn)
+        region_html = _format_region_html(region)
 
         step_html = _STEP_TEMPLATE.format(
             step_num=i,
@@ -354,4 +342,82 @@ def _escape_html(text: str) -> str:
         .replace(">", "&gt;")
         .replace('"', "&quot;")
         .replace("'", "&#39;")
+    )
+
+
+def _get_answer(trajectory: dict[str, object]) -> str:
+    answer = trajectory.get("answer")
+    if isinstance(answer, str) and answer:
+        return answer
+    final_answer = trajectory.get("final_answer")
+    if isinstance(final_answer, str) and final_answer:
+        return final_answer
+    return "No answer recorded"
+
+
+def _get_total_cost(trajectory: dict[str, object]) -> float:
+    total_cost = trajectory.get("total_cost", trajectory.get("total_cost_usd", 0.0))
+    if isinstance(total_cost, (int, float)):
+        return float(total_cost)
+    return 0.0
+
+
+def _get_success_label(trajectory: dict[str, object]) -> str:
+    success_value = trajectory.get("success")
+    if isinstance(success_value, bool):
+        return "Success" if success_value else "Failed"
+    return "Unknown"
+
+
+def _extract_turn(turn: object) -> tuple[str, str, dict[str, int] | None]:
+    if not isinstance(turn, dict):
+        return "unknown", "No reasoning recorded", None
+
+    response = turn.get("response")
+    response_dict = response if isinstance(response, dict) else {}
+
+    reasoning = (
+        turn.get("reasoning")
+        or response_dict.get("reasoning")
+        or turn.get("thought")
+        or "No reasoning recorded"
+    )
+    reasoning_text = str(reasoning)
+
+    action = "unknown"
+    raw_action = turn.get("action")
+    if isinstance(raw_action, dict):
+        action = str(raw_action.get("action_type", "unknown"))
+    elif isinstance(raw_action, str):
+        action = raw_action
+    else:
+        resp_action = response_dict.get("action")
+        if isinstance(resp_action, dict):
+            action = str(resp_action.get("action_type", "unknown"))
+
+    region = turn.get("region") or turn.get("crop") or None
+    if isinstance(region, dict) and region:
+        # Assume numeric entries; fall back to 0.
+        return (
+            action,
+            reasoning_text,
+            {
+                "x": int(region.get("x", 0)),
+                "y": int(region.get("y", 0)),
+                "width": int(region.get("width", 0)),
+                "height": int(region.get("height", 0)),
+            },
+        )
+
+    return action, reasoning_text, None
+
+
+def _format_region_html(region: dict[str, int] | None) -> str:
+    if not region:
+        return ""
+    return _REGION_TEMPLATE.format(
+        x=region["x"],
+        y=region["y"],
+        width=region["width"],
+        height=region["height"],
     )

@@ -9,10 +9,9 @@ from __future__ import annotations
 import asyncio
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-
-import httpx
 
 from giant.utils.logging import get_logger
 
@@ -27,6 +26,7 @@ class InferenceResult:
     success: bool
     answer: str
     total_cost: float
+    total_tokens: int = 0
     trajectory: Any | None = None
     error_message: str | None = None
     runs_answers: list[str] = field(default_factory=list)
@@ -37,10 +37,12 @@ class InferenceResult:
 class BenchmarkResult:
     """Result from a benchmark run."""
 
+    run_id: str
+    results_path: Path
     metrics: dict[str, Any]
     total_cost: float
-    n_items: int = 0
-    n_errors: int = 0
+    n_items: int
+    n_errors: int
 
 
 def run_single_inference(  # noqa: PLR0913
@@ -120,42 +122,79 @@ def _run_giant_mode(  # pragma: no cover  # noqa: PLR0913
 
     llm = create_provider(provider.value, model=model)
 
-    async def run_once() -> Any:
+    async def run_once(*, config: AgentConfig) -> Any:
         agent = GIANTAgent(
             wsi_path=wsi_path,
             question=question,
             llm_provider=llm,
-            config=AgentConfig(max_steps=max_steps),
+            config=config,
         )
         return await agent.run()
 
-    # Run multiple times for majority voting
-    all_results = []
-    total_cost = 0.0
+    async def run_all() -> list[Any]:
+        results: list[Any] = []
+        total = 0.0
 
-    for _i in range(runs):
-        result = asyncio.run(run_once())
-        all_results.append(result)
-        total_cost += result.total_cost
+        for _i in range(runs):
+            remaining_budget = None
+            if budget_usd > 0:
+                remaining_budget = max(budget_usd - total, 0.0)
+                if remaining_budget <= 0:
+                    break
 
-        if budget_usd > 0 and total_cost >= budget_usd:
-            break
+            result = await run_once(
+                config=AgentConfig(
+                    max_steps=max_steps,
+                    budget_usd=remaining_budget,
+                )
+            )
+            results.append(result)
+            total += result.total_cost
 
-    # Majority vote on answers
-    answers = [r.answer for r in all_results if r.answer]
+            if budget_usd > 0 and total >= budget_usd:
+                break
+
+        return results
+
+    all_results = asyncio.run(run_all())
+    total_cost = sum(r.total_cost for r in all_results)
+    total_tokens = sum(r.total_tokens for r in all_results)
+
+    if not all_results:
+        return InferenceResult(
+            success=False,
+            answer="",
+            total_cost=0.0,
+            total_tokens=0,
+            trajectory=None,
+            error_message="No runs executed",
+        )
+
+    # Majority vote on answers (stable tie-break by first-seen answer).
+    candidates = [r for r in all_results if r.success and r.answer]
+    if not candidates:
+        candidates = [r for r in all_results if r.answer] or all_results
+
+    answers = [r.answer for r in candidates if r.answer]
+    final_answer = answers[0] if answers else ""
+    agreement = 1.0
+    winning_result = candidates[0]
+
     if answers:
-        counter = Counter(answers)
-        final_answer, count = counter.most_common(1)[0]
-        agreement = count / len(answers)
-    else:
-        final_answer = all_results[0].answer if all_results else ""
-        agreement = 1.0
+        counts = Counter(answers)
+        max_count = max(counts.values())
+        winners = {a for a, c in counts.items() if c == max_count}
+        final_answer = next(a for a in answers if a in winners)
+        agreement = counts[final_answer] / len(answers)
+        winning_result = next(r for r in candidates if r.answer == final_answer)
 
     return InferenceResult(
-        success=all_results[0].success if all_results else False,
+        success=winning_result.success,
         answer=final_answer,
         total_cost=total_cost,
-        trajectory=all_results[0].trajectory if all_results else None,
+        total_tokens=total_tokens,
+        trajectory=winning_result.trajectory,
+        error_message=winning_result.error_message,
         runs_answers=answers,
         agreement=agreement,
     )
@@ -171,90 +210,53 @@ def _run_thumbnail_mode(  # pragma: no cover  # noqa: PLR0913
     budget_usd: float,
 ) -> InferenceResult:
     """Run single-thumbnail baseline (no navigation)."""
-    import base64  # noqa: PLC0415
-    import os  # noqa: PLC0415
-    from io import BytesIO  # noqa: PLC0415
-
-    import anthropic  # noqa: PLC0415
-
+    from giant.core.baselines import (  # noqa: PLC0415
+        BaselineRequest,
+        encode_image_to_base64,
+        run_baseline_answer,
+    )
+    from giant.llm import create_provider  # noqa: PLC0415
     from giant.wsi import WSIReader  # noqa: PLC0415
 
-    # Get thumbnail
+    llm = create_provider(provider.value, model=model)
+
     with WSIReader(wsi_path) as reader:
         thumbnail = reader.get_thumbnail((1024, 1024))
 
-    # Encode to base64
-    buffer = BytesIO()
-    thumbnail.save(buffer, format="PNG")
-    image_b64 = base64.b64encode(buffer.getvalue()).decode()
+    image_b64, media_type = encode_image_to_base64(thumbnail)
+    request = BaselineRequest(
+        wsi_path=wsi_path,
+        question=question,
+        image_base64=image_b64,
+        media_type=media_type,
+        context_note="This is a whole-slide thumbnail (no navigation).",
+    )
 
-    async def run_once() -> tuple[str, float]:
-        # Use SDK directly for simple text generation (not structured agent response)
-        client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
+    async def run_all() -> list[Any]:
+        results: list[Any] = []
+        total = 0.0
 
-        message = await client.messages.create(
-            model=model,
-            max_tokens=1024,
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": "image/png",
-                                "data": image_b64,
-                            },
-                        },
-                        {
-                            "type": "text",
-                            "text": (
-                                f"You are a pathologist examining this whole-slide "
-                                f"image thumbnail. {question}\n\n"
-                                f"Provide your answer concisely."
-                            ),
-                        },
-                    ],
-                }
-            ],
-        )
+        for _i in range(runs):
+            if budget_usd > 0 and total >= budget_usd:
+                break
 
-        # Extract text response
-        answer = message.content[0].text if message.content else ""  # type: ignore[union-attr]
-        # Estimate cost (rough approximation)
-        input_cost = message.usage.input_tokens * 0.003
-        output_cost = message.usage.output_tokens * 0.015
-        cost = (input_cost + output_cost) / 1000
-        return answer, cost
+            result = await run_baseline_answer(llm_provider=llm, request=request)
+            results.append(result)
+            total += result.total_cost
 
-    # Run multiple times
-    all_answers = []
-    total_cost = 0.0
+            if budget_usd > 0 and total >= budget_usd:
+                break
 
-    for _ in range(runs):
-        answer, cost = asyncio.run(run_once())
-        all_answers.append(answer)
-        total_cost += cost
+        return results
 
-        if budget_usd > 0 and total_cost >= budget_usd:
-            break
+    run_results = asyncio.run(run_all())
+    total_cost = sum(r.total_cost for r in run_results)
+    total_tokens = sum(r.total_tokens for r in run_results)
 
-    # Majority vote
-    if all_answers:
-        counter = Counter(all_answers)
-        final_answer, count = counter.most_common(1)[0]
-        agreement = count / len(all_answers)
-    else:
-        final_answer = ""
-        agreement = 1.0
-
-    return InferenceResult(
-        success=True,
-        answer=final_answer,
+    return _summarize_runs(
+        run_results=run_results,
         total_cost=total_cost,
-        runs_answers=all_answers,
-        agreement=agreement,
+        total_tokens=total_tokens,
     )
 
 
@@ -268,107 +270,78 @@ def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
     budget_usd: float,
 ) -> InferenceResult:
     """Run CLAM-style random patch baseline."""
-    import base64  # noqa: PLC0415
-    import os  # noqa: PLC0415
-    from io import BytesIO  # noqa: PLC0415
-
-    import anthropic  # noqa: PLC0415
-
-    from giant.vision import TissueSegmentor, sample_patches  # noqa: PLC0415
+    from giant.core.baselines import (  # noqa: PLC0415
+        BaselineRequest,
+        encode_image_to_base64,
+        make_patch_collage,
+        run_baseline_answer,
+    )
+    from giant.llm import create_provider  # noqa: PLC0415
+    from giant.vision import (  # noqa: PLC0415
+        N_PATCHES,
+        PATCH_SIZE,
+        TissueSegmentor,
+        sample_patches,
+    )
     from giant.wsi import WSIReader  # noqa: PLC0415
 
-    # Segment tissue and sample patches
+    llm = create_provider(provider.value, model=model)
+
     with WSIReader(wsi_path) as reader:
         meta = reader.get_metadata()
         thumbnail = reader.get_thumbnail((2048, 2048))
 
         segmentor = TissueSegmentor()
         mask = segmentor.segment(thumbnail)
-        patches = sample_patches(mask, meta, n_patches=30)
-
-        # Extract patch images
-        patch_images = []
-        for patch_region in patches[:10]:  # Limit to 10 for context window
-            crop = reader.read_region(
-                (patch_region.x, patch_region.y),
-                0,  # Level 0
-                (patch_region.width, patch_region.height),
-            )
-            buffer = BytesIO()
-            crop.save(buffer, format="PNG")
-            patch_images.append(base64.b64encode(buffer.getvalue()).decode())
-
-    async def run_once() -> tuple[str, float]:
-        # Use SDK directly for simple text generation (not structured agent response)
-        client = anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
-
-        # Build prompt with multiple patches
-        content: list[dict[str, Any]] = []
-
-        for i, img_b64 in enumerate(patch_images):
-            content.append(
-                {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/png",
-                        "data": img_b64,
-                    },
-                }
-            )
-            content.append({"type": "text", "text": f"Patch {i + 1}:"})
-
-        content.append(
-            {
-                "type": "text",
-                "text": (
-                    f"\nThese are {len(patch_images)} random tissue patches from a "
-                    f"whole-slide image. {question}\n\nProvide your answer concisely."
-                ),
-            }
+        regions = sample_patches(
+            mask,
+            meta,
+            n_patches=N_PATCHES,
+            patch_size=PATCH_SIZE,
         )
 
-        message = await client.messages.create(
-            model=model,
-            max_tokens=1024,
-            messages=[{"role": "user", "content": content}],  # type: ignore[typeddict-item]
-        )
+        patch_images = [
+            reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
+        ]
 
-        # Extract text response
-        answer = message.content[0].text if message.content else ""  # type: ignore[union-attr]
-        # Estimate cost (rough approximation)
-        input_cost = message.usage.input_tokens * 0.003
-        output_cost = message.usage.output_tokens * 0.015
-        cost = (input_cost + output_cost) / 1000
-        return answer, cost
+    collage = make_patch_collage(patch_images, patch_size=PATCH_SIZE)
+    image_b64, media_type = encode_image_to_base64(collage)
+    request = BaselineRequest(
+        wsi_path=wsi_path,
+        question=question,
+        image_base64=image_b64,
+        media_type=media_type,
+        context_note=(
+            "This image is a montage of 30 random 224x224 tissue patches sampled "
+            "from the slide."
+        ),
+    )
 
-    # Run multiple times
-    all_answers = []
-    total_cost = 0.0
+    async def run_all() -> list[Any]:
+        results: list[Any] = []
+        total = 0.0
 
-    for _ in range(runs):
-        answer, cost = asyncio.run(run_once())
-        all_answers.append(answer)
-        total_cost += cost
+        for _i in range(runs):
+            if budget_usd > 0 and total >= budget_usd:
+                break
 
-        if budget_usd > 0 and total_cost >= budget_usd:
-            break
+            result = await run_baseline_answer(llm_provider=llm, request=request)
+            results.append(result)
+            total += result.total_cost
 
-    # Majority vote
-    if all_answers:
-        counter = Counter(all_answers)
-        final_answer, count = counter.most_common(1)[0]
-        agreement = count / len(all_answers)
-    else:
-        final_answer = ""
-        agreement = 1.0
+            if budget_usd > 0 and total >= budget_usd:
+                break
 
-    return InferenceResult(
-        success=True,
-        answer=final_answer,
+        return results
+
+    run_results = asyncio.run(run_all())
+    total_cost = sum(r.total_cost for r in run_results)
+    total_tokens = sum(r.total_tokens for r in run_results)
+
+    return _summarize_runs(
+        run_results=run_results,
         total_cost=total_cost,
-        runs_answers=all_answers,
-        agreement=agreement,
+        total_tokens=total_tokens,
     )
 
 
@@ -394,15 +367,16 @@ def run_benchmark(  # pragma: no cover  # noqa: PLR0913
     from giant.eval.runner import BenchmarkRunner, EvaluationConfig  # noqa: PLC0415
     from giant.llm import create_provider  # noqa: PLC0415
 
-    _ = get_logger(__name__)  # Reserved for future logging
-
     llm = create_provider(provider.value, model=model)
 
     config = EvaluationConfig(
+        mode=mode.value,
         max_steps=max_steps,
+        runs_per_item=runs,
         max_concurrent=concurrency,
         max_items=max_items if max_items > 0 else None,
         skip_missing_wsis=skip_missing,
+        budget_usd=budget_usd if budget_usd > 0 else None,
     )
 
     runner = BenchmarkRunner(
@@ -412,58 +386,123 @@ def run_benchmark(  # pragma: no cover  # noqa: PLR0913
         config=config,
     )
 
+    run_id = _build_run_id(
+        dataset=dataset,
+        mode=mode.value,
+        provider=provider.value,
+        model=model,
+    )
+    if not resume:
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        run_id = f"{run_id}_{timestamp}"
+
     async def run_async() -> Any:
         return await runner.run_benchmark(
             benchmark_name=dataset,
             csv_path=csv_path,
-            run_id=f"{dataset}_{mode.value}",
+            run_id=run_id,
         )
 
     result = asyncio.run(run_async())
 
     return BenchmarkResult(
+        run_id=result.run_id,
+        results_path=output_dir / f"{result.run_id}_results.json",
         metrics=result.metrics,
-        total_cost=result.total_cost,
-        n_items=result.n_total,
-        n_errors=result.n_errors,
+        total_cost=result.total_cost_usd,
+        n_items=len(result.results),
+        n_errors=sum(r.error is not None for r in result.results),
     )
 
 
-def download_multipathqa(
+def download_dataset(
     *,
     dataset: str,
     output_dir: Path,
+    force: bool,
     verbose: int,
-) -> bool:
-    """Download MultiPathQA dataset from HuggingFace.
+) -> dict[str, str]:
+    """Download datasets needed for GIANT.
 
-    Downloads the CSV metadata file, not the actual WSI files
-    (which must be obtained from their respective sources).
+    Notes:
+        - This command downloads *metadata only* from HuggingFace.
+        - Whole-slide images are not redistributed on HuggingFace; see
+          `docs/DATA_ACQUISITION.md` and `python -m giant.data.tcga`.
     """
+    _ = verbose  # logging is configured by the CLI entrypoint
     logger = get_logger(__name__)
 
-    # HuggingFace dataset URL
-    hf_url = "https://huggingface.co/datasets/jnirschl/MultiPathQA/resolve/main/MultiPathQA.csv"
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    multipathqa_dir = output_dir / "multipathqa"
-    multipathqa_dir.mkdir(parents=True, exist_ok=True)
-
-    csv_path = multipathqa_dir / "MultiPathQA.csv"
-
-    logger.info("Downloading MultiPathQA.csv", url=hf_url, dest=str(csv_path))
-
-    try:
-        with httpx.Client(timeout=60.0, follow_redirects=True) as client:
-            response = client.get(hf_url)
-            response.raise_for_status()
-            csv_path.write_bytes(response.content)
-
-        logger.info(
-            "Download complete", path=str(csv_path), size=csv_path.stat().st_size
+    if dataset != "multipathqa":
+        raise ValueError(
+            f"Unknown dataset {dataset!r}. Only 'multipathqa' is downloadable via "
+            "this command. For TCGA helpers, use `python -m giant.data.tcga`."
         )
-        return True
 
-    except httpx.HTTPError as e:
-        logger.error("Download failed", error=str(e))
-        return False
+    from giant.data.download import download_multipathqa_metadata  # noqa: PLC0415
+
+    path = download_multipathqa_metadata(output_dir / "multipathqa", force=force)
+    logger.info("Download complete", dataset=dataset, path=str(path))
+    return {"dataset": dataset, "path": str(path)}
+
+
+def _build_run_id(*, dataset: str, mode: str, provider: str, model: str) -> str:
+    """Build a deterministic, filesystem-safe run_id for checkpointing."""
+    import re  # noqa: PLC0415
+
+    def safe(value: str) -> str:
+        cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", value).strip("._-")
+        return cleaned or "x"
+
+    return "_".join(
+        [
+            safe(dataset),
+            safe(mode),
+            safe(provider),
+            safe(model),
+        ]
+    )
+
+
+def _summarize_runs(
+    *,
+    run_results: list[Any],
+    total_cost: float,
+    total_tokens: int,
+) -> InferenceResult:
+    if not run_results:
+        return InferenceResult(
+            success=False,
+            answer="",
+            total_cost=total_cost,
+            total_tokens=total_tokens,
+            trajectory=None,
+            error_message="No runs executed",
+        )
+
+    candidates = [r for r in run_results if r.success and r.answer]
+    if not candidates:
+        candidates = [r for r in run_results if r.answer] or run_results
+
+    answers = [r.answer for r in candidates if r.answer]
+    final_answer = answers[0] if answers else ""
+    agreement = 1.0
+    winning = candidates[0]
+
+    if answers:
+        counts = Counter(answers)
+        max_count = max(counts.values())
+        winners = {a for a, c in counts.items() if c == max_count}
+        final_answer = next(a for a in answers if a in winners)
+        agreement = counts[final_answer] / len(answers)
+        winning = next(r for r in candidates if r.answer == final_answer)
+
+    return InferenceResult(
+        success=winning.success,
+        answer=final_answer,
+        total_cost=total_cost,
+        total_tokens=total_tokens,
+        trajectory=winning.trajectory,
+        error_message=winning.error_message,
+        runs_answers=answers,
+        agreement=agreement,
+    )

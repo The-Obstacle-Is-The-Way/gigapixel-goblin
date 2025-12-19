@@ -247,3 +247,44 @@ class TestCreateTrajectoryHtml:
             )
 
         assert output_path.exists()
+
+    def test_handles_model_dump_trajectory_shape(self, tmp_path: Path) -> None:
+        traj = {
+            "wsi_path": "/path/to/slide.svs",
+            "question": "What is this?",
+            "final_answer": "Cancer",
+            "total_cost": 1.23,
+            "success": True,
+            "turns": [
+                {
+                    "step_index": 0,
+                    "image_base64": "abc==",
+                    "response": {
+                        "reasoning": "Zooming for detail",
+                        "action": {
+                            "action_type": "crop",
+                            "x": 10,
+                            "y": 20,
+                            "width": 30,
+                            "height": 40,
+                        },
+                    },
+                    "region": {"x": 10, "y": 20, "width": 30, "height": 40},
+                }
+            ],
+        }
+        traj_path = tmp_path / "model_dump.json"
+        traj_path.write_text(json.dumps(traj))
+        output_path = tmp_path / "out.html"
+
+        with patch("giant.cli.visualizer.webbrowser.open"):
+            create_trajectory_html(
+                trajectory_path=traj_path,
+                output_path=output_path,
+                open_browser=False,
+            )
+
+        html = output_path.read_text()
+        assert "Cancer" in html
+        assert "Zooming for detail" in html
+        assert "crop" in html

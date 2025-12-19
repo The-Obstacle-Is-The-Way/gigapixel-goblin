@@ -83,6 +83,8 @@ class TestRunCommand:
                 success=True,
                 answer="Test answer",
                 total_cost=0.01,
+                agreement=1.0,
+                runs_answers=["Test answer"],
                 trajectory=MagicMock(turns=[]),
             )
             result = runner.invoke(
@@ -97,10 +99,10 @@ class TestRunCommand:
                 ],
             )
             # Should call with thumbnail mode
-            if result.exit_code == 0:
-                mock_run.assert_called_once()
-                call_kwargs = mock_run.call_args[1]
-                assert call_kwargs.get("mode") == Mode.thumbnail
+            assert result.exit_code == 0, result.stdout
+            mock_run.assert_called_once()
+            call_kwargs = mock_run.call_args[1]
+            assert call_kwargs.get("mode") == Mode.thumbnail
 
     def test_run_accepts_provider_flag(self, tmp_path: Path) -> None:
         wsi = tmp_path / "test.svs"
@@ -111,6 +113,8 @@ class TestRunCommand:
                 success=True,
                 answer="Test",
                 total_cost=0.01,
+                agreement=1.0,
+                runs_answers=["Test"],
                 trajectory=MagicMock(turns=[]),
             )
             result = runner.invoke(
@@ -124,10 +128,10 @@ class TestRunCommand:
                     "anthropic",
                 ],
             )
-            if result.exit_code == 0:
-                mock_run.assert_called_once()
-                call_kwargs = mock_run.call_args[1]
-                assert call_kwargs.get("provider") == Provider.anthropic
+            assert result.exit_code == 0, result.stdout
+            mock_run.assert_called_once()
+            call_kwargs = mock_run.call_args[1]
+            assert call_kwargs.get("provider") == Provider.anthropic
 
     def test_run_accepts_runs_flag(self, tmp_path: Path) -> None:
         wsi = tmp_path / "test.svs"
@@ -138,16 +142,18 @@ class TestRunCommand:
                 success=True,
                 answer="Test",
                 total_cost=0.01,
+                agreement=1.0,
+                runs_answers=["Test"],
                 trajectory=MagicMock(turns=[]),
             )
             result = runner.invoke(
                 app,
                 ["run", str(wsi), "-q", "What?", "--runs", "5"],
             )
-            if result.exit_code == 0:
-                mock_run.assert_called_once()
-                call_kwargs = mock_run.call_args[1]
-                assert call_kwargs.get("runs") == 5
+            assert result.exit_code == 0, result.stdout
+            mock_run.assert_called_once()
+            call_kwargs = mock_run.call_args[1]
+            assert call_kwargs.get("runs") == 5
 
     def test_run_accepts_budget_flag(self, tmp_path: Path) -> None:
         wsi = tmp_path / "test.svs"
@@ -158,16 +164,18 @@ class TestRunCommand:
                 success=True,
                 answer="Test",
                 total_cost=0.01,
+                agreement=1.0,
+                runs_answers=["Test"],
                 trajectory=MagicMock(turns=[]),
             )
             result = runner.invoke(
                 app,
                 ["run", str(wsi), "-q", "What?", "--budget-usd", "5.0"],
             )
-            if result.exit_code == 0:
-                mock_run.assert_called_once()
-                call_kwargs = mock_run.call_args[1]
-                assert call_kwargs.get("budget_usd") == 5.0
+            assert result.exit_code == 0, result.stdout
+            mock_run.assert_called_once()
+            call_kwargs = mock_run.call_args[1]
+            assert call_kwargs.get("budget_usd") == 5.0
 
     def test_run_json_output(self, tmp_path: Path) -> None:
         wsi = tmp_path / "test.svs"
@@ -178,16 +186,18 @@ class TestRunCommand:
                 success=True,
                 answer="Cancer diagnosis",
                 total_cost=0.50,
-                trajectory=MagicMock(turns=[], to_dict=lambda: {"turns": []}),
+                agreement=1.0,
+                runs_answers=["Cancer diagnosis"],
+                trajectory=MagicMock(turns=[]),
             )
             result = runner.invoke(
                 app,
                 ["run", str(wsi), "-q", "What?", "--json"],
             )
-            if result.exit_code == 0:
-                data = json.loads(result.stdout)
-                assert "answer" in data
-                assert "cost" in data or "total_cost" in data
+            assert result.exit_code == 0, result.stdout
+            data = json.loads(result.stdout)
+            assert "answer" in data
+            assert "cost" in data or "total_cost" in data
 
     def test_run_saves_trajectory(self, tmp_path: Path) -> None:
         wsi = tmp_path / "test.svs"
@@ -195,20 +205,20 @@ class TestRunCommand:
         output = tmp_path / "trajectory.json"
 
         with patch("giant.cli.runners.run_single_inference") as mock_run:
-            mock_trajectory = MagicMock()
-            mock_trajectory.to_dict.return_value = {"turns": []}
             mock_run.return_value = MagicMock(
                 success=True,
                 answer="Test",
                 total_cost=0.01,
-                trajectory=mock_trajectory,
+                agreement=1.0,
+                runs_answers=["Test"],
+                trajectory=MagicMock(turns=[]),
             )
             result = runner.invoke(
                 app,
                 ["run", str(wsi), "-q", "What?", "--output", str(output)],
             )
-            if result.exit_code == 0:
-                assert output.exists()
+            assert result.exit_code == 0, result.stdout
+            assert output.exists()
 
 
 # =============================================================================
@@ -235,7 +245,12 @@ class TestBenchmarkCommand:
 
         with patch("giant.cli.runners.run_benchmark") as mock_bench:
             mock_bench.return_value = MagicMock(
-                metrics={"accuracy": 0.5}, total_cost=1.0
+                metrics={"accuracy": 0.5},
+                total_cost=1.0,
+                n_items=1,
+                n_errors=0,
+                run_id="tcga_giant_openai_gpt-5.2",
+                results_path=tmp_path / "results.json",
             )
             result = runner.invoke(
                 app,
@@ -249,8 +264,8 @@ class TestBenchmarkCommand:
                 ],
             )
             # Verify command parses
-            if result.exit_code == 0:
-                mock_bench.assert_called_once()
+            assert result.exit_code == 0, result.stdout
+            mock_bench.assert_called_once()
 
     def test_benchmark_accepts_mode_flag(self, tmp_path: Path) -> None:
         data_dir = tmp_path / "data"
@@ -261,7 +276,14 @@ class TestBenchmarkCommand:
         )
 
         with patch("giant.cli.runners.run_benchmark") as mock_bench:
-            mock_bench.return_value = MagicMock(metrics={}, total_cost=0.0)
+            mock_bench.return_value = MagicMock(
+                metrics={},
+                total_cost=0.0,
+                n_items=0,
+                n_errors=0,
+                run_id="tcga_patch_openai_gpt-5.2",
+                results_path=tmp_path / "results.json",
+            )
             result = runner.invoke(
                 app,
                 [
@@ -275,16 +297,23 @@ class TestBenchmarkCommand:
                     "patch",
                 ],
             )
-            if result.exit_code == 0:
-                call_kwargs = mock_bench.call_args[1]
-                assert call_kwargs.get("mode") == Mode.patch
+            assert result.exit_code == 0, result.stdout
+            call_kwargs = mock_bench.call_args[1]
+            assert call_kwargs.get("mode") == Mode.patch
 
     def test_benchmark_accepts_concurrency_flag(self, tmp_path: Path) -> None:
         csv_path = tmp_path / "MultiPathQA.csv"
         csv_path.write_text("benchmark_name,question_id\n")
 
         with patch("giant.cli.runners.run_benchmark") as mock_bench:
-            mock_bench.return_value = MagicMock(metrics={}, total_cost=0.0)
+            mock_bench.return_value = MagicMock(
+                metrics={},
+                total_cost=0.0,
+                n_items=0,
+                n_errors=0,
+                run_id="tcga_giant_openai_gpt-5.2",
+                results_path=tmp_path / "results.json",
+            )
             result = runner.invoke(
                 app,
                 [
@@ -298,16 +327,23 @@ class TestBenchmarkCommand:
                     "8",
                 ],
             )
-            if result.exit_code == 0:
-                call_kwargs = mock_bench.call_args[1]
-                assert call_kwargs.get("concurrency") == 8
+            assert result.exit_code == 0, result.stdout
+            call_kwargs = mock_bench.call_args[1]
+            assert call_kwargs.get("concurrency") == 8
 
     def test_benchmark_resume_flag(self, tmp_path: Path) -> None:
         csv_path = tmp_path / "MultiPathQA.csv"
         csv_path.write_text("benchmark_name,question_id\n")
 
         with patch("giant.cli.runners.run_benchmark") as mock_bench:
-            mock_bench.return_value = MagicMock(metrics={}, total_cost=0.0)
+            mock_bench.return_value = MagicMock(
+                metrics={},
+                total_cost=0.0,
+                n_items=0,
+                n_errors=0,
+                run_id="tcga_giant_openai_gpt-5.2",
+                results_path=tmp_path / "results.json",
+            )
             result = runner.invoke(
                 app,
                 [
@@ -320,9 +356,9 @@ class TestBenchmarkCommand:
                     "--no-resume",
                 ],
             )
-            if result.exit_code == 0:
-                call_kwargs = mock_bench.call_args[1]
-                assert call_kwargs.get("resume") is False
+            assert result.exit_code == 0, result.stdout
+            call_kwargs = mock_bench.call_args[1]
+            assert call_kwargs.get("resume") is False
 
 
 # =============================================================================
@@ -334,28 +370,23 @@ class TestDownloadCommand:
     """Tests for `giant download`."""
 
     def test_download_default_dataset(self, tmp_path: Path) -> None:
-        with patch("giant.cli.runners.download_multipathqa") as mock_dl:
-            mock_dl.return_value = True
+        with patch("giant.cli.runners.download_dataset") as mock_dl:
+            mock_dl.return_value = {"dataset": "multipathqa", "path": str(tmp_path)}
             result = runner.invoke(
                 app,
                 ["download", "--output-dir", str(tmp_path)],
             )
-            if result.exit_code == 0:
-                mock_dl.assert_called_once()
-                call_args = mock_dl.call_args[1]
-                assert call_args.get("dataset") == "multipathqa"
+            assert result.exit_code == 0, result.stdout
+            mock_dl.assert_called_once()
+            call_args = mock_dl.call_args[1]
+            assert call_args.get("dataset") == "multipathqa"
 
     def test_download_specific_dataset(self, tmp_path: Path) -> None:
-        with patch("giant.cli.runners.download_multipathqa") as mock_dl:
-            mock_dl.return_value = True
-            result = runner.invoke(
-                app,
-                ["download", "tcga", "--output-dir", str(tmp_path)],
-            )
-            if result.exit_code == 0:
-                mock_dl.assert_called_once()
-                call_args = mock_dl.call_args[1]
-                assert call_args.get("dataset") == "tcga"
+        result = runner.invoke(
+            app,
+            ["download", "tcga", "--output-dir", str(tmp_path)],
+        )
+        assert result.exit_code != 0
 
 
 # =============================================================================
@@ -407,8 +438,8 @@ class TestVisualizeCommand:
                     "--no-open",
                 ],
             )
-            if result.exit_code == 0:
-                mock_viz.assert_called_once()
+            assert result.exit_code == 0, result.stdout
+            mock_viz.assert_called_once()
 
 
 # =============================================================================
@@ -435,8 +466,7 @@ class TestVerbosityFlags:
                 app,
                 ["run", str(wsi), "-q", "What?", "-v"],
             )
-            # Should not fail due to unknown flag
-            assert "-v" not in result.stdout or result.exit_code == 0
+            assert result.exit_code == 0, result.stdout
 
     def test_double_verbose_flag(self, tmp_path: Path) -> None:
         wsi = tmp_path / "test.svs"
@@ -453,7 +483,7 @@ class TestVerbosityFlags:
                 app,
                 ["run", str(wsi), "-q", "What?", "-vv"],
             )
-            assert "-vv" not in result.stdout or result.exit_code == 0
+            assert result.exit_code == 0, result.stdout
 
 
 # =============================================================================

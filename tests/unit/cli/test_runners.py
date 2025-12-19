@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from giant.cli.runners import (
     BenchmarkResult,
     InferenceResult,
-    download_multipathqa,
+    download_dataset,
     run_single_inference,
 )
 
@@ -27,6 +27,7 @@ class TestInferenceResult:
         assert result.success is True
         assert result.answer == "Cancer"
         assert result.total_cost == 0.50
+        assert result.total_tokens == 0
         assert result.trajectory is None
         assert result.error_message is None
         assert result.runs_answers == []
@@ -49,23 +50,18 @@ class TestInferenceResult:
 class TestBenchmarkResult:
     """Tests for BenchmarkResult dataclass."""
 
-    def test_default_values(self) -> None:
+    def test_fields(self, tmp_path: Path) -> None:
         result = BenchmarkResult(
+            run_id="run-001",
+            results_path=tmp_path / "results.json",
             metrics={"accuracy": 0.5},
             total_cost=10.0,
+            n_items=0,
+            n_errors=0,
         )
+        assert result.run_id == "run-001"
         assert result.n_items == 0
         assert result.n_errors == 0
-
-    def test_with_counts(self) -> None:
-        result = BenchmarkResult(
-            metrics={"balanced_accuracy": 0.32},
-            total_cost=50.0,
-            n_items=100,
-            n_errors=5,
-        )
-        assert result.n_items == 100
-        assert result.n_errors == 5
 
 
 class TestRunSingleInference:
@@ -82,22 +78,27 @@ class TestRunSingleInference:
 
         with (
             patch("giant.llm.create_provider") as mock_provider,
-            patch("giant.agent.GIANTAgent"),
-            patch("giant.cli.runners.asyncio.run") as mock_run,
+            patch("giant.agent.GIANTAgent") as mock_agent_cls,
         ):
-            mock_result = MagicMock()
-            mock_result.success = True
-            mock_result.answer = "Test answer"
-            mock_result.total_cost = 0.10
-            mock_result.trajectory = MagicMock(turns=[])
-            mock_run.return_value = mock_result
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(
+                return_value=MagicMock(
+                    success=True,
+                    answer="Test answer",
+                    total_cost=0.10,
+                    total_tokens=123,
+                    error_message=None,
+                    trajectory=MagicMock(turns=[]),
+                )
+            )
+            mock_agent_cls.return_value = mock_agent
 
             result = run_single_inference(
                 wsi_path=mock_wsi,
                 question="What is this?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-sonnet-4-20250514",
+                model="claude-opus-4-5-20251101",
                 max_steps=5,
                 runs=1,
                 budget_usd=0,
@@ -113,38 +114,45 @@ class TestRunSingleInference:
 
         with (
             patch("giant.llm.create_provider"),
-            patch("giant.agent.GIANTAgent"),
-            patch("giant.cli.runners.asyncio.run") as mock_run,
+            patch("giant.agent.GIANTAgent") as mock_agent_cls,
         ):
-            # Simulate 3 runs with 2 agreeing answers
-            mock_results = [
-                MagicMock(
-                    success=True,
-                    answer="Cancer",
-                    total_cost=0.10,
-                    trajectory=MagicMock(turns=[]),
-                ),
-                MagicMock(
-                    success=True,
-                    answer="Normal",
-                    total_cost=0.10,
-                    trajectory=MagicMock(turns=[]),
-                ),
-                MagicMock(
-                    success=True,
-                    answer="Cancer",
-                    total_cost=0.10,
-                    trajectory=MagicMock(turns=[]),
-                ),
-            ]
-            mock_run.side_effect = mock_results
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(
+                side_effect=[
+                    MagicMock(
+                        success=True,
+                        answer="Cancer",
+                        total_cost=0.10,
+                        total_tokens=10,
+                        error_message=None,
+                        trajectory=MagicMock(turns=[]),
+                    ),
+                    MagicMock(
+                        success=True,
+                        answer="Normal",
+                        total_cost=0.10,
+                        total_tokens=10,
+                        error_message=None,
+                        trajectory=MagicMock(turns=[]),
+                    ),
+                    MagicMock(
+                        success=True,
+                        answer="Cancer",
+                        total_cost=0.10,
+                        total_tokens=10,
+                        error_message=None,
+                        trajectory=MagicMock(turns=[]),
+                    ),
+                ]
+            )
+            mock_agent_cls.return_value = mock_agent
 
             result = run_single_inference(
                 wsi_path=mock_wsi,
                 question="What?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-sonnet-4-20250514",
+                model="claude-opus-4-5-20251101",
                 max_steps=5,
                 runs=3,
                 budget_usd=0,
@@ -161,23 +169,27 @@ class TestRunSingleInference:
 
         with (
             patch("giant.llm.create_provider"),
-            patch("giant.agent.GIANTAgent"),
-            patch("giant.cli.runners.asyncio.run") as mock_run,
+            patch("giant.agent.GIANTAgent") as mock_agent_cls,
         ):
-            mock_result = MagicMock(
-                success=True,
-                answer="Test",
-                total_cost=0.50,
-                trajectory=MagicMock(turns=[]),
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(
+                return_value=MagicMock(
+                    success=True,
+                    answer="Test",
+                    total_cost=0.50,
+                    total_tokens=10,
+                    error_message=None,
+                    trajectory=MagicMock(turns=[]),
+                )
             )
-            mock_run.return_value = mock_result
+            mock_agent_cls.return_value = mock_agent
 
             result = run_single_inference(
                 wsi_path=mock_wsi,
                 question="What?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-sonnet-4-20250514",
+                model="claude-opus-4-5-20251101",
                 max_steps=5,
                 runs=10,  # Request 10 runs
                 budget_usd=1.0,  # But budget is only $1
@@ -186,48 +198,34 @@ class TestRunSingleInference:
 
             # Should stop after 2 runs ($1.00 total)
             assert result.total_cost <= 1.0
-            assert mock_run.call_count <= 2
+            assert mock_agent.run.call_count <= 2
 
 
-class TestDownloadMultipathqa:
-    """Tests for download_multipathqa function."""
+class TestDownloadDataset:
+    """Tests for download_dataset function."""
 
-    def test_creates_output_directory(self, tmp_path: Path) -> None:
-        output_dir = tmp_path / "new_dir"
-
-        with patch("giant.cli.runners.httpx.Client") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.__enter__ = MagicMock(return_value=mock_client)
-            mock_client.__exit__ = MagicMock(return_value=False)
-            mock_response = MagicMock()
-            mock_response.content = b"benchmark_name,question_id\ntcga,1\n"
-            mock_client.get.return_value = mock_response
-            mock_client_class.return_value = mock_client
-
-            success = download_multipathqa(
-                dataset="multipathqa",
-                output_dir=output_dir,
-                verbose=0,
-            )
-
-            assert success is True
-            assert output_dir.exists()
-            assert (output_dir / "multipathqa" / "MultiPathQA.csv").exists()
-
-    def test_handles_http_error(self, tmp_path: Path) -> None:
-        import httpx
-
-        with patch("giant.cli.runners.httpx.Client") as mock_client_class:
-            mock_client = MagicMock()
-            mock_client.__enter__ = MagicMock(return_value=mock_client)
-            mock_client.__exit__ = MagicMock(return_value=False)
-            mock_client.get.side_effect = httpx.HTTPError("Connection failed")
-            mock_client_class.return_value = mock_client
-
-            success = download_multipathqa(
+    def test_downloads_multipathqa_metadata(self, tmp_path: Path) -> None:
+        expected_path = tmp_path / "multipathqa" / "MultiPathQA.csv"
+        with patch(
+            "giant.data.download.download_multipathqa_metadata",
+            return_value=expected_path,
+        ) as mock_dl:
+            result = download_dataset(
                 dataset="multipathqa",
                 output_dir=tmp_path,
+                force=False,
                 verbose=0,
             )
 
-            assert success is False
+        assert result["dataset"] == "multipathqa"
+        assert result["path"] == str(expected_path)
+        mock_dl.assert_called_once_with(tmp_path / "multipathqa", force=False)
+
+    def test_rejects_unknown_dataset(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="Unknown dataset"):
+            download_dataset(
+                dataset="tcga",
+                output_dir=tmp_path,
+                force=False,
+                verbose=0,
+            )
