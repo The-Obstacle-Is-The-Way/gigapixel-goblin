@@ -71,8 +71,8 @@ Navigation Budget: Step {step} of {max_steps}. You have at most {remaining_crops
 Instructions:
 - Analyze the global tissue architecture in this thumbnail.
 - Identify candidate regions (ROIs) that require higher magnification.
-- Steps 1 to {max_steps_minus_one}: Explore using crop actions.
-- Step {max_steps}: You MUST provide your final answer."""
+- Use your remaining {remaining_crops} crops to explore regions of interest.
+- On your final step, you MUST provide your answer."""
 
 # Subsequent user prompt (Steps 2 to max_steps-1)
 # Paper evidence: Algorithm 1 shows context accumulation across steps

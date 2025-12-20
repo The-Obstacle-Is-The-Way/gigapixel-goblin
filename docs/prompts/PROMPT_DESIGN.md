@@ -27,14 +27,14 @@
 ### 1. Crop Budget
 
 **Evidence (Algorithm 1, line 156):**
-```
+```text
 P0 = {q, nav instructions + "at most T-1 crops"};
 ```
 
 The initial prompt must tell the model how many crops it can make.
 
 **Implementation:**
-```
+```text
 You have at most {max_steps - 1} crops to explore before providing your final answer.
 ```
 
@@ -49,7 +49,7 @@ The model must understand:
 - All bounding boxes use this system
 
 **Implementation:**
-```
+```text
 The image has AXIS GUIDES overlaid - red lines labeled with ABSOLUTE LEVEL-0 PIXEL COORDINATES.
 All coordinates you output must use this Level-0 system (the slide's native resolution).
 ```
@@ -57,7 +57,7 @@ All coordinates you output must use this Level-0 system (the slide's native reso
 ### 3. Bounding Box Output Format
 
 **Evidence (Algorithm 1, line 159):**
-```
+```text
 (rt, at) ← LMM(C) ; // at = (x, y, w, h)
 ```
 
@@ -92,7 +92,7 @@ See: `src/giant/llm/protocol.py` (`StepResponse`, `BoundingBoxAction`, `FinalAns
 The prompt must explicitly require the model to answer on the final step.
 
 **Implementation:**
-```
+```text
 On step {max_steps}, you MUST provide your final answer using the `answer` action.
 ```
 
@@ -112,7 +112,7 @@ This repo represents this contract with two action modes:
 - `answer(text)`: Terminate navigation and provide the final answer.
 
 **Implementation:**
-```
+```text
 Your available actions:
 1. crop(x, y, width, height) - Zoom into a region for more detail
 2. answer(text) - Provide your final answer to the question
@@ -129,7 +129,7 @@ These are not explicitly stated but are strongly implied by the paper's methodol
 The paper tests on pathology slides. The model should know it's analyzing tissue.
 
 **Implementation:**
-```
+```text
 You are analyzing a Whole Slide Image (WSI) - a gigapixel pathology slide.
 ```
 
@@ -140,7 +140,7 @@ Figure 4 shows the agent receives different image types:
 - After crop: Higher-resolution region
 
 **Implementation:**
-```
+```text
 The initial view is a low-resolution thumbnail. Cellular details require zooming in.
 ```
 
@@ -149,7 +149,7 @@ The initial view is a low-resolution thumbnail. Cellular details require zooming
 Algorithm 1 shows a loop: observe → reason → act → observe...
 
 **Implementation:**
-```
+```text
 At each step:
 1. Analyze the current image
 2. Explain your reasoning
@@ -163,7 +163,9 @@ At each step:
 > **Note**: This section contains enhancements derived from Dec 2025 literature review.
 > These are NOT from the GIANT paper and can be removed for strict paper reproduction.
 
-*Derived from literature search: "whole slide image LLM prompting 2025", "GPT-4V medical image navigation"*
+#### Literature Sources
+
+Derived from literature search: "whole slide image LLM prompting 2025", "GPT-4V medical image navigation"
 
 1. **Anatomical Precision & Domain Vocabulary**
    - Insight: Generic "describe the image" prompts perform poorly.
