@@ -112,7 +112,7 @@ may still be needed if the new default model has different costs).
 | 17 files to change | ~4 files to change |
 | Hardcoded strings everywhere | Single import from registry |
 | Easy to miss a file | Impossible to have inconsistency |
-| Tests break if constant missed | Tests use fixtures automatically |
+| Tests break if constant missed | Tests import registry defaults/constants |
 
 ## Priority Justification
 
