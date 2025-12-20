@@ -100,7 +100,7 @@ class TestOpenAIProviderInit:
     def test_init_with_invalid_model_raises(self, test_settings: Settings) -> None:
         """Test initialization rejects non-OpenAI approved models."""
         with pytest.raises(ValueError):
-            OpenAIProvider(model="claude-opus-4-5-20251101", settings=test_settings)
+            OpenAIProvider(model="claude-sonnet-4-5-20250929", settings=test_settings)
 
     def test_get_target_size(self, test_settings: Settings) -> None:
         """Test target size from settings."""

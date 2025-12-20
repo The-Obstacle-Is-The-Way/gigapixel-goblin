@@ -142,7 +142,7 @@ def _mock_anthropic_crop_response() -> dict[str, Any]:
                 },
             }
         ],
-        "model": "claude-opus-4-5-20251101",
+        "model": "claude-sonnet-4-5-20250929",
         "stop_reason": "tool_use",
         "usage": {
             "input_tokens": 120,

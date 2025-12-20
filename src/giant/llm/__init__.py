@@ -82,7 +82,7 @@ def create_provider(
         provider: Provider name ("openai" or "anthropic").
         model: Optional model override. If not specified, uses provider defaults:
             - OpenAI: "gpt-5.2"
-            - Anthropic: "claude-opus-4-5-20251101"
+            - Anthropic: "claude-sonnet-4-5-20250929"
 
     Returns:
         An LLMProvider instance.
@@ -101,7 +101,7 @@ def create_provider(
         validate_model_id(chosen_model, provider="openai")
         return OpenAIProvider(model=chosen_model)
     elif provider == "anthropic":
-        chosen_model = model or "claude-opus-4-5-20251101"
+        chosen_model = model or "claude-sonnet-4-5-20250929"
         validate_model_id(chosen_model, provider="anthropic")
         return AnthropicProvider(model=chosen_model)
     else:

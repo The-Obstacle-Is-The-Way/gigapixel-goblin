@@ -607,7 +607,7 @@ def _mock_anthropic_crop_response() -> dict[str, Any]:
                 },
             }
         ],
-        "model": "claude-opus-4-5-20251101",
+        "model": "claude-sonnet-4-5-20250929",
         "stop_reason": "tool_use",
         "usage": {
             "input_tokens": 120,
@@ -636,7 +636,7 @@ def _mock_anthropic_answer_response() -> dict[str, Any]:
                 },
             }
         ],
-        "model": "claude-opus-4-5-20251101",
+        "model": "claude-sonnet-4-5-20250929",
         "stop_reason": "tool_use",
         "usage": {
             "input_tokens": 180,
@@ -691,10 +691,10 @@ class TestP0_2_AnthropicProviderInit:
     ) -> None:
         """Test that Anthropic provider initializes without error."""
         provider = AnthropicProvider(
-            model="claude-opus-4-5-20251101",
+            model="claude-sonnet-4-5-20250929",
             settings=mock_anthropic_settings,
         )
-        assert provider.get_model_name() == "claude-opus-4-5-20251101"
+        assert provider.get_model_name() == "claude-sonnet-4-5-20250929"
         assert provider.get_target_size() == 500
 
     def test_anthropic_provider_via_factory_requires_real_env(self) -> None:

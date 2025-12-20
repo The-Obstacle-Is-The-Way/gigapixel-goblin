@@ -118,7 +118,7 @@ class AnthropicProvider:
         response = await provider.generate_response(messages)
     """
 
-    model: str = "claude-opus-4-5-20251101"
+    model: str = "claude-sonnet-4-5-20250929"
     settings: Settings = field(default_factory=lambda: settings)
 
     # Internal state

@@ -47,13 +47,13 @@ Breakdown:
 |---------------|--------|---------|
 | Mock tests (P0-P2) | 61/61 PASS | All providers mocked |
 | OpenAI Live API | PASS | gpt-5.2 |
-| Anthropic Live API | PASS | claude-opus-4-5-20251101 |
+| Anthropic Live API | PASS | claude-sonnet-4-5-20250929 |
 
 ### Full E2E Agent Loop
 
 | Provider | WSI | Question | Ground Truth | Answer | Match | Tokens | Cost |
 |----------|-----|----------|--------------|--------|-------|--------|------|
-| Anthropic (claude-opus-4-5-20251101) | TCGA-06-0875-01Z-00-DX1 | Cancer Diagnosis | 1 | 1 | CORRECT | 10,761 | $1.83 |
+| Anthropic (claude-sonnet-4-5-20250929) | TCGA-06-0875-01Z-00-DX1 | Cancer Diagnosis | 1 | 1 | CORRECT | 10,761 | $1.83 |
 | OpenAI (gpt-5.2) | TCGA-06-0875-01Z-00-DX2 | Cancer Diagnosis | 1 | 1 | CORRECT | 9,208 | $0.04 |
 
 **Key Finding:** OpenAI is ~50x cheaper per run than Anthropic.
@@ -79,14 +79,14 @@ For 53 available questions (max_steps=3):
 | Provider | Est. Cost | Est. Time |
 |----------|-----------|-----------|
 | OpenAI (gpt-5.2) | ~$2.12 | ~30 min |
-| Anthropic (claude-opus-4-5-20251101) | ~$97 | ~30 min |
+| Anthropic (claude-sonnet-4-5-20250929) | ~$97 | ~30 min |
 
 For full MultiPathQA (934 questions, max_steps=20):
 
 | Provider | Est. Cost | Est. Time |
 |----------|-----------|-----------|
 | OpenAI (gpt-5.2) | ~$700 | ~8 hours |
-| Anthropic (claude-opus-4-5-20251101) | ~$34,000 | ~8 hours |
+| Anthropic (claude-sonnet-4-5-20250929) | ~$34,000 | ~8 hours |
 
 **Recommendation:** Use OpenAI for bulk benchmark runs.
 

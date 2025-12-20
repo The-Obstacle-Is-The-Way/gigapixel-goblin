@@ -25,7 +25,7 @@ class TestModelConstants:
 
     def test_anthropic_models(self) -> None:
         """Test Anthropic approved models."""
-        assert ANTHROPIC_MODELS == frozenset({"claude-opus-4-5-20251101"})
+        assert ANTHROPIC_MODELS == frozenset({"claude-sonnet-4-5-20250929"})
 
     def test_google_models(self) -> None:
         """Test Google approved models."""
@@ -68,7 +68,7 @@ class TestValidateModelId:
 
     def test_validate_claude_opus(self) -> None:
         """Test Claude Opus 4.5 is valid."""
-        validate_model_id("claude-opus-4-5-20251101")  # Should not raise
+        validate_model_id("claude-sonnet-4-5-20250929")  # Should not raise
 
     def test_validate_gemini(self) -> None:
         """Test Gemini 3.0 Pro is valid."""
@@ -108,7 +108,7 @@ class TestValidateModelIdWithProvider:
 
     def test_claude_valid_for_anthropic(self) -> None:
         """Test Claude is valid for Anthropic provider."""
-        validate_model_id("claude-opus-4-5-20251101", provider="anthropic")
+        validate_model_id("claude-sonnet-4-5-20250929", provider="anthropic")
 
     def test_gemini_valid_for_google(self) -> None:
         """Test Gemini is valid for Google provider."""
@@ -117,7 +117,7 @@ class TestValidateModelIdWithProvider:
     def test_reject_claude_for_openai(self) -> None:
         """Test Claude model rejected for OpenAI provider."""
         with pytest.raises(ValueError) as exc_info:
-            validate_model_id("claude-opus-4-5-20251101", provider="openai")
+            validate_model_id("claude-sonnet-4-5-20250929", provider="openai")
         assert "not approved" in str(exc_info.value)
         assert "openai" in str(exc_info.value)
 

@@ -38,7 +38,7 @@ LOG_LEVEL=INFO
 | Provider | In Model Registry | In Config | Provider Client |
 |----------|-------------------|-----------|-----------------|
 | OpenAI | `gpt-5.2` | `OPENAI_API_KEY` | `openai_client.py` |
-| Anthropic | `claude-opus-4-5-20251101` | `ANTHROPIC_API_KEY` | `anthropic_client.py` |
+| Anthropic | `claude-sonnet-4-5-20250929` | `ANTHROPIC_API_KEY` | `anthropic_client.py` |
 | Google | `gemini-3-pro-preview` | **MISSING** | **MISSING** |
 
 **Issue:** Google/Gemini models are in `model_registry.py` and `pricing.py` but:

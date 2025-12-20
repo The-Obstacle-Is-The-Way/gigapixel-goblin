@@ -98,7 +98,7 @@ class TestRunSingleInference:
                 question="What is this?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-opus-4-5-20251101",
+                model="claude-sonnet-4-5-20250929",
                 max_steps=5,
                 runs=1,
                 budget_usd=0,
@@ -152,7 +152,7 @@ class TestRunSingleInference:
                 question="What?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-opus-4-5-20251101",
+                model="claude-sonnet-4-5-20250929",
                 max_steps=5,
                 runs=3,
                 budget_usd=0,
@@ -189,7 +189,7 @@ class TestRunSingleInference:
                 question="What?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-opus-4-5-20251101",
+                model="claude-sonnet-4-5-20250929",
                 max_steps=5,
                 runs=10,  # Request 10 runs
                 budget_usd=1.0,  # But budget is only $1

@@ -15,7 +15,7 @@ OPENAI_MODELS: frozenset[str] = frozenset(
 
 ANTHROPIC_MODELS: frozenset[str] = frozenset(
     {
-        "claude-opus-4-5-20251101",
+        "claude-sonnet-4-5-20250929",
     }
 )
 
