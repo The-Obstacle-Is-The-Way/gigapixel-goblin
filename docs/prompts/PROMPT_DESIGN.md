@@ -4,6 +4,9 @@
 >
 > This document captures all prompt requirements extractable from the GIANT paper.
 > When the authors release official prompts, we will compare and update.
+>
+> **Enhancement Note**: Section "2025 Pathology VLM Best Practices" contains domain
+> enhancements beyond the paper. These are clearly marked and separable.
 
 ## Paper Evidence Summary
 
@@ -139,6 +142,40 @@ At each step:
 
 ---
 
+## 2025 Pathology VLM Best Practices (Domain Enhancement)
+
+> **Note**: This section contains enhancements derived from Dec 2025 literature review.
+> These are NOT from the GIANT paper and can be removed for strict paper reproduction.
+
+*Derived from literature search: "whole slide image LLM prompting 2025", "GPT-4V medical image navigation"*
+
+1. **Anatomical Precision & Domain Vocabulary**
+   - Insight: Generic "describe the image" prompts perform poorly.
+   - Action: Use specific pathology terms (e.g., "stroma", "nuclei", "architecture", "mitotic figures") in the system prompt to prime the model's vocabulary.
+
+2. **Hierarchical Observation (Multi-Scale)**
+   - Insight: Pathologists scan low-power (architecture) before high-power (cellular details).
+   - Action: Explicitly instruct the model to follow this "Architecture -> Cellular" observation flow.
+
+3. **Visual Anchoring**
+   - Insight: Models hallucinate less when forced to reference specific coordinates or visual markers.
+   - Action: Reinforce the "Axis Guides" instruction and ask the model to cite coordinates in its reasoning.
+
+4. **Role & Goal Specificity**
+   - Insight: "You are a pathologist" is good, but "You are a pathologist diagnosing cancer grade" is better.
+   - Action: Ensure the prompt adapts to the specific task type if known (e.g., QA vs Diagnosis).
+
+### Gap Analysis (Current Implementation)
+
+| Current State | Gap | Fix Applied |
+|---------------|-----|-------------|
+| Generic "Analyze image" | Lacks domain specificity | Added "Scan for architectural patterns, then cellular details" |
+| "Provide reasoning" | Unstructured thought process | Enforced "Observation -> Reasoning -> Action" structure |
+| "Low-res thumbnail" | Doesn't explain *why* zoom is needed | Explained "Low-res = Architecture only; High-res = Cellular" |
+| No coordinate citing | Hallucination risk | Ask model to "Reference coordinates in reasoning" |
+
+---
+
 ## What We Cannot Determine
 
 Without the Supplementary Material, we cannot verify:
@@ -162,6 +199,11 @@ Our templates implement all high-confidence requirements:
 - Final answer enforcement (MUST use answer on final step)
 - Two action types (crop, answer)
 
+Plus domain enhancements (can be toggled off for strict reproduction):
+- Hierarchical analysis workflow
+- Pathology-specific vocabulary
+- Coordinate referencing in reasoning
+
 ---
 
 ## Verification Plan
@@ -172,6 +214,7 @@ When Supplementary Material becomes available:
 2. Document any differences
 3. Update templates to match (or document intentional divergence)
 4. Add regression tests for paper-required invariants
+5. Decide whether to keep or remove domain enhancements
 
 ---
 
@@ -184,3 +227,4 @@ When Supplementary Material becomes available:
   - Baseline thumbnail size: line 183
 - Current implementation: `src/giant/prompts/templates.py`
 - Bug tracking: `docs/bugs/BUG-020-placeholder-prompts.md`
+- 2025 Literature: Web search "whole slide image LLM prompting 2025"

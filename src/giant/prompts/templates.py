@@ -34,12 +34,14 @@ ACTIONS:
 
 2. answer(text) - Provide your final answer to the question.
 
-PROCESS:
-1. Analyze the current image for tissue structures relevant to the question.
-2. Provide reasoning: what you observe and what it means.
-3. Choose an action:
-   - Need more detail? Use crop to zoom in.
-   - Have sufficient evidence? Use answer to respond.
+PROCESS (HIERARCHICAL ANALYSIS):
+1. OBSERVATION: Scan the image for pathological features.
+   - Low-Res (Thumbnail): Look for architectural patterns, tissue boundaries, staining intensity, and regions of interest (ROI).
+   - High-Res (Crop): Look for cellular details (nuclear atypia, mitoses), stromal reaction, and specific diagnostic features.
+2. REASONING: Synthesize findings. Reference specific Level-0 coordinates in your thought process to ground your observations.
+3. ACTION:
+   - If architectural context is interesting but blurry -> CROP to see cells.
+   - If cellular evidence confirms a diagnosis -> ANSWER.
 
 CONSTRAINTS:
 - You have a LIMITED number of crops. Use them strategically.
@@ -53,6 +55,8 @@ INITIAL_USER_PROMPT = """Question: {question}
 Navigation Budget: Step {step} of {max_steps}. You have at most {remaining_crops} crops remaining.
 
 Instructions:
+- Analyze the global tissue architecture in this thumbnail.
+- Identify candidate regions (ROIs) that require higher magnification.
 - Steps 1 to {max_steps_minus_one}: Explore using crop actions.
 - Step {max_steps}: You MUST provide your final answer."""
 
@@ -64,7 +68,10 @@ Previous Action: Cropped region {last_region}.
 
 Question: {question}
 
-Continue exploring or answer if you have sufficient evidence."""
+Instructions:
+- Analyze the new high-resolution details in this crop.
+- Confirm or refute your previous hypothesis based on cellular evidence.
+- Continue exploring or answer if you have sufficient evidence."""
 
 # Final step prompt
 # Paper evidence: Fig 5 caption line 200 - "enforce that the model provide its final response"
