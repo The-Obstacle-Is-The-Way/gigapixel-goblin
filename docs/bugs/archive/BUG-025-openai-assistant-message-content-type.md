@@ -18,7 +18,7 @@ This blocks all multi-step GIANT inference with OpenAI.
 
 ## Root Cause
 
-In `src/giant/llm/converters.py`, the `message_content_to_openai()` function used `"type": "input_text"` for **all** text content, regardless of the message role:
+Before the fix, in `src/giant/llm/converters.py`, `message_content_to_openai()` used `"type": "input_text"` for **all** text content, regardless of the message role:
 
 ```python
 def message_content_to_openai(content: MessageContent) -> dict[str, Any]:
@@ -42,7 +42,7 @@ return Message(
 )
 ```
 
-This assistant message gets converted via `message_to_openai()`:
+Before the fix, this assistant message gets converted via `message_to_openai()` without role-aware typing:
 
 ```python
 "content": [message_content_to_openai(c) for c in message.content],
@@ -66,7 +66,7 @@ giant run /path/to/any.svs -q "What tissue is this?" --provider openai
 
 ## Test Gap
 
-The existing test at `tests/unit/llm/test_converters.py:113-126` tests assistant messages but only verifies the role is preserved, not the content type:
+Before the fix, `TestMessagesToOpenaiInput.test_preserves_order` in `tests/unit/llm/test_converters.py` only verified roles were preserved, not assistant content types:
 
 ```python
 def test_preserves_order(self) -> None:
