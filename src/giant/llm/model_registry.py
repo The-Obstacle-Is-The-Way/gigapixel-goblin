@@ -7,21 +7,31 @@ models.
 
 from __future__ import annotations
 
+DEFAULT_OPENAI_MODEL: str = "gpt-5.2"
+DEFAULT_ANTHROPIC_MODEL: str = "claude-sonnet-4-5-20250929"
+DEFAULT_GOOGLE_MODEL: str = "gemini-3-pro-preview"
+
+DEFAULT_MODELS_BY_PROVIDER: dict[str, str] = {
+    "openai": DEFAULT_OPENAI_MODEL,
+    "anthropic": DEFAULT_ANTHROPIC_MODEL,
+    "google": DEFAULT_GOOGLE_MODEL,
+}
+
 OPENAI_MODELS: frozenset[str] = frozenset(
     {
-        "gpt-5.2",
+        DEFAULT_OPENAI_MODEL,
     }
 )
 
 ANTHROPIC_MODELS: frozenset[str] = frozenset(
     {
-        "claude-sonnet-4-5-20250929",
+        DEFAULT_ANTHROPIC_MODEL,
     }
 )
 
 GOOGLE_MODELS: frozenset[str] = frozenset(
     {
-        "gemini-3-pro-preview",
+        DEFAULT_GOOGLE_MODEL,
     }
 )
 
@@ -32,6 +42,21 @@ APPROVED_MODELS_BY_PROVIDER: dict[str, frozenset[str]] = {
     "anthropic": ANTHROPIC_MODELS,
     "google": GOOGLE_MODELS,
 }
+
+
+def get_default_model(provider: str) -> str:
+    """Return the default model id for a provider.
+
+    Raises:
+        ValueError: If provider is unknown.
+    """
+    try:
+        return DEFAULT_MODELS_BY_PROVIDER[provider]
+    except KeyError as e:
+        raise ValueError(
+            f"Unknown provider: {provider!r}. Supported providers: "
+            + ", ".join(sorted(DEFAULT_MODELS_BY_PROVIDER))
+        ) from e
 
 
 def validate_model_id(model: str, *, provider: str | None = None) -> None:

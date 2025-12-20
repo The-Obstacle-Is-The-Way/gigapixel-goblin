@@ -6,6 +6,9 @@ from giant.llm.model_registry import (
     ANTHROPIC_MODELS,
     APPROVED_MODELS,
     APPROVED_MODELS_BY_PROVIDER,
+    DEFAULT_ANTHROPIC_MODEL,
+    DEFAULT_GOOGLE_MODEL,
+    DEFAULT_OPENAI_MODEL,
     GOOGLE_MODELS,
     OPENAI_MODELS,
     validate_model_id,
@@ -21,15 +24,15 @@ class TestModelConstants:
 
     def test_openai_models(self) -> None:
         """Test OpenAI approved models."""
-        assert OPENAI_MODELS == frozenset({"gpt-5.2"})
+        assert OPENAI_MODELS == frozenset({DEFAULT_OPENAI_MODEL})
 
     def test_anthropic_models(self) -> None:
         """Test Anthropic approved models."""
-        assert ANTHROPIC_MODELS == frozenset({"claude-sonnet-4-5-20250929"})
+        assert ANTHROPIC_MODELS == frozenset({DEFAULT_ANTHROPIC_MODEL})
 
     def test_google_models(self) -> None:
         """Test Google approved models."""
-        assert GOOGLE_MODELS == frozenset({"gemini-3-pro-preview"})
+        assert GOOGLE_MODELS == frozenset({DEFAULT_GOOGLE_MODEL})
 
     def test_approved_models_is_union(self) -> None:
         """Test APPROVED_MODELS is the union of all provider models."""
@@ -63,16 +66,16 @@ class TestValidateModelId:
     """Tests for validate_model_id function."""
 
     def test_validate_gpt52(self) -> None:
-        """Test GPT-5.2 is valid."""
-        validate_model_id("gpt-5.2")  # Should not raise
+        """Test the default OpenAI model is valid."""
+        validate_model_id(DEFAULT_OPENAI_MODEL)  # Should not raise
 
-    def test_validate_claude_opus(self) -> None:
-        """Test Claude Opus 4.5 is valid."""
-        validate_model_id("claude-sonnet-4-5-20250929")  # Should not raise
+    def test_validate_claude_sonnet(self) -> None:
+        """Test the default Anthropic model is valid."""
+        validate_model_id(DEFAULT_ANTHROPIC_MODEL)  # Should not raise
 
     def test_validate_gemini(self) -> None:
-        """Test Gemini 3.0 Pro is valid."""
-        validate_model_id("gemini-3-pro-preview")  # Should not raise
+        """Test the default Google model is valid."""
+        validate_model_id(DEFAULT_GOOGLE_MODEL)  # Should not raise
 
     def test_reject_unknown_model(self) -> None:
         """Test unknown models are rejected."""
@@ -104,27 +107,27 @@ class TestValidateModelIdWithProvider:
 
     def test_gpt52_valid_for_openai(self) -> None:
         """Test GPT-5.2 is valid for OpenAI provider."""
-        validate_model_id("gpt-5.2", provider="openai")
+        validate_model_id(DEFAULT_OPENAI_MODEL, provider="openai")
 
     def test_claude_valid_for_anthropic(self) -> None:
         """Test Claude is valid for Anthropic provider."""
-        validate_model_id("claude-sonnet-4-5-20250929", provider="anthropic")
+        validate_model_id(DEFAULT_ANTHROPIC_MODEL, provider="anthropic")
 
     def test_gemini_valid_for_google(self) -> None:
         """Test Gemini is valid for Google provider."""
-        validate_model_id("gemini-3-pro-preview", provider="google")
+        validate_model_id(DEFAULT_GOOGLE_MODEL, provider="google")
 
     def test_reject_claude_for_openai(self) -> None:
         """Test Claude model rejected for OpenAI provider."""
         with pytest.raises(ValueError) as exc_info:
-            validate_model_id("claude-sonnet-4-5-20250929", provider="openai")
+            validate_model_id(DEFAULT_ANTHROPIC_MODEL, provider="openai")
         assert "not approved" in str(exc_info.value)
         assert "openai" in str(exc_info.value)
 
     def test_reject_gpt_for_anthropic(self) -> None:
         """Test GPT model rejected for Anthropic provider."""
         with pytest.raises(ValueError) as exc_info:
-            validate_model_id("gpt-5.2", provider="anthropic")
+            validate_model_id(DEFAULT_OPENAI_MODEL, provider="anthropic")
         assert "not approved" in str(exc_info.value)
         assert "anthropic" in str(exc_info.value)
 

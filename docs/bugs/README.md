@@ -19,6 +19,7 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-026 | Model ID configuration scattered across codebase | Fixed (defaults centralized in `src/giant/llm/model_registry.py`) |
 | BUG-025 | OpenAI Responses API rejects multi-turn conversations | Fixed (assistant messages use `output_text`) |
 | BUG-023 | Axis guide labels use “K” abbreviation | Fixed (K-notation removed, strict integers used) |
 | BUG-022 | MultiPathQA acquisition UX gaps | Fixed (`giant check-data` command added) |

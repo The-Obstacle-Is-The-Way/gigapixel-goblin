@@ -14,6 +14,7 @@ from giant.llm.anthropic_client import (
     _build_submit_step_tool,
     _parse_tool_use_to_step_response,
 )
+from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 from giant.llm.protocol import (
     BoundingBoxAction,
     FinalAnswerAction,
@@ -157,13 +158,13 @@ class TestAnthropicProviderInit:
     def test_init_with_default_model(self, test_settings: Settings) -> None:
         """Test initialization with default model."""
         provider = AnthropicProvider(settings=test_settings)
-        assert provider.model == "claude-sonnet-4-5-20250929"
-        assert provider.get_model_name() == "claude-sonnet-4-5-20250929"
+        assert provider.model == DEFAULT_ANTHROPIC_MODEL
+        assert provider.get_model_name() == DEFAULT_ANTHROPIC_MODEL
 
     def test_init_with_invalid_model_raises(self, test_settings: Settings) -> None:
         """Test initialization rejects non-Anthropic approved models."""
         with pytest.raises(ValueError):
-            AnthropicProvider(model="gpt-5.2", settings=test_settings)
+            AnthropicProvider(model=DEFAULT_OPENAI_MODEL, settings=test_settings)
 
     def test_get_target_size(self, test_settings: Settings) -> None:
         """Test target size from settings."""
@@ -211,7 +212,7 @@ class TestAnthropicProviderGenerate:
             assert result.step_response.action.action_type == "crop"
             assert result.usage.prompt_tokens == 100
             assert result.usage.completion_tokens == 50
-            assert result.model == "claude-sonnet-4-5-20250929"
+            assert result.model == DEFAULT_ANTHROPIC_MODEL
             assert result.latency_ms > 0
 
     @pytest.mark.asyncio

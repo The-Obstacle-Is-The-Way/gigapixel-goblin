@@ -2,7 +2,7 @@
 
 ## Severity: P3 (Code Quality / Maintainability)
 
-## Status: Open
+## Status: Fixed
 
 ## Description
 
@@ -51,9 +51,9 @@ The `model_registry.py` file correctly serves as the **validator** for which mod
 
 3. **No single source of truth for defaults** - The registry validates, but doesn't define defaults
 
-## Proposed Fix
+## Fix Implemented
 
-### 1. Add default constants to model_registry.py
+### 1. Centralize defaults in `model_registry.py`
 
 ```python
 # model_registry.py
@@ -68,7 +68,7 @@ DEFAULT_OPENAI_MODEL: str = "gpt-5.2"
 DEFAULT_GOOGLE_MODEL: str = "gemini-3-pro-preview"
 ```
 
-### 2. Use defaults in client code
+### 2. Use defaults everywhere in code
 
 ```python
 # anthropic_client.py
@@ -88,24 +88,11 @@ def create_provider(provider: str, model: str | None = None):
         chosen_model = model or DEFAULT_ANTHROPIC_MODEL  # Single import
 ```
 
-### 3. Add test fixtures
+### 3. Remove hardcoded IDs from tests
 
-```python
-# tests/conftest.py
-import pytest
-from giant.llm.model_registry import (
-    DEFAULT_ANTHROPIC_MODEL,
-    DEFAULT_OPENAI_MODEL,
-)
-
-@pytest.fixture
-def anthropic_model() -> str:
-    return DEFAULT_ANTHROPIC_MODEL
-
-@pytest.fixture
-def openai_model() -> str:
-    return DEFAULT_OPENAI_MODEL
-```
+Tests import `DEFAULT_ANTHROPIC_MODEL` / `DEFAULT_OPENAI_MODEL` directly so a future
+default-model update does not require editing test expectations that only assert
+"default == default".
 
 ### 4. Result
 
@@ -115,7 +102,8 @@ After refactoring, a model change would only require updating:
 2. `pricing.py` - Pricing table (could also be data-driven)
 3. Documentation files (unavoidable for human-readable docs)
 
-This reduces the test file changes from 8 to 0.
+This reduces “string scatter” changes in tests to ~0 (pricing expectation changes
+may still be needed if the new default model has different costs).
 
 ## Impact Assessment
 

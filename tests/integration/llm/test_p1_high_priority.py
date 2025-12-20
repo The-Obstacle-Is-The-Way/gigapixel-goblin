@@ -35,6 +35,7 @@ from giant.llm import (
     OpenAIProvider,
     StepResponse,
 )
+from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 
 # =============================================================================
 # Fixtures
@@ -75,7 +76,7 @@ def _mock_openai_crop_response() -> dict[str, Any]:
         "id": "resp_123",
         "object": "response",
         "created": 1234567890,
-        "model": "gpt-5.2",
+        "model": DEFAULT_OPENAI_MODEL,
         "output": [
             {
                 "type": "message",
@@ -142,7 +143,7 @@ def _mock_anthropic_crop_response() -> dict[str, Any]:
                 },
             }
         ],
-        "model": "claude-sonnet-4-5-20250929",
+        "model": DEFAULT_ANTHROPIC_MODEL,
         "stop_reason": "tool_use",
         "usage": {
             "input_tokens": 120,

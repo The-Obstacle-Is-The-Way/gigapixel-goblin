@@ -13,6 +13,7 @@ from giant.cli.runners import (
     download_dataset,
     run_single_inference,
 )
+from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL
 
 
 class TestInferenceResult:
@@ -98,7 +99,7 @@ class TestRunSingleInference:
                 question="What is this?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-sonnet-4-5-20250929",
+                model=DEFAULT_ANTHROPIC_MODEL,
                 max_steps=5,
                 runs=1,
                 budget_usd=0,
@@ -152,7 +153,7 @@ class TestRunSingleInference:
                 question="What?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-sonnet-4-5-20250929",
+                model=DEFAULT_ANTHROPIC_MODEL,
                 max_steps=5,
                 runs=3,
                 budget_usd=0,
@@ -189,7 +190,7 @@ class TestRunSingleInference:
                 question="What?",
                 mode=Mode.giant,
                 provider=Provider.anthropic,
-                model="claude-sonnet-4-5-20250929",
+                model=DEFAULT_ANTHROPIC_MODEL,
                 max_steps=5,
                 runs=10,  # Request 10 runs
                 budget_usd=1.0,  # But budget is only $1
