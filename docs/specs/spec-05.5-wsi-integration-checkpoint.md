@@ -128,12 +128,12 @@ WSI_TEST_FILE=/path/to/slide.svs uv run pytest tests/integration/wsi/ -v
 
 **Proceed to Spec-06 when:**
 
-- [ ] All P0 tests pass
-- [ ] All P1 tests pass (or have documented workarounds)
-- [ ] P2 tests reviewed (failures documented as known limitations)
-- [ ] At least ONE real `.svs` file tested end-to-end
-- [ ] No memory leaks observed in P3-1
-- [ ] Integration test file committed to `tests/integration/wsi/`
+- [x] All P0 tests pass (2025-12-20)
+- [x] All P1 tests pass (or have documented workarounds) (2025-12-20)
+- [x] P2 tests reviewed (failures documented as known limitations) (2025-12-20)
+- [x] At least ONE real `.svs` file tested end-to-end (2025-12-20)
+- [x] No memory leaks observed in P3-1 (2025-12-20)
+- [x] Integration test file committed to `tests/integration/wsi/` (2025-12-20)
 
 ## Discovered Issues Log
 
@@ -141,7 +141,7 @@ Document any issues found during integration testing:
 
 | Date | ID | Severity | Description | Resolution |
 |------|-----|----------|-------------|------------|
-| | | | | |
+| 2025-12-20 | - | - | No issues found | All 17 tests passed |
 
 ## Notes
 

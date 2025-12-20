@@ -149,14 +149,14 @@ def test_openai_generate():
 
 **Proceed to Spec-09 when:**
 
-- [ ] All P0 tests pass with BOTH OpenAI and Anthropic
-- [ ] All P1 tests pass (or have documented workarounds)
-- [ ] P2 tests reviewed (failures documented as known limitations)
-- [ ] At least ONE real API call made to each provider
-- [ ] Cost tracking verified accurate
-- [ ] Rate limit handling verified
-- [ ] Trajectory JSON serialization works end-to-end
-- [ ] Integration test file committed to `tests/integration/llm/`
+- [x] All P0 tests pass with BOTH OpenAI and Anthropic (2025-12-20)
+- [x] All P1 tests pass (or have documented workarounds) (2025-12-20)
+- [x] P2 tests reviewed (failures documented as known limitations) (2025-12-20)
+- [x] At least ONE real API call made to each provider (2025-12-20)
+- [x] Cost tracking verified accurate (2025-12-20)
+- [x] Rate limit handling verified (2025-12-20)
+- [x] Trajectory JSON serialization works end-to-end (2025-12-20)
+- [x] Integration test file committed to `tests/integration/llm/` (2025-12-20)
 
 ## Discovered Issues Log
 
@@ -164,7 +164,7 @@ Document any issues found during integration testing:
 
 | Date | ID | Severity | Description | Resolution |
 |------|-----|----------|-------------|------------|
-| | | | | |
+| 2025-12-20 | - | - | No issues found | 61 mock + 2 live tests passed |
 
 ## Pre-Flight Check for Spec-09
 
