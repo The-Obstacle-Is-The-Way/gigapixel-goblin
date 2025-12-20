@@ -2,7 +2,7 @@
 
 ## Severity: P3 (Paper faithfulness / reproducibility)
 
-## Status: Open (Blocked on Supplementary Material)
+## Status: Partially Resolved (Paper-derived prompts implemented; awaiting Supplementary Material for verification)
 
 ## Description
 
@@ -79,8 +79,18 @@ Without the Supplementary Material we cannot verify, and therefore should not as
 
 Code reference: `src/giant/prompts/templates.py`
 
-- The file itself explicitly notes the prompts are placeholders pending Supplementary Material.
-- The templates implement many paper-required invariants (Level-0 coordinate system, crop/answer actions, and step-limit instructions).
+**Update (2025-12-20):** Prompts have been systematically derived from the paper with full evidence documentation.
+
+- `docs/prompts/PROMPT_DESIGN.md`: Comprehensive evidence table mapping each prompt component to paper line numbers
+- `src/giant/prompts/templates.py`: Updated with paper citations and all high-confidence requirements implemented
+
+**Implemented (High Confidence):**
+- [x] Crop budget communicated (Algorithm 1, line 156)
+- [x] Level-0 coordinate system (Sec 4.1, line 134)
+- [x] Axis guides explanation (Sec 4.1, line 134)
+- [x] Output format (x, y, w, h) (Algorithm 1, line 159)
+- [x] Final answer enforcement (Fig 5 caption, line 200)
+- [x] Reasoning per step (Algorithm 1, line 159)
 
 Note: Output formatting is enforced structurally by the provider integrations (OpenAI uses strict JSON-schema structured output; Anthropic uses forced tool use). This improves parsing reliability, but may differ from how the paper authors enforced formatting in their experiments.
 
