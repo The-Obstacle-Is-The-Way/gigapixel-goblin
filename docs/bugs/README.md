@@ -19,6 +19,7 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-025 | OpenAI Responses API rejects multi-turn conversations | Fixed (assistant messages use `output_text`) |
 | BUG-023 | Axis guide labels use “K” abbreviation | Fixed (K-notation removed, strict integers used) |
 | BUG-022 | MultiPathQA acquisition UX gaps | Fixed (`giant check-data` command added) |
 | BUG-019 | Axis guide font fallback degrades legibility | Fixed (Strict font check added to overlay config) |
@@ -49,6 +50,17 @@ See `archive/` for historical bugs that have been resolved:
 - **P4 (Future)**: Scaffolding for upcoming specs.
 
 ## Checkpoint History
+
+### E2E Validation Bug Hunt (2025-12-20)
+
+**Audited**: Full E2E inference with real WSI and OpenAI API.
+
+**Findings**:
+
+- 1 P0 bug fixed (BUG-025): OpenAI Responses API rejects multi-turn conversations
+- Root cause: `message_content_to_openai()` used `input_text` for all content, but assistant messages require `output_text`
+- Test gap: Added regression test for assistant message content types
+- Additional test gaps identified but not blocking (circuit breaker cooldown, provider validation)
 
 ### Audit (2025-12-19) - Paper Gap Analysis
 

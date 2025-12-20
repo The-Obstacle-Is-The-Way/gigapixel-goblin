@@ -4,7 +4,9 @@ This module provides helper functions to convert the generic Message format
 used throughout GIANT into provider-specific API payloads.
 
 Each provider has its own format for multimodal content:
-- OpenAI (Responses API): Uses input_text and input_image types
+- OpenAI (Responses API): Uses role-specific content types
+  - user: input_text, input_image
+  - assistant: output_text, refusal
 - Anthropic: Uses text and image types with base64 source
 """
 
@@ -13,18 +15,23 @@ from __future__ import annotations
 import base64
 import binascii
 from io import BytesIO
-from typing import Any
+from typing import Any, Literal
 
 from PIL import Image
 
 from giant.llm.protocol import Message, MessageContent
 
 
-def message_content_to_openai(content: MessageContent) -> dict[str, Any]:
+def message_content_to_openai(
+    content: MessageContent,
+    *,
+    role: Literal["user", "assistant"],
+) -> dict[str, Any]:
     """Convert MessageContent to OpenAI Responses API format.
 
     Args:
         content: Generic message content.
+        role: Message role (user or assistant).
 
     Returns:
         OpenAI-formatted content dictionary.
@@ -36,10 +43,14 @@ def message_content_to_openai(content: MessageContent) -> dict[str, Any]:
         if content.text is None:
             raise ValueError("Text content requires 'text' field")
         return {
-            "type": "input_text",
+            "type": "output_text" if role == "assistant" else "input_text",
             "text": content.text,
         }
     elif content.type == "image":
+        if role != "user":
+            raise ValueError(
+                "OpenAI Responses API only supports images in user messages"
+            )
         if content.image_base64 is None:
             raise ValueError("Image content requires 'image_base64' field")
         return {
@@ -71,7 +82,9 @@ def message_to_openai(message: Message) -> dict[str, Any]:
 
     return {
         "role": message.role,
-        "content": [message_content_to_openai(c) for c in message.content],
+        "content": [
+            message_content_to_openai(c, role=message.role) for c in message.content
+        ],
     }
 
 

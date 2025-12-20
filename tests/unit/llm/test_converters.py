@@ -27,8 +27,14 @@ class TestMessageContentToOpenai:
     def test_text_content(self) -> None:
         """Test converting text content to OpenAI format."""
         content = MessageContent(type="text", text="Hello world")
-        result = message_content_to_openai(content)
+        result = message_content_to_openai(content, role="user")
         assert result == {"type": "input_text", "text": "Hello world"}
+
+    def test_assistant_text_content_uses_output_text(self) -> None:
+        """Test converting assistant text content to OpenAI format."""
+        content = MessageContent(type="text", text="Previous answer")
+        result = message_content_to_openai(content, role="assistant")
+        assert result == {"type": "output_text", "text": "Previous answer"}
 
     def test_image_content(self) -> None:
         """Test converting image content to OpenAI format."""
@@ -37,23 +43,33 @@ class TestMessageContentToOpenai:
             image_base64="base64data...",
             media_type="image/jpeg",
         )
-        result = message_content_to_openai(content)
+        result = message_content_to_openai(content, role="user")
         assert result == {
             "type": "input_image",
             "image_url": "data:image/jpeg;base64,base64data...",
         }
 
+    def test_assistant_image_content_raises(self) -> None:
+        """Test that assistant image content raises (unsupported)."""
+        content = MessageContent(
+            type="image",
+            image_base64="base64data...",
+            media_type="image/jpeg",
+        )
+        with pytest.raises(ValueError, match="only supports images in user messages"):
+            message_content_to_openai(content, role="assistant")
+
     def test_text_without_text_field_raises(self) -> None:
         """Test that text content without text field raises."""
         content = MessageContent(type="text", text=None)
         with pytest.raises(ValueError, match="requires 'text' field"):
-            message_content_to_openai(content)
+            message_content_to_openai(content, role="user")
 
     def test_image_without_base64_raises(self) -> None:
         """Test that image content without base64 raises."""
         content = MessageContent(type="image", image_base64=None)
         with pytest.raises(ValueError, match="requires 'image_base64' field"):
-            message_content_to_openai(content)
+            message_content_to_openai(content, role="user")
 
 
 class TestMessageToOpenai:
@@ -68,6 +84,16 @@ class TestMessageToOpenai:
         result = message_to_openai(message)
         assert result["role"] == "user"
         assert result["content"] == [{"type": "input_text", "text": "Hello"}]
+
+    def test_assistant_message_uses_output_text(self) -> None:
+        """Test converting assistant message to OpenAI format."""
+        message = Message(
+            role="assistant",
+            content=[MessageContent(type="text", text="Prior response")],
+        )
+        result = message_to_openai(message)
+        assert result["role"] == "assistant"
+        assert result["content"] == [{"type": "output_text", "text": "Prior response"}]
 
     def test_system_message(self) -> None:
         """Test converting system message to OpenAI format."""
