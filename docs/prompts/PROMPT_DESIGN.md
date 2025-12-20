@@ -63,12 +63,17 @@ All coordinates you output must use this Level-0 system (the slide's native reso
 
 Each step produces reasoning + action, where action is a 4-tuple.
 
-**Implementation:**
+**Implementation (this repo):**
+
+The paper does not specify a serialization format (e.g., JSON) for `(x, y, w, h)`.
+In this repo, response structure is enforced externally by provider integrations
+(OpenAI structured output / Anthropic tool use) using `StepResponse`:
+
 ```json
 {
-  "reasoning": "I observe...",
+  "reasoning": "I observe ...",
   "action": {
-    "type": "crop",
+    "action_type": "crop",
     "x": 10000,
     "y": 20000,
     "width": 5000,
@@ -76,6 +81,8 @@ Each step produces reasoning + action, where action is a 4-tuple.
   }
 }
 ```
+
+See: `src/giant/llm/protocol.py` (`StepResponse`, `BoundingBoxAction`, `FinalAnswerAction`).
 
 ### 4. Final Answer Enforcement
 
@@ -91,9 +98,18 @@ On step {max_steps}, you MUST provide your final answer using the `answer` actio
 
 ### 5. Two Action Types
 
-**Evidence (Algorithm 1 + Section 4.1):**
-- `crop(x, y, w, h)`: Continue navigation
-- `answer(text)`: Provide final response
+**Evidence (Algorithm 1, lines 151-160; Section 4.1, line 140):**
+
+Algorithm 1 defines repeated crop selection via bounding boxes, and returning a final
+answer `yˆ` once navigation ends. Section 4.1 explicitly mentions navigation repeats
+"until a step limit T or early stop".
+
+**Evidence (Section 4.1, line 140):**
+> "The environment returns the next image It+1 = CropRegion(W, at, S), repeating until a step limit T or early stop."
+
+This repo represents this contract with two action modes:
+- `crop(x, y, w, h)`: Continue navigation by selecting the next region of interest.
+- `answer(text)`: Terminate navigation and provide the final answer.
 
 **Implementation:**
 ```
