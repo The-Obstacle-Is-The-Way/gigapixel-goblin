@@ -11,7 +11,7 @@ This directory tracks bugs discovered during integration checkpoint audits.
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
 | BUG-018 | P3 | Missing CONCH tool integration | Open (blocked on CONCH access) |
-| BUG-020 | P3 | Official system prompts not incorporated | Open (blocked on Supplementary Material) |
+| BUG-020 | P3 | Official system prompts not incorporated | Partially resolved (paper-derived; awaiting Supplementary Material) |
 
 ## Archived (Fixed) Bugs
 

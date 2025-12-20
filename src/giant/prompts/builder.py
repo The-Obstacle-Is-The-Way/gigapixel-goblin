@@ -137,7 +137,6 @@ class PromptBuilder:
                 step=step,
                 max_steps=max_steps,
                 remaining_crops=remaining_crops,
-                max_steps_minus_one=max_steps - 1,
             )
 
         # Subsequent steps (2 to max_steps-1)
