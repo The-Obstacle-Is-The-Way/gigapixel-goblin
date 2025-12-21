@@ -27,7 +27,7 @@ class PromptBuilder:
         user_msg = builder.build_user_message(
             question="Is this tissue malignant?",
             step=1,
-            max_steps=5,
+            max_steps=20,  # T=20 per GIANT paper
             context_images=[thumbnail_base64],
         )
     """

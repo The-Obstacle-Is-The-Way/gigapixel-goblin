@@ -8,10 +8,15 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
-| ID | Severity | Title | Status |
-|----|----------|-------|--------|
-| BUG-018 | P3 | Missing CONCH tool integration | Open (blocked on CONCH access) |
-| BUG-020 | P3 | Official system prompts not incorporated | Partially resolved (paper-derived; awaiting Supplementary Material) |
+All bugs have been migrated to GitHub Issues for tracking:
+
+- [GitHub Issues](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues)
+
+| ID | Severity | Title | GitHub Issue |
+|----|----------|-------|--------------|
+| BUG-018 | P3 | Missing CONCH tool integration | [#33](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/33) |
+| BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
+| BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
 
 ## Archived (Fixed) Bugs
 
@@ -19,6 +24,9 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-032 | Placeholder API keys treated as configured | Fixed (reject obvious placeholder secrets early) |
+| BUG-031 | Answer extraction fails with multiple integers | Fixed (select first in-range option index) |
+| BUG-029 | Low TCGA benchmark accuracy (investigation) | Fixed (AgentConfig T=20 default aligned to paper) |
 | BUG-028 | Options not displayed in prompts (slidebench, expert_vqa) | Fixed (options appended when `{options}` missing) |
 | BUG-027 | CSV options parsed as single-element list | Fixed (Python literal parsing + fail-loud validation) |
 | BUG-026 | Model ID configuration scattered across codebase | Fixed (defaults centralized in `src/giant/llm/model_registry.py`) |

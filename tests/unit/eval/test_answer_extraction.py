@@ -152,6 +152,13 @@ class TestExtractLabelEdgeCases:
         result = extract_label(prediction, benchmark_name="tcga", options=options)
         assert result.label is None  # 5 is out of range
 
+    def test_multiple_integers_prefers_first_in_range(self) -> None:
+        """Prefer the first integer that matches option index range."""
+        options = [f"Option {i}" for i in range(1, 31)]
+        prediction = "At (15000, 20000), the correct diagnosis is option 14."
+        result = extract_label(prediction, benchmark_name="tcga", options=options)
+        assert result.label == 14
+
     def test_integer_extraction_no_options(self) -> None:
         """Test integer extraction when no options provided."""
         prediction = "The grade is 3"

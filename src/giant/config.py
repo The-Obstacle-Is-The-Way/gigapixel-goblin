@@ -8,6 +8,11 @@ from typing import TypeGuard
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_PLACEHOLDER_SECRET_MARKERS: tuple[str, ...] = (
+    "your-key",
+    "changeme",
+)
+
 
 class ConfigError(Exception):
     """Raised when required configuration is missing or invalid.
@@ -87,7 +92,15 @@ class Settings(BaseSettings):
 
     @staticmethod
     def _is_configured_secret(value: str | None) -> TypeGuard[str]:
-        return value is not None and value.strip() != ""
+        if value is None:
+            return False
+
+        stripped = value.strip()
+        if stripped == "":
+            return False
+
+        lowered = stripped.lower()
+        return not any(marker in lowered for marker in _PLACEHOLDER_SECRET_MARKERS)
 
     def require_openai_key(self) -> str:
         """Get OpenAI API key, raising ConfigError if not set.
