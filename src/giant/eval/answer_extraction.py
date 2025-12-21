@@ -57,9 +57,8 @@ def _extract_from_options(text: str, options: list[str]) -> int | None:
             letter = m.group(1).upper()
             return ord(letter) - ord("A") + 1  # A=1, B=2, C=3, D=4
 
-    # Integer extraction (1-based)
-    m = _INT_RE.search(text)
-    if m:
+    # Integer extraction (1-based): prefer the first integer that is in-range.
+    for m in _INT_RE.finditer(text):
         k = int(m.group(1))
         if 1 <= k <= len(options):
             return k
