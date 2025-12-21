@@ -36,7 +36,7 @@ A thorough codebase audit comparing our implementation against the GIANT paper h
 
 **Current Implementation:**
 Our prompt says:
-```
+```text
 Navigation Budget: Step {step} of {max_steps}. You have at most {remaining_crops} crops remaining.
 ```
 
@@ -65,7 +65,7 @@ Navigation Budget: Step {step} of {max_steps}. You have at most {remaining_crops
     1-based option index.
 
 Example (TCGA):
-```
+```text
 What is the primary diagnosis for this histopathology image?
 
 Select from the following options:

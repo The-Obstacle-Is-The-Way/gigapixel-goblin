@@ -9,7 +9,8 @@ This directory tracks bugs discovered during integration checkpoint audits.
 ## Active Bugs
 
 All bugs have been migrated to GitHub Issues for tracking:
-- https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues
+
+- [GitHub Issues](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues)
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
