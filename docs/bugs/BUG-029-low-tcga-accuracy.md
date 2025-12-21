@@ -1,8 +1,8 @@
 # BUG-029: Low TCGA Benchmark Accuracy Investigation
 
-## Severity: P3 (Investigation - Not a Bug)
+## Severity: P3 (Investigation - Partially Fixed)
 
-## Status: Investigated - Expected Behavior
+## Status: Fixed (default max_steps was 5, now 20 per paper)
 
 ## Observation
 
@@ -96,11 +96,29 @@ The fixes (BUG-027/028) are working correctly:
 
 ---
 
-## Recommendations
+## Fix Applied
 
-1. **For production benchmarks**: Use `max_steps=20` as per paper
-2. **For smoke tests**: Low accuracy is expected with `max_steps=2`
-3. **For validation**: Focus on extraction success rate, not accuracy
+**Root cause**: `AgentConfig.max_steps` defaulted to 5, not 20 as paper specifies.
+
+**Changes**:
+- `src/giant/agent/runner.py:129`: Changed `max_steps: int = 5` to `max_steps: int = 20`
+- Updated docstring examples in `context.py` and `builder.py`
+
+**After fix**: Model took 4 navigation steps before answering (vs forced at step 2).
+
+---
+
+## Remaining Accuracy Gap
+
+Even with T=20, accuracy remains low on small samples. This is expected:
+- Paper reports 32.3% on TCGA (30-way classification)
+- Random chance is 3.3%
+- Model shows genuine pathology reasoning but arrives at wrong diagnoses
+
+Example (TCGA-06-0875-01Z-00-DX1):
+- Model observed: "abundant melanin pigment" → predicted Melanoma (14)
+- Truth: Glioblastoma (1)
+- This is a reasoning error, not a bug
 
 ---
 

@@ -38,7 +38,7 @@ class ContextManager:
         ctx = ContextManager(
             wsi_path="/slide.svs",
             question="Is this malignant?",
-            max_steps=5,
+            max_steps=20,  # T=20 per GIANT paper
         )
         ctx.add_turn(image_base64=thumbnail, response=response)
         messages = ctx.get_messages(thumbnail_base64=thumbnail)

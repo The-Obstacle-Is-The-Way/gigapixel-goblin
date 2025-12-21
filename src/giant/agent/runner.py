@@ -126,7 +126,7 @@ class AgentConfig:
         strict_font_check: If True, fail if axis label fonts are missing.
     """
 
-    max_steps: int = 5
+    max_steps: int = 20  # T=20 per GIANT paper (accuracy improves up to 20 iterations)
     max_retries: int = 3
     budget_usd: float | None = None
     thumbnail_size: int = 1024
