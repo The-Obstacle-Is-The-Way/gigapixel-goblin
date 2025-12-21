@@ -210,9 +210,19 @@ class TestRequireMethods:
         [
             ({"OPENAI_API_KEY": ""}, "require_openai_key", "OPENAI_API_KEY"),
             ({"OPENAI_API_KEY": "   "}, "require_openai_key", "OPENAI_API_KEY"),
+            (
+                {"OPENAI_API_KEY": "your-key-here"},
+                "require_openai_key",
+                "OPENAI_API_KEY",
+            ),
             ({"ANTHROPIC_API_KEY": ""}, "require_anthropic_key", "ANTHROPIC_API_KEY"),
             (
                 {"ANTHROPIC_API_KEY": "   "},
+                "require_anthropic_key",
+                "ANTHROPIC_API_KEY",
+            ),
+            (
+                {"ANTHROPIC_API_KEY": "your-key-here"},
                 "require_anthropic_key",
                 "ANTHROPIC_API_KEY",
             ),
@@ -236,7 +246,7 @@ class TestRequireMethods:
         method_name: str,
         expected_env_var: str,
     ) -> None:
-        """require_* methods reject empty/whitespace-only values."""
+        """require_* methods reject empty/placeholder values."""
         settings = Settings(
             **settings_kwargs,
             _env_file=None,  # type: ignore[call-arg]
