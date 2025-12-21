@@ -8,10 +8,14 @@ This directory tracks bugs discovered during integration checkpoint audits.
 
 ## Active Bugs
 
-| ID | Severity | Title | Status |
-|----|----------|-------|--------|
-| BUG-018 | P3 | Missing CONCH tool integration | Open (blocked on CONCH access) |
-| BUG-020 | P3 | Official system prompts not incorporated | Partially resolved (paper-derived; awaiting Supplementary Material) |
+All bugs have been migrated to GitHub Issues for tracking:
+- https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues
+
+| ID | Severity | Title | GitHub Issue |
+|----|----------|-------|--------------|
+| BUG-018 | P3 | Missing CONCH tool integration | [#33](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/33) |
+| BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
+| BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
 
 ## Archived (Fixed) Bugs
 
