@@ -2,7 +2,7 @@
 
 ## Severity: P3 (Investigation - Partially Fixed)
 
-## Status: Fixed (default max_steps was 5, now 20 per paper)
+## Status: Fixed (AgentConfig default max_steps aligned to paper)
 
 ## Observation
 
@@ -98,7 +98,7 @@ The fixes (BUG-027/028) are working correctly:
 
 ## Fix Applied
 
-**Root cause**: `AgentConfig.max_steps` defaulted to 5, not 20 as paper specifies.
+**Root cause**: `AgentConfig.max_steps` defaulted to 5 (library/default), not 20 as paper specifies.
 
 **Changes**:
 - `src/giant/agent/runner.py:129`: Changed `max_steps: int = 5` to `max_steps: int = 20`

@@ -19,6 +19,9 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-032 | Placeholder API keys treated as configured | Fixed (reject obvious placeholder secrets early) |
+| BUG-031 | Answer extraction fails with multiple integers | Fixed (select first in-range option index) |
+| BUG-029 | Low TCGA benchmark accuracy (investigation) | Fixed (AgentConfig T=20 default aligned to paper) |
 | BUG-028 | Options not displayed in prompts (slidebench, expert_vqa) | Fixed (options appended when `{options}` missing) |
 | BUG-027 | CSV options parsed as single-element list | Fixed (Python literal parsing + fail-loud validation) |
 | BUG-026 | Model ID configuration scattered across codebase | Fixed (defaults centralized in `src/giant/llm/model_registry.py`) |
