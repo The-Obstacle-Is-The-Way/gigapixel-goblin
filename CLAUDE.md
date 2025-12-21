@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **NEVER modify the model IDs in `docs/models/MODEL_REGISTRY.md` or `src/giant/llm/model_registry.py`.**
 
-The models `gpt-5.2`, `claude-opus-4-5-20251101`, and `gemini-3-pro-preview` are real December 2025 frontier models. They have been validated and are correct. Do not assume they are fictional or outdated. Do not "fix" them.
+The models `gpt-5.2`, `claude-sonnet-4-5-20250929`, and `gemini-3-pro-preview` are real 2025 frontier models. They have been validated and are correct. Do not assume they are fictional or outdated. Do not "fix" them.
 
 ## Project Overview
 
@@ -84,14 +84,14 @@ Providers implement `LLMProvider` Protocol with `generate_response()` async meth
 from giant.llm import create_provider
 provider = create_provider("openai", model="gpt-5.2")
 # or
-provider = create_provider("anthropic", model="claude-opus-4-5-20251101")
+provider = create_provider("anthropic", model="claude-sonnet-4-5-20250929")
 ```
 
 ### Model Registry
 
-Only approved models in `docs/models/MODEL_REGISTRY.md` are allowed. Runtime enforcement in `src/giant/llm/model_registry.py`. Current frontier models (Dec 2025):
+Only approved models in `docs/models/MODEL_REGISTRY.md` are allowed. Runtime enforcement in `src/giant/llm/model_registry.py`. Current frontier models (2025):
 - OpenAI: `gpt-5.2`
-- Anthropic: `claude-opus-4-5-20251101`
+- Anthropic: `claude-sonnet-4-5-20250929`
 - Google: `gemini-3-pro-preview`
 
 ## Testing Conventions

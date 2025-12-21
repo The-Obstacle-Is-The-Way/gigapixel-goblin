@@ -14,6 +14,7 @@ from typing import Annotated
 import typer
 
 from giant import __version__
+from giant.llm.model_registry import DEFAULT_OPENAI_MODEL
 from giant.utils.logging import configure_logging, get_logger
 
 app = typer.Typer(
@@ -78,7 +79,7 @@ def run(  # noqa: PLR0913
     model: Annotated[
         str,
         typer.Option("--model", help="Model name (see docs/models/MODEL_REGISTRY.md)"),
-    ] = "gpt-5.2",
+    ] = DEFAULT_OPENAI_MODEL,
     max_steps: Annotated[
         int, typer.Option("--max-steps", "-T", help="Max navigation steps")
     ] = 20,
@@ -213,7 +214,10 @@ def benchmark(  # noqa: PLR0913
     provider: Annotated[
         Provider, typer.Option("--provider", "-p", help="LLM provider")
     ] = Provider.openai,
-    model: Annotated[str, typer.Option("--model", help="Model name")] = "gpt-5.2",
+    model: Annotated[
+        str,
+        typer.Option("--model", help="Model name"),
+    ] = DEFAULT_OPENAI_MODEL,
     max_steps: Annotated[
         int, typer.Option("--max-steps", "-T", help="Max navigation steps")
     ] = 20,

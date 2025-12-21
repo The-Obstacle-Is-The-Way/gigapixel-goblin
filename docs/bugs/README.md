@@ -19,6 +19,9 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-028 | Options not displayed in prompts (slidebench, expert_vqa) | Fixed (options appended when `{options}` missing) |
+| BUG-027 | CSV options parsed as single-element list | Fixed (Python literal parsing + fail-loud validation) |
+| BUG-026 | Model ID configuration scattered across codebase | Fixed (defaults centralized in `src/giant/llm/model_registry.py`) |
 | BUG-025 | OpenAI Responses API rejects multi-turn conversations | Fixed (assistant messages use `output_text`) |
 | BUG-023 | Axis guide labels use “K” abbreviation | Fixed (K-notation removed, strict integers used) |
 | BUG-022 | MultiPathQA acquisition UX gaps | Fixed (`giant check-data` command added) |
@@ -50,6 +53,19 @@ See `archive/` for historical bugs that have been resolved:
 - **P4 (Future)**: Scaffolding for upcoming specs.
 
 ## Checkpoint History
+
+### Benchmark Execution Bug Hunt (2025-12-21)
+
+**Audited**: Full OpenAI benchmark run on 25 available TCGA questions.
+
+**Findings**:
+
+- 88% answer extraction failure rate (22/25 questions)
+- **BUG-027 (P1)**: CSV options are Python list literals, but loader assumed JSON and produced a 1-element list fallback.
+- **BUG-028 (P2)**: `tcga_slidebench` and `tcga_expert_vqa` have options but prompts omit `{options}`, so the model never sees choices.
+- Cost: $0.99 wasted on unusable benchmark results
+
+**Status**: Fixed in code + unit tests; re-run benchmark once WSIs are available.
 
 ### E2E Validation Bug Hunt (2025-12-20)
 

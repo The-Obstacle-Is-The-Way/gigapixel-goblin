@@ -10,6 +10,7 @@ Provides the BenchmarkRunner class that:
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import csv
 import json
@@ -219,21 +220,14 @@ class BenchmarkRunner:
 
                 # Parse options if present
                 options = None
-                options_str = row.get("options", "")
+                options_str = (row.get("options", "") or "").strip()
                 if options_str:
-                    try:
-                        options = json.loads(options_str)
-                    except json.JSONDecodeError:
-                        # Try splitting by common delimiters
-                        options = [o.strip() for o in options_str.split("|")]
+                    options = self._parse_options(options_str)
 
-                # Build prompt (substitute {options} if needed)
+                # Build prompt (substitute {options} if present, otherwise append)
                 prompt = row.get("prompt", row.get("question", ""))
-                if options and "{options}" in prompt:
-                    formatted_options = "\n".join(
-                        f"{i}. {opt}" for i, opt in enumerate(options, start=1)
-                    )
-                    prompt = prompt.replace("{options}", formatted_options)
+                if options:
+                    prompt = self._inject_options(prompt, options)
 
                 # Parse truth label
                 try:
@@ -297,6 +291,60 @@ class BenchmarkRunner:
             image_path,
             benchmark_name,
             file_id=file_id,
+        )
+
+    @staticmethod
+    def _parse_options(options_str: str) -> list[str]:
+        """Parse the MultiPathQA `options` field into a list of strings.
+
+        MultiPathQA stores options as either:
+        - JSON list: ["A", "B"]
+        - Python literal list: ['A', 'B']  (common in the released CSV)
+        - Pipe-delimited string: A|B (legacy / test fixtures)
+
+        Raises:
+            ValueError: If options cannot be parsed into a list.
+        """
+        text = options_str.strip()
+        if not text:
+            return []
+
+        try:
+            parsed: object = json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                parsed = ast.literal_eval(text)
+            except (ValueError, SyntaxError) as e:
+                if "|" in text:
+                    parsed = [part.strip() for part in text.split("|")]
+                else:
+                    raise ValueError(
+                        f"Unparseable options field: {options_str!r}"
+                    ) from e
+
+        if isinstance(parsed, tuple):
+            parsed = list(parsed)
+        if not isinstance(parsed, list):
+            raise ValueError(
+                f"Options must be a list, got {type(parsed).__name__}: {options_str!r}"
+            )
+
+        cleaned = [str(opt).strip() for opt in parsed]
+        return [opt for opt in cleaned if opt]
+
+    @staticmethod
+    def _inject_options(prompt: str, options: list[str]) -> str:
+        formatted_options = "\n".join(
+            f"{i}. {opt}" for i, opt in enumerate(options, start=1)
+        )
+
+        if "{options}" in prompt:
+            return prompt.replace("{options}", formatted_options)
+
+        return (
+            f"{prompt}\n\n"
+            f"Select from the following options:\n{formatted_options}\n\n"
+            "Please respond with the option number (1-based index)."
         )
 
     def _parse_truth_label(

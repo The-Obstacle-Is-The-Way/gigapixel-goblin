@@ -39,7 +39,7 @@ from giant.llm.converters import (
     get_system_prompt_for_openai,
     messages_to_openai_input,
 )
-from giant.llm.model_registry import validate_model_id
+from giant.llm.model_registry import DEFAULT_OPENAI_MODEL, validate_model_id
 from giant.llm.pricing import calculate_cost, calculate_image_cost_openai
 from giant.llm.protocol import (
     LLMError,
@@ -124,7 +124,7 @@ class OpenAIProvider:
         response = await provider.generate_response(messages)
     """
 
-    model: str = "gpt-5.2"
+    model: str = DEFAULT_OPENAI_MODEL
     settings: Settings = field(default_factory=lambda: settings)
 
     # Internal state (initialized in __post_init__)

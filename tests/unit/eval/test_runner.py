@@ -259,6 +259,83 @@ class TestLoadBenchmarkItems:
         assert "1. Lung" in items[1].prompt  # {options} was substituted
         assert items[1].file_id == "uuid-2"
 
+    def test_parses_python_literal_options(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "literal.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "benchmark_id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga",
+                    "benchmark_id": "TCGA-LITERAL",
+                    "image_path": "literal.svs",
+                    "prompt": "Choose: {options}",
+                    "options": "['Lung', 'Breast', 'Colon']",
+                    "answer": "2",
+                    "is_valid": "True",
+                }
+            )
+
+        (runner.wsi_root / "literal.svs").parent.mkdir(parents=True, exist_ok=True)
+        (runner.wsi_root / "literal.svs").write_text("slide")
+
+        items = runner.load_benchmark_items(csv_file, "tcga")
+        assert len(items) == 1
+        assert items[0].options == ["Lung", "Breast", "Colon"]
+        assert "1. Lung" in items[0].prompt
+
+    def test_appends_options_when_placeholder_missing(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "vqa.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "benchmark_id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga_expert_vqa",
+                    "benchmark_id": "Q-001",
+                    "image_path": "slide.svs",
+                    "prompt": "What is the level of mitotic activity?",
+                    "options": "['Low', 'Medium', 'High', 'Cannot determine']",
+                    "answer": "1",
+                    "is_valid": "True",
+                }
+            )
+
+        (runner.wsi_root / "tcga").mkdir(parents=True)
+        (runner.wsi_root / "tcga" / "slide.svs").write_text("slide")
+
+        items = runner.load_benchmark_items(csv_file, "tcga_expert_vqa")
+        assert len(items) == 1
+        assert "Select from the following options" in items[0].prompt
+        assert "1. Low" in items[0].prompt
+        assert "Please respond with the option number" in items[0].prompt
+
     def test_loads_duplicate_image_paths_with_unique_benchmark_ids(
         self, runner: BenchmarkRunner, tmp_path: Path
     ) -> None:

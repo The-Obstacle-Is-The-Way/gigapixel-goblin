@@ -18,7 +18,11 @@ Usage:
 
 from giant.llm.anthropic_client import AnthropicProvider
 from giant.llm.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
-from giant.llm.model_registry import validate_model_id
+from giant.llm.model_registry import (
+    DEFAULT_ANTHROPIC_MODEL,
+    DEFAULT_OPENAI_MODEL,
+    validate_model_id,
+)
 from giant.llm.openai_client import OpenAIProvider
 from giant.llm.pricing import (
     PRICING_USD_PER_1K,
@@ -81,8 +85,8 @@ def create_provider(
     Args:
         provider: Provider name ("openai" or "anthropic").
         model: Optional model override. If not specified, uses provider defaults:
-            - OpenAI: "gpt-5.2"
-            - Anthropic: "claude-opus-4-5-20251101"
+            - OpenAI: DEFAULT_OPENAI_MODEL
+            - Anthropic: DEFAULT_ANTHROPIC_MODEL
 
     Returns:
         An LLMProvider instance.
@@ -97,11 +101,11 @@ def create_provider(
     See docs/models/MODEL_REGISTRY.md for approved models and pricing.
     """
     if provider == "openai":
-        chosen_model = model or "gpt-5.2"
+        chosen_model = model or DEFAULT_OPENAI_MODEL
         validate_model_id(chosen_model, provider="openai")
         return OpenAIProvider(model=chosen_model)
     elif provider == "anthropic":
-        chosen_model = model or "claude-opus-4-5-20251101"
+        chosen_model = model or DEFAULT_ANTHROPIC_MODEL
         validate_model_id(chosen_model, provider="anthropic")
         return AnthropicProvider(model=chosen_model)
     else:

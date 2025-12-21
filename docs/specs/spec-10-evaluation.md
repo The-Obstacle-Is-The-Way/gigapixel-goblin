@@ -129,6 +129,10 @@ def download_sample_wsi(output_dir: Path) -> Path:
     - For TCGA, also support the default `gdc-client` layout: `wsi_root / tcga / <file_id> / <downloaded file_name>`.
     - Otherwise fail with a clear error.
 - Parses `options` from the CSV (when present) and substitutes `{options}` into `prompt` before sending to the agent.
+  - The public MultiPathQA CSV encodes options as Python list literals (single quotes), not strict JSON.
+  - Loader must support: JSON lists (`["A", "B"]`), Python literal lists (`['A', 'B']`), and pipe-delimited fixtures (`A|B`).
+  - If `options` exist and `{options}` is present, substitute it with a formatted 1-based list.
+  - If `options` exist and `{options}` is missing, append a standardized options block and instruct the model to respond with the 1-based option index.
 - Canonicalizes `truth_label`:
   - If CSV `answer` is an integer string: `truth_label = int(answer)` (MultiPathQA uses 1-based indices for options tasks).
   - If CSV `answer` is a string label (GTEx): `truth_label = options.index(answer) + 1`.

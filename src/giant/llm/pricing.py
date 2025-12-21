@@ -31,10 +31,10 @@ class ModelPricing(TypedDict, total=False):
 # Sources: OpenAI, Anthropic, Google pricing pages (as of Dec 2025)
 # See docs/models/MODEL_REGISTRY.md for SSOT
 PRICING_USD_PER_1K: dict[str, ModelPricing] = {
-    # Claude Opus 4.5 - Best for coding & agents (80.9% SWE-bench)
-    "claude-opus-4-5-20251101": {
-        "input": 0.005,  # $5/1M tokens
-        "output": 0.025,  # $25/1M tokens
+    # Claude Sonnet 4.5 - Best for coding & agents (77.2% SWE-bench)
+    "claude-sonnet-4-5-20250929": {
+        "input": 0.003,  # $3/1M tokens
+        "output": 0.015,  # $15/1M tokens
         "image_per_1k_px": 0.00048,
     },
     # Gemini 3.0 Pro - 1M context, advanced reasoning

@@ -1,7 +1,7 @@
 """Anthropic LLM Provider implementation for GIANT.
 
 This module implements the LLMProvider protocol for Anthropic models
-(Claude Opus 4.5). It uses Tool Use with forced tool choice
+(Claude). It uses Tool Use with forced tool choice
 for structured output.
 
 Per Spec-06:
@@ -39,7 +39,7 @@ from giant.llm.converters import (
     get_system_prompt_for_anthropic,
     messages_to_anthropic,
 )
-from giant.llm.model_registry import validate_model_id
+from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, validate_model_id
 from giant.llm.pricing import calculate_cost, calculate_image_cost_anthropic
 from giant.llm.protocol import (
     LLMError,
@@ -118,7 +118,7 @@ class AnthropicProvider:
         response = await provider.generate_response(messages)
     """
 
-    model: str = "claude-opus-4-5-20251101"
+    model: str = DEFAULT_ANTHROPIC_MODEL
     settings: Settings = field(default_factory=lambda: settings)
 
     # Internal state

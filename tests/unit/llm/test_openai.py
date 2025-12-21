@@ -6,6 +6,7 @@ import pytest
 from openai import APIConnectionError
 
 from giant.config import Settings
+from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 from giant.llm.openai_client import OpenAIProvider, _build_json_schema
 from giant.llm.protocol import (
     LLMError,
@@ -94,13 +95,13 @@ class TestOpenAIProviderInit:
     def test_init_with_default_model(self, test_settings: Settings) -> None:
         """Test initialization with default model."""
         provider = OpenAIProvider(settings=test_settings)
-        assert provider.model == "gpt-5.2"
-        assert provider.get_model_name() == "gpt-5.2"
+        assert provider.model == DEFAULT_OPENAI_MODEL
+        assert provider.get_model_name() == DEFAULT_OPENAI_MODEL
 
     def test_init_with_invalid_model_raises(self, test_settings: Settings) -> None:
         """Test initialization rejects non-OpenAI approved models."""
         with pytest.raises(ValueError):
-            OpenAIProvider(model="claude-opus-4-5-20251101", settings=test_settings)
+            OpenAIProvider(model=DEFAULT_ANTHROPIC_MODEL, settings=test_settings)
 
     def test_get_target_size(self, test_settings: Settings) -> None:
         """Test target size from settings."""
@@ -138,7 +139,7 @@ class TestOpenAIProviderGenerate:
             assert result.step_response.action.action_type == "crop"
             assert result.usage.prompt_tokens == 100
             assert result.usage.completion_tokens == 50
-            assert result.model == "gpt-5.2"
+            assert result.model == DEFAULT_OPENAI_MODEL
             assert result.latency_ms > 0
 
     @pytest.mark.asyncio
@@ -231,9 +232,9 @@ class TestOpenAIProviderGenerate:
             result = await provider.generate_response(sample_messages)
 
             # Cost should include text + 1 image
-            # Text: 100 * 0.005/1000 + 50 * 0.015/1000 = 0.0005 + 0.00075 = 0.00125
+            # Text: 100 * 0.00175/1000 + 50 * 0.014/1000 = 0.000175 + 0.0007 = 0.000875
             # Image: 0.00255
-            # Total: 0.00380
+            # Total: 0.003425
             assert result.usage.cost_usd > 0.001  # Has some cost
 
 

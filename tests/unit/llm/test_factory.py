@@ -8,6 +8,7 @@ from giant.llm import (
     OpenAIProvider,
     create_provider,
 )
+from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 
 
 @pytest.fixture
@@ -35,28 +36,28 @@ class TestCreateProvider:
         """Test creating OpenAI provider."""
         provider = create_provider("openai")
         assert isinstance(provider, OpenAIProvider)
-        assert provider.get_model_name() == "gpt-5.2"
+        assert provider.get_model_name() == DEFAULT_OPENAI_MODEL
 
     def test_create_openai_with_anthropic_model_rejected(
         self, mock_providers: None
     ) -> None:
         """Test OpenAI provider rejects non-OpenAI approved models."""
         with pytest.raises(ValueError) as exc_info:
-            create_provider("openai", model="claude-opus-4-5-20251101")
+            create_provider("openai", model=DEFAULT_ANTHROPIC_MODEL)
         assert "not approved" in str(exc_info.value).lower()
 
     def test_create_anthropic_provider(self, mock_providers: None) -> None:
         """Test creating Anthropic provider."""
         provider = create_provider("anthropic")
         assert isinstance(provider, AnthropicProvider)
-        assert provider.get_model_name() == "claude-opus-4-5-20251101"
+        assert provider.get_model_name() == DEFAULT_ANTHROPIC_MODEL
 
     def test_create_anthropic_with_openai_model_rejected(
         self, mock_providers: None
     ) -> None:
         """Test Anthropic provider rejects non-Anthropic approved models."""
         with pytest.raises(ValueError) as exc_info:
-            create_provider("anthropic", model="gpt-5.2")
+            create_provider("anthropic", model=DEFAULT_OPENAI_MODEL)
         assert "not approved" in str(exc_info.value).lower()
 
     def test_unknown_provider_raises(self) -> None:
