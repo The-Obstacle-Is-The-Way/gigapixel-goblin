@@ -18,6 +18,18 @@ All bugs have been migrated to GitHub Issues for tracking:
 | BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
 | BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
 
+## Local Audit Findings (Not Yet Filed)
+
+The following issues were found during local reproduction/benchmark prep and should be filed to GitHub Issues when ready:
+
+| ID | Severity | Title | Spec Doc | Where |
+|----|----------|-------|----------|-------|
+| BUG-033 | P0 | `make benchmark` uses wrong CLI args | [BUG-033-make-benchmark-uses-wrong-cli-args.md](BUG-033-make-benchmark-uses-wrong-cli-args.md) | `Makefile`, `docs/specs/spec-01-foundation.md`, `AGENTS.md` |
+| BUG-034 | P0 | `make test` runs `live`/`cost` tests by default if keys are configured | [BUG-034-default-tests-trigger-live-api.md](BUG-034-default-tests-trigger-live-api.md) | `Makefile`, `tests/integration/llm/test_p0_critical.py` |
+| BUG-035 | P1 | CLI exceptions may leak API keys via Rich “show locals” tracebacks | [BUG-035-cli-tracebacks-leak-secrets.md](BUG-035-cli-tracebacks-leak-secrets.md) | `src/giant/cli/main.py` (Typer defaults) |
+| BUG-036 | P1 | TCGA download verification docs don’t match `gdc-client` layout | [BUG-036-wsi-readme-verification-gdc-layout.md](BUG-036-wsi-readme-verification-gdc-layout.md) | `data/wsi/README.md` |
+| BUG-037 | P2 | Data acquisition verification snippet requires `pandas` (not a dependency) | [BUG-037-data-acquisition-verification-no-pandas.md](BUG-037-data-acquisition-verification-no-pandas.md) | `docs/DATA_ACQUISITION.md` |
+
 ## Archived (Fixed) Bugs
 
 See `archive/` for historical bugs that have been resolved:
@@ -61,6 +73,31 @@ See `archive/` for historical bugs that have been resolved:
 - **P4 (Future)**: Scaffolding for upcoming specs.
 
 ## Checkpoint History
+
+### Benchmark Prep Audit (2025-12-26)
+
+**Goal**: Identify blockers and high-impact bugs before running the full MultiPathQA suite with an OpenAI API key (paper reproduction workflow).
+
+**Paper anchor**: GIANT algorithm expects `T=20`, `S=1000`, oversampling bias `0.85`, and navigation via level-0 coordinate axis guides (see `_literature/markdown/giant/giant.md` Section 4.1).
+
+**Quick validations run (safe / no live API calls)**:
+
+- `make lint` / `make typecheck`
+- `uv run pytest -m "not live and not cost"`
+- `uv run giant check-data <dataset>` to confirm local WSI availability
+
+**Findings (new bugs)**:
+
+- **BUG-033 (P0)**: `make benchmark` is currently broken because it runs `uv run giant benchmark ./data/multipathqa`, but the CLI expects a dataset name (e.g., `tcga`). This drift also appears in `docs/specs/spec-01-foundation.md` and is referenced in `AGENTS.md`. Fix by updating examples/targets to `giant benchmark tcga --csv-path data/multipathqa/MultiPathQA.csv --wsi-root data/wsi` (and/or add per-dataset `make benchmark-tcga` targets).
+- **BUG-034 (P0)**: `make test` / `make check` runs `pytest` without excluding `live`/`cost` tests. If `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` is configured, this will trigger real API calls and spend money unexpectedly. Fix by changing default test commands to exclude `live`/`cost` (and add an explicit opt-in target like `make test-live`).
+- **BUG-035 (P1)**: When the CLI raises an exception, Rich tracebacks can print locals (including `Settings`), which may include API keys. Fix by disabling locals in Typer (`pretty_exceptions_show_locals=False`) and/or masking secrets (e.g., `SecretStr`).
+- **BUG-036 (P1)**: `data/wsi/README.md` verification commands assume a flat `tcga/<filename>.svs` layout, but recommended downloads use `gdc-client` which stores files under `tcga/<file_id>/<uuid-suffixed filename>.svs`. This causes false “Missing” reports. Fix by recommending `giant check-data` (or updating shell checks to match resolver behavior).
+- **BUG-037 (P2)**: `docs/DATA_ACQUISITION.md` includes a verification snippet that imports `pandas`, but `pandas` is not in `pyproject.toml` dependencies. Fix by rewriting the snippet using stdlib `csv` or directing users to `giant check-data`.
+
+**Blocker status (data)**:
+
+- TCGA WSIs are partially present; `giant check-data` currently reports missing files for `tcga`, `tcga_expert_vqa`, and `tcga_slidebench`.
+- GTEx and PANDA WSIs are not present locally (`gtex`: missing 191/191, `panda`: missing 197/197), so full “all tasks” paper reproduction is blocked until those files are acquired.
 
 ### Benchmark Execution Bug Hunt (2025-12-21)
 
