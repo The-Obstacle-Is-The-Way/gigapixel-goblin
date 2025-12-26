@@ -21,6 +21,7 @@ app = typer.Typer(
     name="giant",
     help="GIANT: Gigapixel Image Agent for Navigating Tissue",
     add_completion=False,
+    pretty_exceptions_show_locals=False,
 )
 
 

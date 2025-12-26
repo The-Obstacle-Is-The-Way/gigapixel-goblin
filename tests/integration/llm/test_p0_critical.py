@@ -64,6 +64,11 @@ def mock_anthropic_settings() -> Settings:
     )
 
 
+def _should_run_live_tests() -> bool:
+    """Check if live tests should run (requires explicit opt-in via env var)."""
+    return os.environ.get("GIANT_RUN_LIVE_TESTS") == "1"
+
+
 def _has_openai_key() -> bool:
     """Check if real OpenAI API key is available (shell env OR .env file)."""
     # Check shell env first, then fall back to settings (which reads .env)
@@ -1096,14 +1101,14 @@ class TestP0_9_ParseAnswerAction:
 @pytest.mark.live
 @pytest.mark.cost
 @pytest.mark.skipif(
-    not _has_openai_key(),
-    reason="OPENAI_API_KEY not set (shell env or .env file)",
+    not (_has_openai_key() and _should_run_live_tests()),
+    reason="OPENAI_API_KEY not set OR GIANT_RUN_LIVE_TESTS!=1",
 )
 class TestLiveOpenAI:
     """Live tests with real OpenAI API (requires OPENAI_API_KEY).
 
     These tests make real API calls and incur costs.
-    Run with: pytest -m live
+    Run with: GIANT_RUN_LIVE_TESTS=1 pytest -m live
     """
 
     @pytest.mark.asyncio
@@ -1140,14 +1145,14 @@ class TestLiveOpenAI:
 @pytest.mark.live
 @pytest.mark.cost
 @pytest.mark.skipif(
-    not _has_anthropic_key(),
-    reason="ANTHROPIC_API_KEY not set (shell env or .env file)",
+    not (_has_anthropic_key() and _should_run_live_tests()),
+    reason="ANTHROPIC_API_KEY not set OR GIANT_RUN_LIVE_TESTS!=1",
 )
 class TestLiveAnthropic:
     """Live tests with real Anthropic API (requires ANTHROPIC_API_KEY).
 
     These tests make real API calls and incur costs.
-    Run with: pytest -m live
+    Run with: GIANT_RUN_LIVE_TESTS=1 pytest -m live
     """
 
     @pytest.mark.asyncio

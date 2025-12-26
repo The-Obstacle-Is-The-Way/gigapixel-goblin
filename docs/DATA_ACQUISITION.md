@@ -173,65 +173,23 @@ uv run python -m giant.data.tcga download --smallest 5
 
 ## Verification
 
-After downloading, verify your setup:
+After downloading, verify your setup using the built-in checker:
 
 ```bash
-# Check file counts
-find data/wsi/tcga -name "*.svs" 2>/dev/null | wc -l    # Should be 474
-find data/wsi/gtex -name "*.tiff" 2>/dev/null | wc -l   # Should be 191
-find data/wsi/panda -name "*.tiff" 2>/dev/null | wc -l  # Should be 197
+# Check each dataset
+uv run giant check-data tcga
+uv run giant check-data gtex
+uv run giant check-data panda
 
-# Validate against MultiPathQA.csv
-python -c "
-import pandas as pd
-from pathlib import Path
-
-csv = pd.read_csv('data/multipathqa/MultiPathQA.csv')
-wsi_root = Path('data/wsi')
-
-# Map benchmark to subdirectory
-benchmark_to_dir = {
-    'tcga': 'tcga',
-    'tcga_expert_vqa': 'tcga',
-    'tcga_slidebench': 'tcga',
-    'gtex': 'gtex',
-    'panda': 'panda',
-}
-
-missing = []
-found = 0
-for _, row in csv.iterrows():
-    benchmark = row['benchmark_name']
-    image_path = row['image_path']
-    subdir = benchmark_to_dir.get(benchmark, benchmark)
-
-    full_path = wsi_root / subdir / image_path
-    if full_path.exists():
-        found += 1
-    else:
-        # Support gdc-client TCGA layout: <wsi_root>/<subdir>/<file_id>/<downloaded filename>
-        file_id = str(row.get("file_id", "")).strip()
-        file_id_dir = wsi_root / subdir / file_id
-        suffix = Path(image_path).suffix.lower()
-
-        if file_id and file_id_dir.is_dir() and suffix:
-            if any(
-                p.is_file() and p.suffix.lower() == suffix for p in file_id_dir.iterdir()
-            ):
-                found += 1
-                continue
-
-        missing.append(f'{subdir}/{image_path}')
-
-unique_missing = set(missing)
-print(f'Found: {found} / {len(csv)} questions have WSIs')
-print(f'Missing unique files: {len(unique_missing)}')
-if unique_missing:
-    print('First 5 missing:')
-    for m in sorted(unique_missing)[:5]:
-        print(f'  {m}')
-"
+# For verbose output showing missing files
+uv run giant check-data tcga -v
 ```
+
+The `check-data` command:
+- Validates against `MultiPathQA.csv`
+- Handles both flat and `gdc-client` directory layouts
+- Reports found/missing counts
+
 
 ## Quick Start (Minimal Testing)
 
