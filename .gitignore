@@ -240,8 +240,10 @@ __marimo__/
 
 # Global WSI patterns (fallback)
 *.svs
+*.svs.part
 *.ndpi
 *.mrxs
+*.part
 # Be more specific with tiff to avoid false positives
 # *.tiff
 # *.tif
