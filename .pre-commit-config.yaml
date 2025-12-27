@@ -25,9 +25,19 @@ repos:
         entry: uv lock --check
         language: system
         pass_filenames: false
+        files: ^(pyproject\.toml|uv\.lock)$
 
       - id: mypy
         name: mypy (uv)
         entry: uv run mypy src
         language: system
         pass_filenames: false
+        files: ^(src/|pyproject\.toml|uv\.lock)$
+
+      - id: mkdocs-build-strict
+        name: mkdocs build --strict
+        entry: uv run mkdocs build --strict --site-dir /tmp/gigapixel-goblin-mkdocs-site
+        language: system
+        pass_filenames: false
+        files: ^(docs/|mkdocs\.yml)$
+        stages: [manual]

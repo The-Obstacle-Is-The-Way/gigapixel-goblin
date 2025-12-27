@@ -7,7 +7,7 @@
   <a href="https://arxiv.org/abs/2511.19652"><img alt="Paper" src="https://img.shields.io/badge/arXiv-2511.19652-b31b1b.svg"></a>
   <a href="https://huggingface.co/datasets/tbuckley/MultiPathQA"><img alt="Dataset" src="https://img.shields.io/badge/🤗-MultiPathQA-yellow.svg"></a>
   <a href="https://www.python.org/downloads/"><img alt="Python 3.11+" src="https://img.shields.io/badge/python-3.11+-blue.svg"></a>
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg"></a>
+  <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg"></a>
 </p>
 
 ---
@@ -47,7 +47,7 @@ export OPENAI_API_KEY=sk-...
 # Run on a slide
 giant run /path/to/slide.svs -q "What type of tissue is this?"
 
-# Run benchmark
+# Run benchmark (requires MultiPathQA CSV + WSI files; see docs/data-acquisition.md)
 giant benchmark gtex --provider openai -v
 ```
 
@@ -62,9 +62,11 @@ Evaluated on [MultiPathQA](https://huggingface.co/datasets/tbuckley/MultiPathQA)
 | **GTEx** | Organ Classification (20-way) | **67.6%** | 53.7% | 36.5% |
 | **TCGA** | Cancer Diagnosis (30-way) | 25.2% | 32.3% | 9.2% |
 | PANDA | Prostate Grading (6-way) | — | 23.2% | 12.2% |
-| ExpertVQA | Pathologist-Authored (128 Q) | — | 62.5% | 50.0% |
+| ExpertVQA | Pathologist-Authored (128 Q) | — | 57.0% | 50.0% |
 
-**Key finding**: Our GTEx result (67.6%) *exceeds* the paper's 5-run majority vote (60.7%), validating the implementation. Agent navigation provides 3-7× improvement over naive baselines.
+**Key finding**: Our GTEx result (67.6%) *exceeds* the paper's 5-run majority vote (60.7%) on GTEx (note: we used `gpt-5.2`, not the paper's `gpt-5`). Agent navigation provides up to ~3.5× improvement over thumbnail baselines depending on the task.
+
+*Note:* The paper reports **62.5%** on ExpertVQA with GIANT x5 majority vote (Table 1).
 
 ---
 
