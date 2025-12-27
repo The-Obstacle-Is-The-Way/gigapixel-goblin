@@ -59,23 +59,21 @@ See the full acquisition guide: **[docs/DATA_ACQUISITION.md](../../docs/DATA_ACQ
 
 ## Verification
 
-After downloading, verify your files:
+Use the built-in verification command:
 
 ```bash
-# Count files
-find tcga -name "*.svs" 2>/dev/null | wc -l    # Should be 474
-find gtex -name "*.tiff" 2>/dev/null | wc -l   # Should be 191
-find panda -name "*.tiff" 2>/dev/null | wc -l  # Should be 197
-
-# Check against file lists
-for f in $(cat tcga_files.txt | grep -v '^#'); do
-    [ -f "tcga/$f" ] || echo "Missing: tcga/$f"
-done
+uv run giant check-data tcga
+uv run giant check-data tcga_expert_vqa
+uv run giant check-data tcga_slidebench
+uv run giant check-data gtex
+uv run giant check-data panda
 ```
+
+This command handles both flat and gdc-client directory layouts.
 
 ## Usage
 
-Spec-12 will add a stable CLI. Until then, use the Python entry points documented in:
+Spec-12 added a stable CLI. Use the Python entry points documented in:
 
 - `docs/specs/spec-10-evaluation.md`
 - `docs/specs/spec-11.5-e2e-validation-checkpoint.md`

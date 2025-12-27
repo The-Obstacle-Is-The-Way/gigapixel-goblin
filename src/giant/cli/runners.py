@@ -444,6 +444,12 @@ def run_benchmark(  # pragma: no cover  # noqa: PLR0913
     from giant.eval.runner import BenchmarkRunner, EvaluationConfig  # noqa: PLC0415
     from giant.llm import create_provider  # noqa: PLC0415
 
+    if dataset not in BENCHMARK_TASKS:
+        raise ValueError(
+            f"Unknown dataset {dataset!r}. Valid options: "
+            f"{list(BENCHMARK_TASKS.keys())}"
+        )
+
     llm = create_provider(provider.value, model=model)
 
     config = EvaluationConfig(
