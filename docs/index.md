@@ -8,7 +8,7 @@ GIANT is an agentic system that uses large language models to autonomously navig
 
 - **Autonomous Navigation** - LLM decides where to look next based on visual content
 - **Multi-Scale Analysis** - Examines both tissue architecture and cellular detail
-- **Provider Agnostic** - Supports OpenAI, Anthropic, and Google models
+- **Provider Agnostic** - Supports OpenAI and Anthropic providers (Gemini planned)
 - **Benchmark Evaluation** - Reproduce results on MultiPathQA (GTEx, TCGA, PANDA)
 - **Trajectory Visualization** - Interactive viewer for agent reasoning
 
@@ -62,12 +62,12 @@ giant benchmark gtex --provider openai
 
 | Benchmark | Task | Our Result | Paper (GIANT x1) |
 |-----------|------|------------|------------------|
-| GTEx | Organ Classification (20-way) | **67.6%** | 60.7% |
+| GTEx | Organ Classification (20-way) | **67.6%** | 53.7% |
 | TCGA | Cancer Diagnosis (30-way) | **25.2%** | 32.3% |
-| PANDA | Prostate Grading (6-way) | Pending | 25.4% |
+| PANDA | Prostate Grading (6-way) | Pending | 23.2% |
 
-- **GTEx (67.6%)**: Exceeds the paper's single-run baseline (60.7%) and approaches their 5-run majority voting result (69.1%)
-- **TCGA (25.2%)**: Below paper baseline but above thumbnail (22.0%) and patch (19.1%) baselines. The 30-way cancer classification is the hardest task.
+- **GTEx (67.6%)**: Exceeds the paper's GPT-5 + GIANT x1 (53.7%) and x5 (60.7%) results.
+- **TCGA (25.2%)**: Below the paper's GIANT x1 (32.3%), but above paper thumbnail (9.2%) and patch (12.8%) baselines.
 
 ## Supported Models
 
@@ -75,7 +75,7 @@ giant benchmark gtex --provider openai
 |----------|-------|--------|
 | OpenAI | `gpt-5.2` | Default |
 | Anthropic | `claude-sonnet-4-5-20250929` | Supported |
-| Google | `gemini-3-pro-preview` | Supported |
+| Google | `gemini-3-pro-preview` | Planned (not yet implemented) |
 
 ## Documentation
 

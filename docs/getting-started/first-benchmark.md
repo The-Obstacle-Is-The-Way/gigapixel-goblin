@@ -30,7 +30,7 @@ giant check-data panda
 
 Example output:
 ```
-gtex: 191/191 files found (100.0%)
+All WSIs present for gtex: 191/191 under data/wsi
 ```
 
 ## Run a Subset
@@ -45,14 +45,10 @@ giant benchmark gtex \
     -v
 ```
 
-Expected output:
-```
-Benchmark: gtex
-Mode: giant
-Results: {'balanced_accuracy': 0.80, 'accuracy': 0.80}
-Total cost: $0.18
-Run ID: gtex_giant_openai_gpt-5.2_20251227
-Results file: results/gtex_giant_openai_gpt-5.2_results.json
+To see machine-readable output (recommended), add `--json`:
+
+```bash
+giant benchmark gtex --provider openai --max-items 5 --json | jq
 ```
 
 ## Full Benchmark Run
@@ -60,10 +56,10 @@ Results file: results/gtex_giant_openai_gpt-5.2_results.json
 For complete benchmark runs:
 
 ```bash
-# Full GTEx (191 items, ~$7 cost, ~2 hours)
+# Full GTEx (191 items)
 giant benchmark gtex --provider openai -v
 
-# TCGA cancer diagnosis (221 items, ~$10 cost, ~3 hours)
+# TCGA cancer diagnosis (221 items)
 giant benchmark tcga --provider openai -v
 
 # With concurrency for faster runs
@@ -95,19 +91,17 @@ Results are saved to `results/` with:
 
 | Benchmark | Our Result | Paper (GIANT x1) | Paper (GIANT x5) |
 |-----------|------------|------------------|------------------|
-| GTEx (20-way) | 67.6% | 60.7% | 69.1% |
-| TCGA (30-way) | TBD | 32.3% | 40.1% |
-| PANDA (6-way) | TBD | 25.4% | 31.9% |
+| GTEx (20-way) | 67.6% | 53.7% | 60.7% |
+| TCGA (30-way) | TBD | 32.3% | 29.3% |
+| PANDA (6-way) | TBD | 23.2% | 25.4% |
 
 ## Cost Estimates
 
-| Benchmark | Items | Approx. Cost | Time (single) |
-|-----------|-------|--------------|---------------|
-| GTEx | 191 | $7-10 | 2-3 hours |
-| TCGA | 221 | $8-12 | 2-4 hours |
-| PANDA | 197 | $7-10 | 2-3 hours |
-| Expert VQA | 128 | $5-8 | 1-2 hours |
-| SlideBench | 197 | $7-10 | 2-3 hours |
+Costs depend on provider/model, prompt length, and how many steps each item takes. For safe estimation:
+
+1. Run a small sample: `giant benchmark <dataset> --max-items 5 --json`
+2. Extrapolate from `total_cost`
+3. Use `--budget-usd` as a guardrail on full runs
 
 ## Troubleshooting
 

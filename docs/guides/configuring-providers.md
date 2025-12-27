@@ -4,13 +4,14 @@ This guide covers setting up LLM providers for GIANT.
 
 ## Overview
 
-GIANT supports multiple LLM providers:
+GIANT currently supports these LLM providers:
 
 | Provider | Model | Status |
 |----------|-------|--------|
 | OpenAI | `gpt-5.2` | Default |
 | Anthropic | `claude-sonnet-4-5-20250929` | Supported |
-| Google | `gemini-3-pro-preview` | Supported |
+
+`gemini-3-pro-preview` is present in the model registry for future work, but the Google/Gemini provider is not implemented in the CLI yet.
 
 ## API Key Configuration
 
@@ -22,7 +23,6 @@ Create a `.env` file in the project root:
 # .env
 OPENAI_API_KEY=sk-proj-...
 ANTHROPIC_API_KEY=sk-ant-api03-...
-GOOGLE_API_KEY=AIza...
 ```
 
 Load before running:
@@ -44,7 +44,7 @@ giant run slide.svs -q "Question?"
 ### Security Notes
 
 1. **Never commit `.env` files** - Add to `.gitignore`
-2. **Avoid placeholder values** - GIANT rejects obvious placeholders like `sk-...` or `your-key-here`
+2. **Avoid placeholder values** - Keys containing `your-key` or `changeme` are treated as not configured
 3. **Use environment-specific keys** - Separate keys for dev/test/prod
 4. **Rotate compromised keys** - If exposed, regenerate immediately
 
@@ -75,7 +75,7 @@ giant run slide.svs -q "Question?" --provider openai --model gpt-5.2
 
 | Model | Input (per 1M) | Output (per 1M) |
 |-------|----------------|-----------------|
-| gpt-5.2 | $2.50 | $10.00 |
+| gpt-5.2 | $1.75 | $14.00 |
 
 ### Target Image Size
 
@@ -128,7 +128,7 @@ Only approved models are allowed. This ensures:
 APPROVED_MODELS = {
     "gpt-5.2",                      # OpenAI
     "claude-sonnet-4-5-20250929",   # Anthropic
-    "gemini-3-pro-preview",         # Google
+    "gemini-3-pro-preview",         # Reserved (Google/Gemini provider not yet implemented)
 }
 ```
 
@@ -138,7 +138,7 @@ Invalid models are rejected at runtime:
 
 ```bash
 giant run slide.svs -q "?" --model gpt-4o
-# Error: Model 'gpt-4o' not approved. See docs/models/model-registry.md
+# Error: Model 'gpt-4o' is not approved. Allowed for openai approved models: gpt-5.2. See docs/models/model-registry.md.
 ```
 
 See [Model Registry](../models/model-registry.md) for the full list.
@@ -149,18 +149,15 @@ See [Model Registry](../models/model-registry.md) for the full list.
 |---------|--------|-----------|
 | Default model | gpt-5.2 | claude-sonnet-4-5-20250929 |
 | Target size | 1000px | 500px |
-| Structured output | JSON Schema | Tool Use |
-| Cost per item | ~$0.04 | ~$0.03 |
-| Speed | Fast | Fast |
-
-Both providers achieve similar accuracy on benchmarks.
+| Structured output | JSON schema via `responses.create` | Tool use via `submit_step` |
+| Image cost model | Flat per image | Pixel-based |
 
 ## Troubleshooting
 
 ### "API key not set"
 
 ```
-Error: OPENAI_API_KEY not set
+Error: OpenAI API key not configured. Set it in .env file or OPENAI_API_KEY environment variable.
 ```
 
 **Fix:** Ensure the key is exported:
@@ -177,13 +174,9 @@ Error: openai.AuthenticationError: Invalid API key
 
 **Fix:** Check your key is correct and has not expired.
 
-### "Placeholder key rejected"
+### "Placeholder key treated as not configured"
 
-```
-Error: OPENAI_API_KEY appears to be a placeholder
-```
-
-**Fix:** Use a real API key, not `sk-...` or similar.
+If your key contains obvious placeholder strings (e.g., `your-key`, `changeme`), GIANT treats it as missing and raises the same configuration error as an unset key.
 
 ### "Model not approved"
 

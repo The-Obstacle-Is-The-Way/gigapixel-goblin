@@ -21,7 +21,7 @@ Output: answer ŷ
 2.  I₀ ← AddAxisGuides(I₀)               # Add coordinate markers
 3.  C ← [(system_prompt, q, I₀)]         # Initialize context
 4.
-5.  for t = 1 to T do
+5.  for t = 1 to T-1 do                  # At most T-1 crops (paper)
 6.      (rₜ, aₜ) ← LLM(C)                 # Get reasoning + action
 7.
 8.      if aₜ.type == "answer" then
@@ -29,11 +29,11 @@ Output: answer ŷ
 10.
 11.     if aₜ.type == "crop" then
 12.         Iₜ ← CropRegion(W, aₜ, S)    # Extract region
-13.         C ← C ∪ [(rₜ, Iₜ)]           # Add to context
+13.         C ← C ∪ [(rₜ, aₜ, Iₜ)]        # Add to context
 14.
 15. end for
 16.
-17. ŷ ← ForceAnswer(C)                   # Force answer at limit
+17. ŷ ← ForceAnswer(C)                   # Final step: must answer (with retries)
 18. return ŷ
 ```
 
@@ -117,9 +117,10 @@ The agent retries up to 3 times to get an answer action.
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `T` (max_steps) | 20 | Maximum navigation steps |
-| `S` (target_size) | 1000 | Output crop size in pixels |
+| `S` (target_size) | 1000 (OpenAI) / 500 (Anthropic) | Output crop long-side (provider-specific) |
 | Thumbnail size | 1024 | Maximum thumbnail dimension |
 | Max retries | 3 | Retries for invalid coordinates |
+| Oversampling bias | 0.85 | Bias toward finer pyramid levels |
 
 ## Coordinate System
 
@@ -156,10 +157,19 @@ GIANT automatically selects the optimal level to:
 3. Output at target size (1000px)
 
 ```python
-# Optimal level selection algorithm
-best_level = level_selector.select_level(
+from giant.core.level_selector import PyramidLevelSelector
+from giant.geometry import Region
+from giant.wsi import WSIReader
+
+with WSIReader("slide.svs") as reader:
+    metadata = reader.get_metadata()
+
+selector = PyramidLevelSelector()
+selected = selector.select_level(
     region=Region(x=45000, y=20000, width=10000, height=10000),
+    metadata=metadata,
     target_size=1000,
+    bias=0.85,
 )
 ```
 
@@ -213,7 +223,7 @@ Shows:
 | Thumbnail | `wsi/reader.py` | `WSIReader.get_thumbnail` |
 | Axis guides | `geometry/overlay.py` | `AxisGuideGenerator` |
 | Cropping | `core/crop_engine.py` | `CropEngine.crop` |
-| Level selection | `core/level_selector.py` | `LevelSelector` |
+| Level selection | `core/level_selector.py` | `PyramidLevelSelector` |
 
 ## Next Steps
 

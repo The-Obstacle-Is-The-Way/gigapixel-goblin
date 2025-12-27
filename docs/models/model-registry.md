@@ -6,39 +6,44 @@
 
 ## Approved Models
 
-| Provider   | Model Name         | API Model ID                    | Context   | Max Output | Notes                           |
-|------------|--------------------|---------------------------------|-----------|------------|---------------------------------|
-| Anthropic  | Claude Sonnet 4.5  | `claude-sonnet-4-5-20250929`    | 200K      | 64K        | Best for coding & agents        |
-| Google     | Gemini 3.0 Pro     | `gemini-3-pro-preview`          | 1M        | 64K        | Advanced reasoning, multimodal  |
-| OpenAI     | GPT-5.2            | `gpt-5.2`                       | 400K      | 128K       | Cost-effective frontier model   |
+These are the only model IDs allowed by `src/giant/llm/model_registry.py`.
+
+| Provider | API Model ID | Runtime Support | Notes |
+|----------|--------------|-----------------|-------|
+| OpenAI | `gpt-5.2` | Supported | Default OpenAI model |
+| Anthropic | `claude-sonnet-4-5-20250929` | Supported | Default Anthropic model |
+| Google | `gemini-3-pro-preview` | Planned | Model ID is reserved; Google/Gemini provider is not implemented yet |
 
 ## Pricing (USD per 1M tokens)
 
 | Model                        | Input    | Output   | Image Cost                    |
 |------------------------------|----------|----------|-------------------------------|
-| `claude-sonnet-4-5-20250929` | $3.00    | $15.00   | Pixel-based (~$0.48/1K px)    |
+| `claude-sonnet-4-5-20250929` | $3.00    | $15.00   | Pixel-based (~$0.00048/1K px) |
 | `gemini-3-pro-preview`       | $2.00    | $12.00   | Included in token count       |
-| `gpt-5.2`                    | $1.75    | $14.00   | Flat-rate per image           |
+| `gpt-5.2`                    | $1.75    | $14.00   | Flat-rate per image ($0.00255/image) |
 
-## Why These Models?
+Notes:
+- The Anthropic image cost in code is `$0.00048 / 1K pixels` (i.e., `$0.48 / 1M pixels`).
+- Pricing and image-cost formulas are implemented in `src/giant/llm/pricing.py`.
 
-1. **Claude Sonnet 4.5** - 77.2% SWE-bench Verified, 61.4% OSWorld. Best coding model.
-2. **Gemini 3.0 Pro** - 1M context window, native multimodal, `thinking_level` control.
-3. **GPT-5.2** - 400K context, 128K output, cost-effective at $1.75/$14 per 1M tokens.
+## Why These IDs?
+
+GIANT pins model IDs for reproducibility and to ensure pricing is known. If you need to update pricing or supported models, update `docs/models/model-registry.md` and `src/giant/llm/pricing.py`, and keep `src/giant/llm/model_registry.py` aligned.
 
 ## Code Usage
 
 ```python
 from giant.llm import create_provider
+from giant.llm.model_registry import validate_model_id
+
+# OpenAI
+provider = create_provider("openai", model="gpt-5.2")
 
 # Anthropic
 provider = create_provider("anthropic", model="claude-sonnet-4-5-20250929")
 
-# Google (requires adding GeminiProvider)
-provider = create_provider("google", model="gemini-3-pro-preview")
-
-# OpenAI
-provider = create_provider("openai", model="gpt-5.2")
+# Google/Gemini (reserved model ID; provider not implemented)
+validate_model_id("gemini-3-pro-preview", provider="google")  # OK
 ```
 
 ## Sources

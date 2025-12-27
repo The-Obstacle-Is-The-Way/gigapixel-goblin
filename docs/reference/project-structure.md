@@ -126,7 +126,7 @@ src/giant/
 |-------|------|---------|
 | `WSIReader` | `wsi/reader.py` | OpenSlide wrapper |
 | `CropEngine` | `core/crop_engine.py` | Region extraction |
-| `LevelSelector` | `core/level_selector.py` | Pyramid level selection |
+| `PyramidLevelSelector` | `core/level_selector.py` | Pyramid level selection |
 
 ### Geometry Layer
 
@@ -151,13 +151,19 @@ tests/
 ├── conftest.py             # Shared fixtures
 ├── unit/                   # Unit tests (fast, mocked)
 │   ├── agent/
-│   ├── llm/
+│   ├── cli/
 │   ├── core/
+│   ├── data/
+│   ├── eval/
 │   ├── geometry/
-│   └── eval/
+│   ├── llm/
+│   ├── prompts/
+│   ├── vision/
+│   └── wsi/
 └── integration/            # Integration tests (real I/O)
-    ├── wsi/
-    └── llm/
+    ├── cli/
+    ├── llm/
+    └── wsi/
 ```
 
 ### Test Markers
@@ -210,7 +216,6 @@ data/
 ```
 results/
 ├── *_results.json          # Full benchmark results
-├── *_summary.json          # Metrics summary
 ├── checkpoints/
 │   └── *.checkpoint.json   # Resume state
 └── trajectories/

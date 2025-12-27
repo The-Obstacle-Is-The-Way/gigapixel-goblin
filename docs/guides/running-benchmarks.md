@@ -120,7 +120,6 @@ Results are saved to `--output-dir` (default: `results/`):
 ```
 results/
 ├── gtex_giant_openai_gpt-5.2_results.json    # Full results
-├── gtex_giant_openai_gpt-5.2_summary.json    # Metrics summary
 ├── checkpoints/
 │   └── gtex_giant_openai_gpt-5.2.checkpoint.json  # Resume state
 └── trajectories/
@@ -132,30 +131,42 @@ results/
 
 ```json
 {
-  "run_id": "gtex_giant_openai_gpt-5.2_20251227",
-  "dataset": "gtex",
-  "provider": "openai",
-  "model": "gpt-5.2",
-  "items": [
+  "run_id": "gtex_giant_openai_gpt-5.2",
+  "benchmark_name": "gtex",
+  "model_name": "gpt-5.2",
+  "config": {
+    "mode": "giant",
+    "max_steps": 20,
+    "runs_per_item": 1,
+    "max_concurrent": 4,
+    "max_items": null,
+    "skip_missing_wsis": true
+  },
+  "results": [
     {
-      "image_path": "GTEX-OIZH-0626.tiff",
+      "item_id": "GTEX-OIZH-0626",
       "prediction": "Heart",
-      "ground_truth": "Heart",
+      "predicted_label": 1,
+      "truth_label": 1,
       "correct": true,
-      "cost": 0.0378,
-      "turns": 3
+      "cost_usd": 0.0378,
+      "total_tokens": 1234,
+      "trajectory_file": "results/trajectories/GTEX-OIZH-0626_run0.json",
+      "error": null
     },
     ...
   ],
   "metrics": {
-    "balanced_accuracy": 0.676,
-    "accuracy": 0.712,
+    "metric_type": "balanced_accuracy",
+    "bootstrap_mean": 0.676,
+    "bootstrap_std": 0.031,
     "bootstrap_ci_lower": 0.614,
-    "bootstrap_ci_upper": 0.735
+    "bootstrap_ci_upper": 0.735,
+    "n_replicates": 1000
   },
-  "total_cost": 7.21,
-  "n_items": 191,
-  "n_errors": 6
+  "total_cost_usd": 7.21,
+  "total_tokens": 1234567,
+  "timestamp": "2025-12-27T00:00:00Z"
 }
 ```
 
@@ -163,25 +174,20 @@ results/
 
 | Metric | Description |
 |--------|-------------|
-| `accuracy` | Simple accuracy (correct / total) |
-| `balanced_accuracy` | Accuracy weighted by class frequency |
-| `bootstrap_ci` | 95% confidence interval (1000 replicates) |
+| `metric_type` | `"balanced_accuracy"` for classification, `"accuracy"` for VQA |
+| `bootstrap_mean` | Bootstrap mean of the metric |
+| `bootstrap_std` | Bootstrap standard deviation |
+| `bootstrap_ci_lower` / `bootstrap_ci_upper` | 95% bootstrap confidence interval |
 
-Balanced accuracy is the primary metric, matching the paper.
+Classification tasks (`tcga`, `gtex`, `panda`) use balanced accuracy (per the paper). VQA tasks use accuracy.
 
 ## Cost Estimates
 
-Approximate costs for full benchmark runs:
+Costs vary significantly by provider/model and how many steps the agent uses per item. For a safe estimate:
 
-| Benchmark | Items | Cost (OpenAI) | Time (c=4) |
-|-----------|-------|---------------|------------|
-| GTEx | 191 | $7-10 | 2-3 hours |
-| TCGA | 221 | $8-12 | 2-4 hours |
-| PANDA | 197 | $7-10 | 2-3 hours |
-| Expert VQA | 128 | $5-8 | 1-2 hours |
-| SlideBench | 197 | $7-10 | 2-3 hours |
-
-**Total for all 5 benchmarks:** ~$35-50
+1. Run a small sample: `giant benchmark <dataset> --max-items 5 --json`
+2. Extrapolate from `total_cost`
+3. Use `--budget-usd` on longer runs
 
 ## Checkpoint and Resume
 
@@ -223,11 +229,11 @@ giant check-data gtex -v
 
 | Benchmark | Our Result | Paper (GIANT x1) | Paper (GIANT x5) |
 |-----------|------------|------------------|------------------|
-| GTEx | **67.6%** | 60.7% | 69.1% |
-| TCGA | TBD | 32.3% | 40.1% |
-| PANDA | TBD | 25.4% | 31.9% |
-| Expert VQA | TBD | 62.5% | 71.9% |
-| SlideBench | TBD | 58.9% | 68.0% |
+| GTEx | **67.6%** | 53.7% | 60.7% |
+| TCGA | TBD | 32.3% | 29.3% |
+| PANDA | TBD | 23.2% | 25.4% |
+| Expert VQA | TBD | 57.0% | 62.5% |
+| SlideBench | TBD | 58.9% | 59.4% |
 
 See [Benchmark Results](../results/benchmark-results.md) for detailed analysis.
 

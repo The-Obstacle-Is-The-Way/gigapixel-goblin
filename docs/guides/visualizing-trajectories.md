@@ -61,7 +61,7 @@ Each navigation step displays:
 | Image | The cropped region shown to the model |
 | Reasoning | Model's chain-of-thought explanation |
 | Action | Crop coordinates or final answer |
-| Metadata | Step number, cost, tokens |
+| Region | Level-0 bounding box (when available) |
 
 ### Final Answer
 
@@ -70,11 +70,13 @@ The visualization highlights:
 - Total navigation steps
 - Final answer text
 - Total cost
-- Accuracy (if ground truth available)
 
 ## Trajectory File Format
 
-The trajectory JSON contains:
+GIANT can visualize two related JSON formats:
+
+1. **Run artifacts** from `giant run --output` (trajectory + run metadata like `success` and `total_cost`)
+2. **Raw trajectories** from `giant benchmark` under `results/trajectories/` (trajectory only)
 
 ```json
 {
@@ -114,7 +116,12 @@ The trajectory JSON contains:
           "answer_text": "This is adenocarcinoma."
         }
       },
-      "region": null
+      "region": {
+        "x": 45000,
+        "y": 32000,
+        "width": 10000,
+        "height": 10000
+      }
     }
   ],
   "answer": "This is adenocarcinoma.",
@@ -136,6 +143,8 @@ results/trajectories/
 ├── GTEX-ABCD-1234_run0.json
 └── ...
 ```
+
+These files contain the raw `Trajectory` (no per-run `total_cost` metadata). The visualizer will use `final_answer` if present.
 
 Visualize individual items:
 

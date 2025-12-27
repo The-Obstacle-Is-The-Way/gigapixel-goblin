@@ -175,13 +175,11 @@ Error: openslide.OpenSlideError: Cannot open ...
 
 **API key not configured:**
 ```
-Error: OPENAI_API_KEY not set
+Error: OpenAI API key not configured. Set it in .env file or OPENAI_API_KEY environment variable.
 ```
 
 **Budget exceeded:**
-```
-Error: Budget exceeded ($0.50 >= $0.50)
-```
+If `--budget-usd` is exceeded, GIANT forces an answer and exits non-zero (the run artifact includes `error_message: "Budget exceeded"`).
 
 ## Examples
 

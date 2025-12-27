@@ -26,7 +26,7 @@ GIANT follows a modular architecture with clear separation of concerns. This pag
 │ ┌──────────────┐ │ │ ┌──────────────┐ │ │ ┌──────────────┐ │
 │ │ WSIReader    │ │ │ │ LLMProvider  │ │ │ │PromptBuilder │ │
 │ │ CropEngine   │ │ │ │ OpenAI       │ │ │ │ Templates    │ │
-│ │ LevelSelector│ │ │ │ Anthropic    │ │ │ └──────────────┘ │
+│ │ Level Selector│ │ │ │ Anthropic    │ │ │ └──────────────┘ │
 │ └──────────────┘ │ │ └──────────────┘ │ └──────────────────┘
 │ ┌──────────────┐ │ │ ┌──────────────┐ │
 │ │ OverlayGen   │ │ │ │ModelRegistry │ │
@@ -55,7 +55,7 @@ Handles whole-slide image I/O and processing.
 |------|-------|----------------|
 | `reader.py` | `WSIReader` | OpenSlide wrapper, thumbnail generation |
 | `crop_engine.py` | `CropEngine` | Region extraction, level selection |
-| `level_selector.py` | `LevelSelector` | Optimal pyramid level algorithm |
+| `level_selector.py` | `PyramidLevelSelector` | Optimal pyramid level algorithm |
 
 ### Geometry Layer (`src/giant/geometry/`)
 

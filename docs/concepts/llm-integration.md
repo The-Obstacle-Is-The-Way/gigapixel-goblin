@@ -51,7 +51,7 @@ provider = create_provider("anthropic", model="claude-sonnet-4-5-20250929")
 ```
 
 **Features:**
-- Tool use for structured output (`respond` tool)
+- Tool use for structured output (`submit_step` tool)
 - Image handling via base64 content blocks
 - Token and cost tracking from response metadata
 
@@ -62,17 +62,18 @@ provider = create_provider("anthropic", model="claude-sonnet-4-5-20250929")
 Internally, GIANT uses a unified message format:
 
 ```python
-@dataclass
-class Message:
-    role: Literal["system", "user", "assistant"]
-    content: list[MessageContent]
+from pydantic import BaseModel
+from typing import Literal
 
-@dataclass
-class MessageContent:
+class MessageContent(BaseModel):
     type: Literal["text", "image"]
     text: str | None = None
     image_base64: str | None = None
     media_type: str = "image/jpeg"
+
+class Message(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: list[MessageContent]
 ```
 
 Converters translate to provider-specific formats:
@@ -141,11 +142,11 @@ response = client.messages.create(
     model="claude-sonnet-4-5-20250929",
     messages=messages,
     tools=[{
-        "name": "respond",
+        "name": "submit_step",
         "description": "Provide your response",
         "input_schema": StepResponse.model_json_schema(),
     }],
-    tool_choice={"type": "tool", "name": "respond"},
+    tool_choice={"type": "tool", "name": "submit_step"},
 )
 ```
 
@@ -157,7 +158,7 @@ Only approved models are allowed:
 |----------|----------|--------|
 | OpenAI | `gpt-5.2` | Default |
 | Anthropic | `claude-sonnet-4-5-20250929` | Supported |
-| Google | `gemini-3-pro-preview` | Supported |
+| Google | `gemini-3-pro-preview` | Reserved (provider not yet implemented) |
 
 Models are validated at runtime:
 
@@ -188,8 +189,9 @@ Costs are calculated using pricing tables:
 ```python
 # Example pricing (per 1M tokens)
 PRICING = {
-    "gpt-5.2": {"input": 2.50, "output": 10.00},
+    "gpt-5.2": {"input": 1.75, "output": 14.00},
     "claude-sonnet-4-5-20250929": {"input": 3.00, "output": 15.00},
+    "gemini-3-pro-preview": {"input": 2.00, "output": 12.00},
 }
 ```
 

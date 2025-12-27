@@ -11,7 +11,7 @@ This document tracks our MultiPathQA benchmark results and compares them to the 
 
 | Metric | Our Result | Paper (GPT-5 GIANT) | Paper (GPT-5 GIANT x5) |
 |--------|------------|---------------------|------------------------|
-| **Balanced Accuracy** | **67.6% ± 3.1%** | 60.7% | 69.1% |
+| **Balanced Accuracy** | **67.6% ± 3.1%** | 53.7% | 60.7% |
 | Bootstrap CI (95%) | 61.4% - 73.5% | - | - |
 | Items Processed | 191/191 | 191 | 191 |
 | Errors | 6 | - | - |
@@ -19,7 +19,7 @@ This document tracks our MultiPathQA benchmark results and compares them to the 
 
 ### Analysis
 
-Our single-run result of **67.6%** exceeds the paper's single-run result of **60.7%** and approaches their 5-run majority voting result of **69.1%**. This is a strong validation that our implementation is working correctly.
+Our single-run result of **67.6%** exceeds the paper's single-run GIANT result (**53.7%**) and the paper's 5-run majority vote (**60.7%**). This is a strong validation that our implementation is working correctly.
 
 **Possible reasons for improvement over paper:**
 - We used `gpt-5.2` (latest) vs paper's `gpt-5` baseline
@@ -30,14 +30,14 @@ Our single-run result of **67.6%** exceeds the paper's single-run result of **60
 | Method | GTEx Balanced Accuracy |
 |--------|------------------------|
 | **Our GIANT (gpt-5.2)** | **67.6%** |
-| Paper: GIANT x5 (GPT-5) | 69.1% |
-| Paper: GIANT x1 (GPT-5) | 60.7% |
+| Paper: GIANT x5 (GPT-5) | 60.7% |
+| Paper: GIANT x1 (GPT-5) | 53.7% |
 | Paper: Thumbnail (GPT-5) | 36.5% |
-| Paper: Patch (GPT-5) | 35.8% |
-| Paper: TITAN | 71.7% |
-| Paper: SlideChat | 48.2% |
+| Paper: Patch (GPT-5) | 43.7% |
+| Paper: TITAN | 96.3% |
+| Paper: SlideChat | 5.0% |
 
-Our implementation significantly outperforms thumbnail and patch baselines, and is competitive with the specialized TITAN model.
+Our implementation significantly outperforms the paper's thumbnail and patch baselines, but remains below specialized models like TITAN.
 
 ---
 
@@ -98,7 +98,7 @@ Each trajectory contains:
 
 | Metric | Our Result | Paper (GPT-5 GIANT) | Paper (GPT-5 GIANT x5) |
 |--------|------------|---------------------|------------------------|
-| **Balanced Accuracy** | **25.2% ± 3.2%** | 32.3% | 45.4% |
+| **Balanced Accuracy** | **25.2% ± 3.2%** | 32.3% | 29.3% |
 | Bootstrap CI (95%) | 18.7% - 31.2% | - | - |
 | Items Processed | 221/221 | 221 | 221 |
 | Errors | 6 | - | - |
@@ -106,27 +106,27 @@ Each trajectory contains:
 
 ### Analysis
 
-Our single-run result of **25.2%** is below the paper's single-run baseline of **32.3%**. This 30-way cancer classification task is significantly harder than GTEx's 20-way organ classification.
+Our single-run result of **25.2%** is below the paper's single-run GIANT result (**32.3%**). This 30-way cancer classification task is significantly harder than GTEx's 20-way organ classification.
 
 **Possible reasons for underperformance:**
 
 1. **Task Difficulty**: Cancer diagnosis requires fine-grained cellular features that may need more navigation steps or specialized prompts
 2. **Class Imbalance**: TCGA has 30 cancer types with uneven distribution
-3. **Single-run variance**: The paper's x5 majority voting (45.4%) shows significant gains from ensembling
+3. **Single-run variance**: In the paper, x5 majority voting (29.3%) did not improve over x1 (32.3%) for this task.
 
 ### Comparison to Baselines (from paper)
 
 | Method | TCGA Balanced Accuracy |
 |--------|------------------------|
-| Paper: GIANT x5 (GPT-5) | 45.4% |
+| Paper: GIANT x5 (GPT-5) | 29.3% |
 | Paper: GIANT x1 (GPT-5) | 32.3% |
 | **Our GIANT (gpt-5.2)** | **25.2%** |
-| Paper: Thumbnail (GPT-5) | 22.0% |
-| Paper: Patch (GPT-5) | 19.1% |
-| Paper: TITAN | 47.1% |
-| Paper: SlideChat | 36.3% |
+| Paper: Thumbnail (GPT-5) | 9.2% |
+| Paper: Patch (GPT-5) | 12.8% |
+| Paper: TITAN | 88.8% |
+| Paper: SlideChat | 3.3% |
 
-Our implementation outperforms thumbnail and patch baselines (22.0% and 19.1%), indicating the agent navigation is providing value, but there's room for improvement.
+Our implementation outperforms the paper's thumbnail and patch baselines (9.2% and 12.8%), indicating the agent navigation is providing value, but there's room for improvement.
 
 ### Cost Efficiency
 
@@ -159,10 +159,10 @@ Our implementation outperforms thumbnail and patch baselines (22.0% and 19.1%), 
 
 | Benchmark | Status | Paper Result (GIANT x1) |
 |-----------|--------|-------------------------|
-| GTEx (Organ, 20-way) | **COMPLETE** ✓ | 60.7% |
+| GTEx (Organ, 20-way) | **COMPLETE** ✓ | 53.7% |
 | TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | 32.3% |
-| PANDA (Grading, 6-way) | Pending | 25.4% |
-| ExpertVQA | Pending | 62.5% |
+| PANDA (Grading, 6-way) | Pending | 23.2% |
+| ExpertVQA | Pending | 57.0% |
 | SlideBenchVQA | Pending | 58.9% |
 
 ---
@@ -186,5 +186,4 @@ uv run giant benchmark gtex --provider openai --model gpt-5.2 -v
 
 1. **Cost Tracking**: Total API cost for 191 items was $7.21 (~$0.038/item)
 2. **Error Rate**: 6/191 items (3.1%) failed due to JSON parsing errors
-3. **Average Steps**: Most items completed in 2-3 navigation steps
-4. **WSI Format**: Used DICOM format from IDC (OpenSlide 4.0.0+ compatible)
+3. **WSI Format**: Used DICOM format from IDC (OpenSlide 4.0.0+ compatible)

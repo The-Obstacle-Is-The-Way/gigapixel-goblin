@@ -10,7 +10,8 @@ This page documents all configuration options for GIANT.
 |----------|----------|-------------|
 | `OPENAI_API_KEY` | For OpenAI | OpenAI API key (`sk-...`) |
 | `ANTHROPIC_API_KEY` | For Anthropic | Anthropic API key (`sk-ant-...`) |
-| `GOOGLE_API_KEY` | For Google | Google API key |
+| `GOOGLE_API_KEY` | Reserved | Used only by a future Google/Gemini provider (not wired into the CLI yet) |
+| `HUGGINGFACE_TOKEN` | Optional | HuggingFace token (only needed for gated downloads) |
 
 ### Example `.env`
 
@@ -20,10 +21,7 @@ OPENAI_API_KEY=sk-proj-abc123...
 ANTHROPIC_API_KEY=sk-ant-api03-xyz789...
 ```
 
-Load with:
-```bash
-source .env
-```
+GIANT reads `.env` automatically via pydantic-settings; no need to `source` it. You can also export variables manually in your shell if preferred.
 
 ---
 
@@ -75,21 +73,25 @@ Configuration for benchmark runs.
 from giant.eval.runner import EvaluationConfig
 
 config = EvaluationConfig(
+    mode="giant",
     max_steps=20,
+    runs_per_item=1,
     max_concurrent=4,
-    max_items=0,           # 0 = all items
-    skip_missing_wsis=True,
+    max_items=None,
+    skip_missing_wsis=False,
     budget_usd=None,
 )
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `mode` | `str` | `"giant"` | `"giant"`, `"thumbnail"`, or `"patch"` |
 | `max_steps` | `int` | `20` | Steps per item |
+| `runs_per_item` | `int` | `1` | Majority voting runs per item |
 | `max_concurrent` | `int` | `4` | Concurrent API calls |
-| `max_items` | `int` | `0` | Max items (0 = all) |
-| `skip_missing_wsis` | `bool` | `True` | Skip missing files |
-| `budget_usd` | `float | None` | `None` | Total cost limit |
+| `max_items` | `int \| None` | `None` | Optional cap on evaluated items |
+| `skip_missing_wsis` | `bool` | `False` | Skip missing WSI files under `--wsi-root` |
+| `budget_usd` | `float \| None` | `None` | Optional total budget for a run |
 
 ---
 
@@ -108,7 +110,8 @@ config = EvaluationConfig(
 |----------|---------------|
 | OpenAI | `gpt-5.2` |
 | Anthropic | `claude-sonnet-4-5-20250929` |
-| Google | `gemini-3-pro-preview` |
+
+`gemini-3-pro-preview` is present in the model registry for future work, but the Google/Gemini provider is not implemented in the CLI yet.
 
 ---
 
@@ -122,18 +125,21 @@ Styling for axis guide overlays.
 from giant.geometry.overlay import OverlayStyle
 
 style = OverlayStyle(
-    line_color=(255, 0, 0),     # Red
+    line_color=(255, 0, 0, 180),  # RGBA (red, semi-transparent)
     line_width=2,
-    label_font_size=16,
+    font_size=12,
     strict_font_check=False,
 )
 ```
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `line_color` | `tuple[int, int, int]` | `(255, 0, 0)` | RGB color |
+| `line_color` | `tuple[int, int, int, int]` | `(255, 0, 0, 180)` | RGBA color for guide lines |
 | `line_width` | `int` | `2` | Line thickness |
-| `label_font_size` | `int` | `16` | Font size |
+| `label_color` | `tuple[int, int, int, int]` | `(255, 255, 255, 255)` | RGBA color for labels |
+| `font_size` | `int` | `12` | Label font size |
+| `label_padding` | `int` | `5` | Padding from edge for labels |
+| `num_guides` | `int` | `4` | Guide lines per axis |
 | `strict_font_check` | `bool` | `False` | Require TrueType |
 
 ---
@@ -228,8 +234,9 @@ cost = calculate_cost(
 
 | Model | Input | Output |
 |-------|-------|--------|
-| gpt-5.2 | $2.50 | $10.00 |
+| gpt-5.2 | $1.75 | $14.00 |
 | claude-sonnet-4-5-20250929 | $3.00 | $15.00 |
+| gemini-3-pro-preview | $2.00 | $12.00 |
 
 ---
 

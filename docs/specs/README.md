@@ -48,7 +48,7 @@ This project follows strict TDD as per Uncle Bob's Clean Code:
     -   **Interface Segregation**: Small, focused protocols
     -   **Dependency Inversion**: Depend on abstractions (Protocols)
 3.  **Gang of Four Patterns Used**:
-    -   **Strategy**: LLMProvider, LevelSelector
+    -   **Strategy**: LLMProvider, PyramidLevelSelector
     -   **Factory**: Provider creation from config
     -   **Template Method**: Agent run loop
     -   **Observer**: Trajectory recording

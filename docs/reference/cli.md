@@ -204,7 +204,7 @@ giant check-data panda --json
 ### Output
 
 ```
-gtex: 191/191 files found (100.0%)
+All WSIs present for gtex: 191/191 under data/wsi
 ```
 
 ---
@@ -250,7 +250,6 @@ giant visualize trajectory.json --no-open -o output.html
 |----------|--------------|-------------|
 | `OPENAI_API_KEY` | `--provider openai` | OpenAI API key |
 | `ANTHROPIC_API_KEY` | `--provider anthropic` | Anthropic API key |
-| `GOOGLE_API_KEY` | `--provider google` | Google API key |
 
 ---
 
