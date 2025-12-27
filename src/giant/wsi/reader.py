@@ -32,6 +32,7 @@ SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(
         ".scn",  # Leica SCN
         ".bif",  # Ventana BIF
         ".svslide",  # Aperio SVS (alternate)
+        ".dcm",  # DICOM WSI (OpenSlide 4.0.0+, e.g., GTEx from IDC)
     }
 )
 
