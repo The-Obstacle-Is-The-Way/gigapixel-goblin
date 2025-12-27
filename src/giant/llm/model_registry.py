@@ -1,6 +1,6 @@
 """Approved LLM model identifiers for GIANT.
 
-`docs/models/MODEL_REGISTRY.md` is the documentation SSOT. This module is the
+`docs/models/model-registry.md` is the documentation SSOT. This module is the
 runtime enforcement point to prevent accidental use of legacy/unsupported
 models.
 """
@@ -81,5 +81,5 @@ def validate_model_id(model: str, *, provider: str | None = None) -> None:
         allowed_list = ", ".join(sorted(allowed))
         raise ValueError(
             f"Model {model!r} is not approved. Allowed for {label}: {allowed_list}. "
-            "See docs/models/MODEL_REGISTRY.md."
+            "See docs/models/model-registry.md."
         )

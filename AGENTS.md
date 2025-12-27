@@ -4,7 +4,7 @@
 
 - `src/giant/`: Python package (agent loop, WSI handling, LLM providers, CLI, eval, prompts, geometry, vision).
 - `tests/unit/`: fast tests (mocked I/O). `tests/integration/`: live API and real-WSI checks (often skipped).
-- `docs/`: specs (`docs/specs/`), bug reports (`docs/bugs/`), model registry (`docs/models/`), and data notes (`docs/DATA_ACQUISITION.md`).
+- `docs/`: specs (`docs/specs/`), bug reports (`docs/bugs/`), model registry (`docs/models/`), and data notes (`docs/data-acquisition.md`).
 - `data/`: local datasets/metadata. `results/`: benchmark outputs and reports.
 
 ## Build, Test, and Development Commands
@@ -42,4 +42,4 @@ This repo uses `uv` for dependency management and `make` as the command entrypoi
 
 ## Agent-Specific Notes
 
-- Do not modify model IDs in `docs/models/MODEL_REGISTRY.md` or `src/giant/llm/model_registry.py` (they are validated and treated as immutable).
+- Do not modify model IDs in `docs/models/model-registry.md` or `src/giant/llm/model_registry.py` (they are validated and treated as immutable).

@@ -98,7 +98,7 @@ def create_provider(
         provider = create_provider("openai", model="gpt-5.2")
         response = await provider.generate_response(messages)
 
-    See docs/models/MODEL_REGISTRY.md for approved models and pricing.
+    See docs/models/model-registry.md for approved models and pricing.
     """
     if provider == "openai":
         chosen_model = model or DEFAULT_OPENAI_MODEL

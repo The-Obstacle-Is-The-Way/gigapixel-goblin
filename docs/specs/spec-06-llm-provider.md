@@ -21,7 +21,7 @@ This specification defines the abstraction layer for Large Multimodal Models (LM
 > the provider implementation (`google_client.py`) is deferred to a future spec. Config
 > includes `GOOGLE_API_KEY` placeholder for consistency.
 
-> **Model Registry:** See `docs/models/MODEL_REGISTRY.md` for approved frontier models.
+> **Model Registry:** See `docs/models/model-registry.md` for approved frontier models.
 > This diverges from the original paper to use Dec 2025 frontier models.
 
 ## Technical Design
@@ -85,7 +85,7 @@ class LLMProvider(Protocol):
 
 ### Cost Calculation
 
-Token costs vary by model and image tokens. See `docs/models/MODEL_REGISTRY.md` for SSOT.
+Token costs vary by model and image tokens. See `docs/models/model-registry.md` for SSOT.
 
 ```python
 # src/giant/llm/pricing.py
@@ -100,12 +100,12 @@ PRICING_USD_PER_1K = {
 }
 
 def calculate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> float:
-    # Unknown models are rejected (see docs/models/MODEL_REGISTRY.md)
+    # Unknown models are rejected (see docs/models/model-registry.md)
     prices = PRICING_USD_PER_1K[model]
     return (prompt_tokens * prices["input"] + completion_tokens * prices["output"]) / 1000
 ```
 
-**Note:** Image token costs are approximations. See MODEL_REGISTRY.md for current pricing.
+**Note:** Image token costs are approximations. See model-registry.md for current pricing.
 
 ### Implementation Details
 

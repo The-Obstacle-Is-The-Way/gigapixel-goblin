@@ -511,7 +511,7 @@ def download_dataset(
     Notes:
         - This command downloads *metadata only* from HuggingFace.
         - Whole-slide images are not redistributed on HuggingFace; see
-          `docs/DATA_ACQUISITION.md` and `python -m giant.data.tcga`.
+          `docs/data-acquisition.md` and `python -m giant.data.tcga`.
     """
     _ = verbose  # logging is configured by the CLI entrypoint
     logger = get_logger(__name__)

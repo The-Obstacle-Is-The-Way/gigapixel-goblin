@@ -59,7 +59,7 @@ def run(
     question: str = typer.Option(..., "--question", "-q", help="Question to answer"),
     mode: Mode = typer.Option(Mode.giant, "--mode", "-m", help="Evaluation mode"),
     provider: Provider = typer.Option(Provider.openai, "--provider", "-p"),
-    model: str = typer.Option("gpt-5.2", "--model", help="Model name (see docs/models/MODEL_REGISTRY.md)"),
+    model: str = typer.Option("gpt-5.2", "--model", help="Model name (see docs/models/model-registry.md)"),
     max_steps: int = typer.Option(20, "--max-steps", "-T", help="Max navigation steps"),
     strict_font_check: bool = typer.Option(False, "--strict-font-check/--no-strict-font-check", help="Fail if TrueType fonts are unavailable for axis labels"),
     runs: int = typer.Option(1, "--runs", "-r", help="Number of runs for majority voting"),

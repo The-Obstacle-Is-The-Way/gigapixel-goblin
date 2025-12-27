@@ -163,7 +163,7 @@ will run automatically. Use `-m mock` to avoid this.
 |----------|---------------|
 | `spec-06-llm-provider.md` | Gemini in pricing example, NOT in acceptance criteria |
 | `spec-08.5-llm-integration-checkpoint.md` | **P4-1: "Gemini provider - Not in current spec - Document as future work"** |
-| `docs/models/MODEL_REGISTRY.md` | Gemini listed as approved model with pricing |
+| `docs/models/model-registry.md` | Gemini listed as approved model with pricing |
 | `src/giant/llm/model_registry.py` | `GOOGLE_MODELS` defined with `gemini-3-pro-preview` |
 | `src/giant/llm/pricing.py` | Gemini pricing defined |
 | `src/giant/config.py` | **NO GOOGLE_API_KEY** |

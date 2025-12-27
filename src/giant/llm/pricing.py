@@ -29,7 +29,7 @@ class ModelPricing(TypedDict, total=False):
 
 # Pricing table: USD per 1,000 tokens
 # Sources: OpenAI, Anthropic, Google pricing pages (as of Dec 2025)
-# See docs/models/MODEL_REGISTRY.md for SSOT
+# See docs/models/model-registry.md for SSOT
 PRICING_USD_PER_1K: dict[str, ModelPricing] = {
     # Claude Sonnet 4.5 - Best for coding & agents (77.2% SWE-bench)
     "claude-sonnet-4-5-20250929": {
@@ -71,7 +71,7 @@ def get_model_pricing(model: str) -> ModelPricing:
     except KeyError as e:
         raise ValueError(
             f"Unknown model {model!r}. Approved models: {_APPROVED_MODELS_LIST}. "
-            "See docs/models/MODEL_REGISTRY.md."
+            "See docs/models/model-registry.md."
         ) from e
 
 

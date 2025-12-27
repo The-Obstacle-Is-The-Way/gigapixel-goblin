@@ -82,7 +82,7 @@ class TestValidateModelId:
         with pytest.raises(ValueError) as exc_info:
             validate_model_id("unknown-model-xyz")
         assert "not approved" in str(exc_info.value)
-        assert "MODEL_REGISTRY.md" in str(exc_info.value)
+        assert "model-registry.md" in str(exc_info.value)
 
     def test_reject_legacy_gpt4o(self) -> None:
         """Test gpt-4o is rejected."""

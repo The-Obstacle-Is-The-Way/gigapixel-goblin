@@ -47,7 +47,7 @@ Use these to verify downloads or create download manifests.
 
 ## How to Populate
 
-See the full acquisition guide: **[docs/DATA_ACQUISITION.md](../../docs/DATA_ACQUISITION.md)**
+See the full acquisition guide: **[docs/data-acquisition.md](../../docs/data-acquisition.md)**
 
 ### Quick Reference
 

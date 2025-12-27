@@ -45,7 +45,7 @@ The project uses a `Makefile` to wrap common `uv` commands.
 ## Critical Rules & Conventions
 
 ### 1. Model Registry is Immutable
-**NEVER modify the model IDs in `docs/models/MODEL_REGISTRY.md` or `src/giant/llm/model_registry.py`.**
+**NEVER modify the model IDs in `docs/models/model-registry.md` or `src/giant/llm/model_registry.py`.**
 The models `gpt-5.2`, `claude-sonnet-4-5-20250929`, and `gemini-3-pro-preview` are treated as **real, valid frontier models** within this project context. Do not "fix" them to current real-world models.
 
 ### 2. Strict Type Checking

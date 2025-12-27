@@ -19,10 +19,10 @@ Files touched for a single model change:
 4. `src/giant/llm/__init__.py` - fallback in factory function
 
 **Documentation (5 files):**
-5. `docs/models/MODEL_REGISTRY.md` - SSOT documentation
+5. `docs/models/model-registry.md` - SSOT documentation
 6. `CLAUDE.md` - project guidance
 7. `docs/specs/spec-06-llm-provider.md` - spec examples
-8. `docs/validation/E2E-VALIDATION-2025-12-20.md` - validation report
+8. `docs/validation/e2e-validation-2025-12-20.md` - validation report
 9. `docs/bugs/archive/BUG-014-env-secrets-management.md` - archived bug
 
 **Tests (8 files):**

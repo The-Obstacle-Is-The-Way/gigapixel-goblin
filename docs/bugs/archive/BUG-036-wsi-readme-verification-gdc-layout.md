@@ -6,7 +6,7 @@
 
 ## Summary
 
-`data/wsi/README.md` includes a verification loop that checks for files at `data/wsi/tcga/<filename>.svs`. This fails when TCGA slides are downloaded using `gdc-client`, which typically stores files under `data/wsi/tcga/<file_id>/<uuid-suffixed filename>.svs` (the recommended layout in `docs/DATA_ACQUISITION.md` and supported by `WSIPathResolver`).
+`data/wsi/README.md` includes a verification loop that checks for files at `data/wsi/tcga/<filename>.svs`. This fails when TCGA slides are downloaded using `gdc-client`, which typically stores files under `data/wsi/tcga/<file_id>/<uuid-suffixed filename>.svs` (the recommended layout in `docs/data-acquisition.md` and supported by `WSIPathResolver`).
 
 ## Repro
 
