@@ -55,7 +55,7 @@ giant benchmark gtex --provider openai -v
 
 ## Benchmark Results
 
-Evaluated on [MultiPathQA](https://huggingface.co/datasets/tbuckley/MultiPathQA)—934 questions across 868 unique whole-slide images.
+Evaluated on [MultiPathQA](https://huggingface.co/datasets/tbuckley/MultiPathQA)—934 questions across 862 unique whole-slide images.
 
 | Benchmark | Task | Our Result | Paper (GIANT) | Thumbnail Baseline |
 |-----------|------|:----------:|:-------------:|:------------------:|
