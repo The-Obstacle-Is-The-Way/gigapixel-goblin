@@ -47,6 +47,10 @@ jobs:
       - name: Test with coverage
         run: uv run pytest --cov=src/giant --cov-report=xml --cov-fail-under=90
 
+      - name: Build docs (strict)
+        if: matrix.python-version == '3.12'
+        run: uv run mkdocs build --strict --site-dir /tmp/mkdocs-site
+
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:

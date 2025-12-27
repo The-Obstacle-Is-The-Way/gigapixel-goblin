@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## CRITICAL: Model Registry is Immutable
 
-**NEVER modify the model IDs in `docs/models/MODEL_REGISTRY.md` or `src/giant/llm/model_registry.py`.**
+**NEVER modify the model IDs in `docs/models/model-registry.md` or `src/giant/llm/model_registry.py`.**
 
 The models `gpt-5.2`, `claude-sonnet-4-5-20250929`, and `gemini-3-pro-preview` are real 2025 frontier models. They have been validated and are correct. Do not assume they are fictional or outdated. Do not "fix" them.
 
@@ -89,7 +89,7 @@ provider = create_provider("anthropic", model="claude-sonnet-4-5-20250929")
 
 ### Model Registry
 
-Only approved models in `docs/models/MODEL_REGISTRY.md` are allowed. Runtime enforcement in `src/giant/llm/model_registry.py`. Current frontier models (2025):
+Only approved models in `docs/models/model-registry.md` are allowed. Runtime enforcement in `src/giant/llm/model_registry.py`. Current frontier models (2025):
 - OpenAI: `gpt-5.2`
 - Anthropic: `claude-sonnet-4-5-20250929`
 - Google: `gemini-3-pro-preview`
@@ -115,4 +115,4 @@ MultiPathQA benchmark requires ~862 WSI files (~500+ GiB):
 - GTEx: 191 `.tiff` files
 - PANDA: 197 `.tiff` files
 
-See `docs/DATA_ACQUISITION.md` for download instructions.
+See `docs/data-acquisition.md` for download instructions.

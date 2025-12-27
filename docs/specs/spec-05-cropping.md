@@ -65,7 +65,7 @@ For long benchmarks and majority-vote runs, enable an on-disk cache to avoid rec
 ## Test Plan
 
 ### Unit Tests
-1.  **End-to-End Flow:** Mock `WSIReader` and `LevelSelector`. Call `crop`. Verify:
+1.  **End-to-End Flow:** Mock `WSIReaderProtocol` and `LevelSelectorProtocol`. Call `crop`. Verify:
     - `level_selector` was called.
     - `wsi_reader.read_region` was called with transformed coordinates/size.
     - Image was resized to `target_size`.

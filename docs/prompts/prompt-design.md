@@ -217,7 +217,7 @@ Our templates implement all high-confidence requirements:
 - Final answer enforcement (MUST use answer on final step)
 - Two action types (crop, answer)
 
-Plus domain enhancements (can be toggled off for strict reproduction):
+Plus domain enhancements (currently always included; remove from templates for strict reproduction):
 - Hierarchical analysis workflow
 - Pathology-specific vocabulary
 - Coordinate referencing in reasoning

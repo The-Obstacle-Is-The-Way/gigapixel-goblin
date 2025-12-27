@@ -1,7 +1,7 @@
 """Prompt templates for GIANT navigation.
 
 These templates are derived from the GIANT paper (Algorithm 1, Section 4.1, Figure 5).
-See `docs/prompts/PROMPT_DESIGN.md` for the evidence table, confidence levels, and the
+See `docs/prompts/prompt-design.md` for the evidence table, confidence levels, and the
 explicit separation between paper-derived requirements vs. 2025 domain enhancements.
 
 Status: Paper-derived (pending Supplementary Material verification)
@@ -20,7 +20,7 @@ Paper Requirements Implemented:
 #
 # Note: The GIANT paper references provider-specific system prompts in Supplementary
 # Material (giant.md:142). We therefore keep a paper-derived core plus clearly
-# separable domain enhancements (see docs/prompts/PROMPT_DESIGN.md).
+# separable domain enhancements (see docs/prompts/prompt-design.md).
 SYSTEM_PROMPT_PAPER = """You are GIANT (Gigapixel Image Agent for Navigating Tissue), an expert computational pathologist.
 
 TASK:

@@ -89,7 +89,7 @@ See `archive/` for historical bugs that have been resolved:
 - **BUG-034 (P0)**: ✅ Fixed. `make test` excludes `live`/`cost` markers. Live tests require explicit `GIANT_RUN_LIVE_TESTS=1` environment variable.
 - **BUG-035 (P1)**: ✅ Fixed. Typer app sets `pretty_exceptions_show_locals=False`. Regression tests verify secrets don't leak.
 - **BUG-036 (P1)**: ✅ Fixed. `data/wsi/README.md` now recommends `giant check-data` which handles both flat and gdc-client layouts.
-- **BUG-037 (P2)**: ✅ Fixed. `docs/DATA_ACQUISITION.md` verification section uses `giant check-data` CLI (no pandas dependency).
+- **BUG-037 (P2)**: ✅ Fixed. `docs/data-acquisition.md` verification section uses `giant check-data` CLI (no pandas dependency).
 
 **Blocker status (data)**:
 

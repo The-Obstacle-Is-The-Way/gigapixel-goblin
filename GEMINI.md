@@ -35,8 +35,8 @@ The project uses a `Makefile` to wrap common `uv` commands.
 ### Key Directories
 - `src/giant/agent/`: Core logic (`GIANTAgent`, `ContextManager`, `Trajectory`).
 - `src/giant/llm/`: LLM abstraction (`LLMProvider` protocol, `OpenAIClient`, `AnthropicClient`).
-- `src/giant/core/`: WSI processing (`CropEngine`, `LevelSelector`).
-- `src/giant/geometry/`: Geometric primitives (`Region`, `Point`, `Box`).
+- `src/giant/core/`: WSI processing (`CropEngine`, `PyramidLevelSelector`).
+- `src/giant/geometry/`: Geometric primitives (`Region`, `Point`, `Size`).
 - `src/giant/prompts/`: Prompt engineering and templates.
 - `tests/unit/`: Fast, mocked unit tests (Primary testing ground).
 - `tests/integration/`: Tests requiring real WSI files or APIs.
@@ -45,7 +45,7 @@ The project uses a `Makefile` to wrap common `uv` commands.
 ## Critical Rules & Conventions
 
 ### 1. Model Registry is Immutable
-**NEVER modify the model IDs in `docs/models/MODEL_REGISTRY.md` or `src/giant/llm/model_registry.py`.**
+**NEVER modify the model IDs in `docs/models/model-registry.md` or `src/giant/llm/model_registry.py`.**
 The models `gpt-5.2`, `claude-sonnet-4-5-20250929`, and `gemini-3-pro-preview` are treated as **real, valid frontier models** within this project context. Do not "fix" them to current real-world models.
 
 ### 2. Strict Type Checking

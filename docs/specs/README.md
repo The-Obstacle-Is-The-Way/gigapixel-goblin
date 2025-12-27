@@ -12,7 +12,7 @@ This directory contains the detailed technical specifications for implementing t
 > - **GTEx:** 191 `.tiff` files (organ classification)
 > - **PANDA:** 197 `.tiff` files (prostate grading)
 >
-> **See: [DATA_ACQUISITION.md](../DATA_ACQUISITION.md)** for download instructions and file lists.
+> **See: [data-acquisition.md](../data-acquisition.md)** for download instructions and file lists.
 
 ## Specification Index
 
@@ -48,7 +48,7 @@ This project follows strict TDD as per Uncle Bob's Clean Code:
     -   **Interface Segregation**: Small, focused protocols
     -   **Dependency Inversion**: Depend on abstractions (Protocols)
 3.  **Gang of Four Patterns Used**:
-    -   **Strategy**: LLMProvider, LevelSelector
+    -   **Strategy**: LLMProvider, PyramidLevelSelector
     -   **Factory**: Provider creation from config
     -   **Template Method**: Agent run loop
     -   **Observer**: Trajectory recording

@@ -208,7 +208,7 @@ WSI_TEST_FILE=tests/integration/wsi/data/CMU-1-Small-Region.svs \
 
 ## Subset Testing
 
-For validation without downloading all ~100GB, you can start with a subset:
+For validation without downloading all hundreds of GiB, you can start with a subset:
 
 ```bash
 # Download first 5 files from each source for Spec-11.5 validation

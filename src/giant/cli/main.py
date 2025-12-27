@@ -79,7 +79,7 @@ def run(  # noqa: PLR0913
     ] = Provider.openai,
     model: Annotated[
         str,
-        typer.Option("--model", help="Model name (see docs/models/MODEL_REGISTRY.md)"),
+        typer.Option("--model", help="Model name (see docs/models/model-registry.md)"),
     ] = DEFAULT_OPENAI_MODEL,
     max_steps: Annotated[
         int, typer.Option("--max-steps", "-T", help="Max navigation steps")

@@ -1,4 +1,4 @@
-# BUG-037: `docs/DATA_ACQUISITION.md` Verification Requires `pandas` (Not Installed)
+# BUG-037: `docs/data-acquisition.md` Verification Requires `pandas` (Not Installed)
 
 ## Severity: P2 (Docs friction / onboarding failure)
 
@@ -6,7 +6,7 @@
 
 ## Summary
 
-`docs/DATA_ACQUISITION.md` includes a verification snippet that imports `pandas`, but `pandas` is not listed in `pyproject.toml` dependencies. On a fresh setup (`uv sync`), the snippet fails and blocks users from validating their WSI downloads.
+`docs/data-acquisition.md` includes a verification snippet that imports `pandas`, but `pandas` is not listed in `pyproject.toml` dependencies. On a fresh setup (`uv sync`), the snippet fails and blocks users from validating their WSI downloads.
 
 ## Repro
 
@@ -35,5 +35,5 @@ python -c "import pandas as pd"
 
 ## Acceptance Criteria
 
-- All “Verification” instructions in `docs/DATA_ACQUISITION.md` run on a fresh `uv sync` without extra installs.
+- All “Verification” instructions in `docs/data-acquisition.md` run on a fresh `uv sync` without extra installs.
 - Verification instructions correctly handle `gdc-client` TCGA layout (per-`file_id` subdirectories).

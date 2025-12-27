@@ -81,7 +81,7 @@ Code reference: `src/giant/prompts/templates.py`
 
 **Update (2025-12-20):** Prompts have been systematically derived from the paper with full evidence documentation.
 
-- `docs/prompts/PROMPT_DESIGN.md`: Comprehensive evidence table mapping each prompt component to paper line numbers
+- `docs/prompts/prompt-design.md`: Comprehensive evidence table mapping each prompt component to paper line numbers
 - `src/giant/prompts/templates.py`: Updated with paper citations and all high-confidence requirements implemented
 
 **Implemented (High Confidence):**
