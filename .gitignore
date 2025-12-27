@@ -228,6 +228,12 @@ __marimo__/
 /data/wsi/**/*.tif
 /data/wsi/**/*.ndpi
 /data/wsi/**/*.mrxs
+/data/wsi/**/*.dcm
+# GTEx DICOM directories (each slide is a folder with multiple .dcm files)
+/data/wsi/gtex/
+# Download manifests and logs (generated)
+/data/wsi/*.s5cmd
+/data/wsi/*.log
 # Keep README and .gitkeep files
 !/data/wsi/README.md
 !/data/wsi/**/.gitkeep
