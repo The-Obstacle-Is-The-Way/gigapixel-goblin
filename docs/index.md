@@ -63,10 +63,11 @@ giant benchmark gtex --provider openai
 | Benchmark | Task | Our Result | Paper (GIANT x1) |
 |-----------|------|------------|------------------|
 | GTEx | Organ Classification (20-way) | **67.6%** | 60.7% |
-| TCGA | Cancer Diagnosis (30-way) | In Progress | 32.3% |
+| TCGA | Cancer Diagnosis (30-way) | **25.2%** | 32.3% |
 | PANDA | Prostate Grading (6-way) | Pending | 25.4% |
 
-Our GTEx result of **67.6%** exceeds the paper's single-run baseline (60.7%) and approaches their 5-run majority voting result (69.1%).
+- **GTEx (67.6%)**: Exceeds the paper's single-run baseline (60.7%) and approaches their 5-run majority voting result (69.1%)
+- **TCGA (25.2%)**: Below paper baseline but above thumbnail (22.0%) and patch (19.1%) baselines. The 30-way cancer classification is the hardest task.
 
 ## Supported Models
 
