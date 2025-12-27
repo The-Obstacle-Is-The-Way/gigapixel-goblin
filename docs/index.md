@@ -2,7 +2,15 @@
 
 **Gigapixel Image Agent for Navigating Tissue**
 
-GIANT is an agentic system that uses LLMs to autonomously navigate whole-slide images (WSI) for pathology analysis. The agent iteratively crops regions based on LLM decisions until it can answer a question about the slide.
+GIANT is an agentic system that uses large language models to autonomously navigate whole-slide images (WSIs) for pathology analysis. The agent iteratively examines regions of a gigapixel image, zooming in on areas of interest until it can answer a question about the slide.
+
+## Key Features
+
+- **Autonomous Navigation** - LLM decides where to look next based on visual content
+- **Multi-Scale Analysis** - Examines both tissue architecture and cellular detail
+- **Provider Agnostic** - Supports OpenAI, Anthropic, and Google models
+- **Benchmark Evaluation** - Reproduce results on MultiPathQA (GTEx, TCGA, PANDA)
+- **Trajectory Visualization** - Interactive viewer for agent reasoning
 
 ## Quick Start
 
@@ -13,30 +21,52 @@ uv sync
 # Activate virtual environment
 source .venv/bin/activate
 
+# Configure API key
+export OPENAI_API_KEY=sk-...
+
 # Run on a single WSI
 giant run /path/to/slide.svs -q "What tissue is this?"
 
 # Run benchmark
-giant benchmark gtex --provider openai --model gpt-5.2
+giant benchmark gtex --provider openai
 ```
 
-## Architecture
+## How It Works
 
-The core algorithm (from the GIANT paper):
+```
+┌─────────────────────────────────────────────┐
+│  1. Load WSI + Generate Thumbnail           │
+│     ┌─────────────────┐                     │
+│     │ ███████████████ │ + Axis Guides       │
+│     │ █   Tissue    █ │                     │
+│     │ ███████████████ │                     │
+│     └─────────────────┘                     │
+├─────────────────────────────────────────────┤
+│  2. LLM Analyzes + Selects Region           │
+│     "I see suspicious area at (45K, 32K)    │
+│      Let me zoom in for cellular detail..." │
+├─────────────────────────────────────────────┤
+│  3. Extract High-Res Crop                   │
+│     ┌───────┐                               │
+│     │░░░░░░░│ 1000x1000 @ high resolution   │
+│     │░░░░░░░│                               │
+│     └───────┘                               │
+├─────────────────────────────────────────────┤
+│  4. Repeat Until Answer                     │
+│     "Based on cellular morphology,          │
+│      this is adenocarcinoma."               │
+└─────────────────────────────────────────────┘
+```
 
-1. `GIANTAgent` opens WSI via `WSIReader` and generates thumbnail with axis guides
-2. LLM examines thumbnail and outputs structured JSON: `{reasoning, action}`
-3. If `action.type == "crop"`: `CropEngine` extracts region, loop continues
-4. If `action.type == "answer"`: navigation ends with final answer
-5. `ContextManager` maintains multi-turn conversation history
-6. `Trajectory` records all steps for evaluation and visualization
+## Benchmark Results
 
-## Documentation
+| Benchmark | Task | Our Result | Paper (GIANT x1) |
+|-----------|------|------------|------------------|
+| GTEx | Organ Classification (20-way) | **67.6%** | 60.7% |
+| TCGA | Cancer Diagnosis (30-way) | In Progress | 32.3% |
+| PANDA | Prostate Grading (6-way) | Pending | 25.4% |
 
-- **[Data Acquisition](data-acquisition.md)**: How to download WSI files for benchmarking
-- **[Specifications](specs/README.md)**: Detailed implementation specs (Spec-01 through Spec-12)
-- **[Model Registry](models/model-registry.md)**: Approved LLM models and pricing
-- **[Benchmark Results](results/benchmark-results.md)**: MultiPathQA benchmark performance
+Our GTEx result of **67.6%** exceeds the paper's single-run baseline (60.7%) and approaches their 5-run majority voting result (69.1%).
 
 ## Supported Models
 
@@ -46,13 +76,50 @@ The core algorithm (from the GIANT paper):
 | Anthropic | `claude-sonnet-4-5-20250929` | Supported |
 | Google | `gemini-3-pro-preview` | Supported |
 
-## Benchmarks
+## Documentation
 
-| Benchmark | Task | Our Result | Paper (GIANT x1) |
-|-----------|------|------------|------------------|
-| GTEx | Organ Classification (20-way) | **67.6%** | 60.7% |
-| TCGA | Cancer Diagnosis (30-way) | In Progress | 32.3% |
-| PANDA | Prostate Grading (6-way) | Pending | 25.4% |
+### Getting Started
+
+- [Installation](getting-started/installation.md) - Set up your development environment
+- [Quickstart](getting-started/quickstart.md) - Run your first inference
+- [First Benchmark](getting-started/first-benchmark.md) - Reproduce paper results
+
+### Understanding GIANT
+
+- [What is GIANT?](concepts/overview.md) - High-level overview
+- [Architecture](concepts/architecture.md) - System design
+- [Navigation Algorithm](concepts/algorithm.md) - Core algorithm explanation
+- [LLM Integration](concepts/llm-integration.md) - Provider implementations
+
+### How-To Guides
+
+- [Running Inference](guides/running-inference.md) - Single WSI analysis
+- [Running Benchmarks](guides/running-benchmarks.md) - Full benchmark evaluation
+- [Configuring Providers](guides/configuring-providers.md) - API key setup
+- [Visualizing Trajectories](guides/visualizing-trajectories.md) - Inspect agent behavior
+
+### Reference
+
+- [CLI Reference](reference/cli.md) - Command-line options
+- [Configuration](reference/configuration.md) - All configuration options
+- [Project Structure](reference/project-structure.md) - Codebase organization
+- [Model Registry](models/model-registry.md) - Approved models
+
+### Development
+
+- [Contributing](development/contributing.md) - How to contribute
+- [Testing](development/testing.md) - Testing practices
+- [Specifications](specs/README.md) - Implementation specs (Spec-01 to Spec-12)
+
+## Data Requirements
+
+The MultiPathQA benchmark requires **862 unique WSI files** (~500+ GiB):
+
+- **TCGA**: 474 `.svs` files (~472 GiB)
+- **GTEx**: 191 `.tiff` files
+- **PANDA**: 197 `.tiff` files
+
+See [Data Acquisition](data-acquisition.md) for download instructions.
 
 ## Links
 

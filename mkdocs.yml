@@ -19,6 +19,7 @@ theme:
     - navigation.footer
     - navigation.instant
     - navigation.expand
+    - navigation.indexes
     - toc.follow
 
 plugins:
@@ -26,7 +27,7 @@ plugins:
 
 # Keep archived bug reports in the build but hide from nav.
 not_in_nav: |
-  bugs/archive/**
+  archive/**
 
 # Enable link/anchor validation (pair with `mkdocs build --strict` in CI).
 validation:
@@ -52,33 +53,66 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+
+  # Getting Started (Tutorials - Learning-oriented)
   - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Your First Benchmark: getting-started/first-benchmark.md
+
+  # Concepts (Explanation - Understanding-oriented)
+  - Concepts:
+      - What is GIANT?: concepts/overview.md
+      - Architecture: concepts/architecture.md
+      - Navigation Algorithm: concepts/algorithm.md
+      - LLM Integration: concepts/llm-integration.md
+
+  # Guides (How-to - Task-oriented)
+  - Guides:
+      - Running Inference: guides/running-inference.md
+      - Running Benchmarks: guides/running-benchmarks.md
+      - Configuring Providers: guides/configuring-providers.md
+      - Visualizing Trajectories: guides/visualizing-trajectories.md
       - Data Acquisition: data-acquisition.md
-  - Specifications:
-      - Overview: specs/README.md
-      - Foundation: specs/spec-01-foundation.md
-      - WSI Data: specs/spec-02-wsi-data.md
-      - Coordinates: specs/spec-03-coordinates.md
-      - Level Selection: specs/spec-04-level-selection.md
-      - Cropping: specs/spec-05-cropping.md
-      - WSI Integration: specs/spec-05.5-wsi-integration-checkpoint.md
-      - LLM Provider: specs/spec-06-llm-provider.md
-      - Navigation Prompt: specs/spec-07-navigation-prompt.md
-      - Context Manager: specs/spec-08-context-manager.md
-      - LLM Integration: specs/spec-08.5-llm-integration-checkpoint.md
-      - GIANT Agent: specs/spec-09-giant-agent.md
-      - Evaluation: specs/spec-10-evaluation.md
-      - CLAM Integration: specs/spec-11-clam-integration.md
-      - E2E Validation: specs/spec-11.5-e2e-validation-checkpoint.md
-      - CLI API: specs/spec-12-cli-api.md
+
+  # Reference (Information-oriented)
   - Reference:
+      - CLI Reference: reference/cli.md
+      - Configuration: reference/configuration.md
+      - Project Structure: reference/project-structure.md
       - Model Registry: models/model-registry.md
       - Prompt Design: prompts/prompt-design.md
+
+  # Results
   - Results:
       - Benchmark Results: results/benchmark-results.md
-  - Validation:
       - E2E Validation Report: validation/e2e-validation-2025-12-20.md
-  - Bugs:
-      - Overview: bugs/README.md
+
+  # Development
+  - Development:
+      - Contributing: development/contributing.md
+      - Testing: development/testing.md
+
+  # Specifications (Implementation details)
+  - Specifications:
+      - Overview: specs/README.md
+      - Spec-01 Foundation: specs/spec-01-foundation.md
+      - Spec-02 WSI Data: specs/spec-02-wsi-data.md
+      - Spec-03 Coordinates: specs/spec-03-coordinates.md
+      - Spec-04 Level Selection: specs/spec-04-level-selection.md
+      - Spec-05 Cropping: specs/spec-05-cropping.md
+      - Spec-05.5 WSI Checkpoint: specs/spec-05.5-wsi-integration-checkpoint.md
+      - Spec-06 LLM Provider: specs/spec-06-llm-provider.md
+      - Spec-07 Navigation Prompt: specs/spec-07-navigation-prompt.md
+      - Spec-08 Context Manager: specs/spec-08-context-manager.md
+      - Spec-08.5 LLM Checkpoint: specs/spec-08.5-llm-integration-checkpoint.md
+      - Spec-09 GIANT Agent: specs/spec-09-giant-agent.md
+      - Spec-10 Evaluation: specs/spec-10-evaluation.md
+      - Spec-11 CLAM Integration: specs/spec-11-clam-integration.md
+      - Spec-11.5 E2E Validation: specs/spec-11.5-e2e-validation-checkpoint.md
+      - Spec-12 CLI API: specs/spec-12-cli-api.md
+
+  # Bugs & Research
+  - Bugs: bugs/README.md
   - Research:
       - Agent SDKs vs Raw API: brainstorming/research-agent-sdks-vs-raw-api.md
