@@ -1,0 +1,84 @@
+# yaml-language-server: $schema=https://squidfunk.github.io/mkdocs-material/schema.json
+
+site_name: GIANT
+site_description: Gigapixel Image Agent for Navigating Tissue
+repo_url: https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin
+site_url: https://the-obstacle-is-the-way.github.io/gigapixel-goblin/
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - content.action.edit
+    - content.action.view
+    - navigation.tracking
+    - navigation.sections
+    - navigation.footer
+    - navigation.instant
+    - navigation.expand
+    - toc.follow
+
+plugins:
+  - search
+
+# Keep archived bug reports in the build but hide from nav.
+not_in_nav: |
+  bugs/archive/**
+
+# Enable link/anchor validation (pair with `mkdocs build --strict` in CI).
+validation:
+  omitted_files: warn
+  not_found: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Data Acquisition: data-acquisition.md
+  - Specifications:
+      - Overview: specs/README.md
+      - Foundation: specs/spec-01-foundation.md
+      - WSI Data: specs/spec-02-wsi-data.md
+      - Coordinates: specs/spec-03-coordinates.md
+      - Level Selection: specs/spec-04-level-selection.md
+      - Cropping: specs/spec-05-cropping.md
+      - WSI Integration: specs/spec-05.5-wsi-integration-checkpoint.md
+      - LLM Provider: specs/spec-06-llm-provider.md
+      - Navigation Prompt: specs/spec-07-navigation-prompt.md
+      - Context Manager: specs/spec-08-context-manager.md
+      - LLM Integration: specs/spec-08.5-llm-integration-checkpoint.md
+      - GIANT Agent: specs/spec-09-giant-agent.md
+      - Evaluation: specs/spec-10-evaluation.md
+      - CLAM Integration: specs/spec-11-clam-integration.md
+      - E2E Validation: specs/spec-11.5-e2e-validation-checkpoint.md
+      - CLI API: specs/spec-12-cli-api.md
+  - Reference:
+      - Model Registry: models/model-registry.md
+      - Prompt Design: prompts/prompt-design.md
+  - Results:
+      - Benchmark Results: results/benchmark-results.md
+  - Validation:
+      - E2E Validation Report: validation/e2e-validation-2025-12-20.md
+  - Bugs:
+      - Overview: bugs/README.md
+  - Research:
+      - Agent SDKs vs Raw API: brainstorming/research-agent-sdks-vs-raw-api.md
