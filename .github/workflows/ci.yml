@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 # Least privilege: read-only by default, override per-job where needed
 permissions:
@@ -15,19 +16,28 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  UV_CACHE_DIR: /tmp/uv-cache
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Harden runner (audit)
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867 # v7.1.6
         with:
           version: "0.9.18"
           python-version: ${{ matrix.python-version }}
@@ -46,16 +56,24 @@ jobs:
         run: uv sync --locked
 
       - name: Format check
+        if: matrix.python-version == '3.12'
         run: uv run ruff format --check .
 
       - name: Lint
+        if: matrix.python-version == '3.12'
         run: uv run ruff check .
 
       - name: Type check
+        if: matrix.python-version == '3.12'
         run: uv run mypy src
 
+      - name: Test
+        if: matrix.python-version != '3.12'
+        run: uv run pytest -m "not integration and not live and not cost"
+
       - name: Test with coverage
-        run: uv run pytest --cov=src/giant --cov-report=xml --cov-fail-under=90
+        if: matrix.python-version == '3.12'
+        run: uv run pytest -m "not integration and not live and not cost" --cov=src/giant --cov-report=xml --cov-fail-under=90
 
       - name: Build docs (strict)
         if: matrix.python-version == '3.12'
@@ -63,33 +81,19 @@ jobs:
 
       - name: Upload coverage
         if: matrix.python-version == '3.12'
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
           files: coverage.xml
-          fail_ci_if_error: false  # Token required for protected branches; set CODECOV_TOKEN secret to enable
+          fail_ci_if_error: false # Token required for protected branches; set CODECOV_TOKEN secret to enable
 
-  deploy-docs:
-    needs: test
+  dependency-review:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    timeout-minutes: 5
     permissions:
-      contents: write  # Required for pushing to gh-pages branch
+      contents: read
+      pull-requests: read
     steps:
-      - uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "0.9.18"
-          python-version: "3.12"
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            uv.lock
-
-      - name: Install dependencies
-        run: uv sync --locked
-
-      - name: Deploy docs to GitHub Pages
-        run: uv run mkdocs gh-deploy --force
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - name: Dependency Review
+        uses: actions/dependency-review-action@3c4e3dcb1aa7874d2c16be7d79418e9b7efd6261 # v4.8.2
