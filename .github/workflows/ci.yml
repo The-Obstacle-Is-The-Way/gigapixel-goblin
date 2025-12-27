@@ -6,9 +6,19 @@ on:
   pull_request:
     branches: [main]
 
+# Least privilege: read-only by default, override per-job where needed
+permissions:
+  contents: read
+
+# Cancel superseded runs on same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
         python-version: ["3.11", "3.12"]
@@ -52,6 +62,7 @@ jobs:
         run: uv run mkdocs build --strict --site-dir /tmp/mkdocs-site
 
       - name: Upload coverage
+        if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v5
         with:
           files: coverage.xml
@@ -60,6 +71,7 @@ jobs:
   deploy-docs:
     needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write  # Required for pushing to gh-pages branch
