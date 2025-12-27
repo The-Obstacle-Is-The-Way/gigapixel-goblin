@@ -131,8 +131,8 @@ jobs:
                           reason = "no-docs-changes"
 
           with open(OUTPUT_PATH, "a", encoding="utf-8") as f:
-              f.write(f"deploy={'true' if deploy else 'false'}\\n")
-              f.write(f"reason={reason}\\n")
+              f.write(f"deploy={'true' if deploy else 'false'}\n")
+              f.write(f"reason={reason}\n")
 
           print(f"deploy={deploy} reason={reason} sha={SHA}")
           PY
