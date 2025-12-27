@@ -108,6 +108,38 @@ class WSIPathResolver:
 
         return None
 
+    def _try_resolve_dicom_directory(
+        self,
+        *,
+        image_rel: Path,
+        wsi_subdir: str,
+    ) -> Path | None:
+        """Resolve a DICOM WSI from a directory of .dcm files.
+
+        For GTEx images from IDC, the layout is:
+            gtex/GTEX-OIZH-0626/*.dcm
+
+        OpenSlide 4.0.0+ can read DICOM WSI by opening any .dcm file in the
+        directory; it scans sibling files with the same Series Instance UID.
+
+        Example: GTEX-OIZH-0626.tiff -> gtex/GTEX-OIZH-0626/<any>.dcm
+        """
+        # Use stem without extension as directory name
+        dicom_dir_name = image_rel.stem
+
+        for candidate_parent in (self.wsi_root / wsi_subdir, self.wsi_root):
+            dicom_dir = candidate_parent / dicom_dir_name
+            if not dicom_dir.is_dir():
+                continue
+
+            # Find any .dcm file in the directory
+            dcm_files = sorted(dicom_dir.glob("*.dcm"))
+            if dcm_files:
+                # Return the first .dcm file; OpenSlide will find siblings
+                return dcm_files[0]
+
+        return None
+
     def resolve(
         self,
         image_path: str,
@@ -122,6 +154,7 @@ class WSIPathResolver:
         2. wsi_root / <benchmark-subdir> / image_path
         3. (TCGA/GDC) wsi_root / <benchmark-subdir> / file_id / <downloaded filename>
         4. (TCGA/GDC) wsi_root / <benchmark-subdir> / image_stem.*<suffix>
+        5. (GTEx/DICOM) wsi_root / <benchmark-subdir> / image_stem / *.dcm
 
         Raises:
             FileNotFoundError: If WSI file is not found.
@@ -160,6 +193,14 @@ class WSIPathResolver:
                 return resolved
 
         resolved = self._try_resolve_uuid_suffixed_filename(
+            image_rel=image_rel,
+            wsi_subdir=wsi_subdir,
+        )
+        if resolved is not None:
+            return resolved
+
+        # Try DICOM directory (e.g., GTEx from IDC: gtex/GTEX-OIZH-0626/*.dcm)
+        resolved = self._try_resolve_dicom_directory(
             image_rel=image_rel,
             wsi_subdir=wsi_subdir,
         )
