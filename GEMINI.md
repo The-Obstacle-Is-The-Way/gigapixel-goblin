@@ -35,8 +35,8 @@ The project uses a `Makefile` to wrap common `uv` commands.
 ### Key Directories
 - `src/giant/agent/`: Core logic (`GIANTAgent`, `ContextManager`, `Trajectory`).
 - `src/giant/llm/`: LLM abstraction (`LLMProvider` protocol, `OpenAIClient`, `AnthropicClient`).
-- `src/giant/core/`: WSI processing (`CropEngine`, `LevelSelector`).
-- `src/giant/geometry/`: Geometric primitives (`Region`, `Point`, `Box`).
+- `src/giant/core/`: WSI processing (`CropEngine`, `PyramidLevelSelector`).
+- `src/giant/geometry/`: Geometric primitives (`Region`, `Point`, `Size`).
 - `src/giant/prompts/`: Prompt engineering and templates.
 - `tests/unit/`: Fast, mocked unit tests (Primary testing ground).
 - `tests/integration/`: Tests requiring real WSI files or APIs.
