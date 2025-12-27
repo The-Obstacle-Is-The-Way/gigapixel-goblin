@@ -23,7 +23,7 @@
 
 ## How It Works
 
-```
+```text
 1. LOAD        →  Open gigapixel WSI, generate thumbnail with coordinate guides
 2. OBSERVE     →  LLM sees current view + conversation history
 3. REASON      →  "I see suspicious tissue at (45000, 32000). Let me zoom in..."

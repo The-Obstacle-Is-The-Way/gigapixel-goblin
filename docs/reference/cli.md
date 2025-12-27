@@ -203,7 +203,7 @@ giant check-data panda --json
 
 ### Output
 
-```
+```text
 All WSIs present for gtex: 191/191 under data/wsi
 ```
 

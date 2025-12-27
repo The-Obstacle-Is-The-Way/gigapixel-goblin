@@ -156,7 +156,7 @@ See [Model Registry](../models/model-registry.md) for the full list.
 
 ### "API key not set"
 
-```
+```text
 Error: OpenAI API key not configured. Set it in .env file or OPENAI_API_KEY environment variable.
 ```
 
@@ -168,7 +168,7 @@ echo $OPENAI_API_KEY  # Should print your key
 
 ### "Invalid API key"
 
-```
+```text
 Error: openai.AuthenticationError: Invalid API key
 ```
 
@@ -180,7 +180,7 @@ If your key contains obvious placeholder strings (e.g., `your-key`, `changeme`),
 
 ### "Model not approved"
 
-```
+```text
 Error: Model 'gpt-4o' not approved
 ```
 

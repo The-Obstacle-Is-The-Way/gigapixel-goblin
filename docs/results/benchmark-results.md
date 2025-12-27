@@ -54,7 +54,7 @@ Our implementation significantly outperforms the paper's thumbnail and patch bas
 
 ### Trajectory Files
 Individual slide trajectories with full LLM reasoning are saved in:
-```
+```text
 results/trajectories/GTEX-*_run0.json
 ```
 
