@@ -2,7 +2,7 @@
 
 ## Severity: P2 (Docs friction / onboarding failure)
 
-## Status: Proposed Fix Spec (Not Implemented)
+## Status: ✅ Fixed (2025-12-26)
 
 ## Summary
 

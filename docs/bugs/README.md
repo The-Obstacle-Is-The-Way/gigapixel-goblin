@@ -20,15 +20,7 @@ All bugs have been migrated to GitHub Issues for tracking:
 
 ## Local Audit Findings (Not Yet Filed)
 
-The following issues were found during local reproduction/benchmark prep and should be filed to GitHub Issues when ready:
-
-| ID | Severity | Title | Spec Doc | Where |
-|----|----------|-------|----------|-------|
-| BUG-033 | P0 | `make benchmark` uses wrong CLI args | [BUG-033-make-benchmark-uses-wrong-cli-args.md](BUG-033-make-benchmark-uses-wrong-cli-args.md) | `Makefile`, `docs/specs/spec-01-foundation.md`, `AGENTS.md` |
-| BUG-034 | P0 | `make test` runs `live`/`cost` tests by default if keys are configured | [BUG-034-default-tests-trigger-live-api.md](BUG-034-default-tests-trigger-live-api.md) | `Makefile`, `tests/integration/llm/test_p0_critical.py` |
-| BUG-035 | P1 | CLI exceptions may leak API keys via Rich “show locals” tracebacks | [BUG-035-cli-tracebacks-leak-secrets.md](BUG-035-cli-tracebacks-leak-secrets.md) | `src/giant/cli/main.py` (Typer defaults) |
-| BUG-036 | P1 | TCGA download verification docs don’t match `gdc-client` layout | [BUG-036-wsi-readme-verification-gdc-layout.md](BUG-036-wsi-readme-verification-gdc-layout.md) | `data/wsi/README.md` |
-| BUG-037 | P2 | Data acquisition verification snippet requires `pandas` (not a dependency) | [BUG-037-data-acquisition-verification-no-pandas.md](BUG-037-data-acquisition-verification-no-pandas.md) | `docs/DATA_ACQUISITION.md` |
+_No pending local audit findings. All benchmark-prep bugs (BUG-033 through BUG-037) have been fixed and archived._
 
 ## Archived (Fixed) Bugs
 
@@ -36,6 +28,11 @@ See `archive/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-037 | Data acquisition verification requires `pandas` | Fixed (use `giant check-data` CLI instead) |
+| BUG-036 | WSI README verification assumes flat TCGA layout | Fixed (recommend `giant check-data`, handles both layouts) |
+| BUG-035 | CLI exceptions may leak API keys in tracebacks | Fixed (`pretty_exceptions_show_locals=False`) |
+| BUG-034 | Default tests trigger live API calls | Fixed (exclude live/cost markers + `GIANT_RUN_LIVE_TESTS` gate) |
+| BUG-033 | `make benchmark` uses wrong CLI args | Fixed (Makefile uses `$(DATASET)` + fail-fast validation) |
 | BUG-032 | Placeholder API keys treated as configured | Fixed (reject obvious placeholder secrets early) |
 | BUG-031 | Answer extraction fails with multiple integers | Fixed (select first in-range option index) |
 | BUG-029 | Low TCGA benchmark accuracy (investigation) | Fixed (AgentConfig T=20 default aligned to paper) |
@@ -86,13 +83,13 @@ See `archive/` for historical bugs that have been resolved:
 - `uv run pytest -m "not live and not cost"`
 - `uv run giant check-data <dataset>` to confirm local WSI availability
 
-**Findings (new bugs)**:
+**Findings (bugs identified and fixed)**:
 
-- **BUG-033 (P0)**: `make benchmark` is currently broken because it runs `uv run giant benchmark ./data/multipathqa`, but the CLI expects a dataset name (e.g., `tcga`). This drift also appears in `docs/specs/spec-01-foundation.md` and is referenced in `AGENTS.md`. Fix by updating examples/targets to `giant benchmark tcga --csv-path data/multipathqa/MultiPathQA.csv --wsi-root data/wsi` (and/or add per-dataset `make benchmark-tcga` targets).
-- **BUG-034 (P0)**: `make test` / `make check` runs `pytest` without excluding `live`/`cost` tests. If `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` is configured, this will trigger real API calls and spend money unexpectedly. Fix by changing default test commands to exclude `live`/`cost` (and add an explicit opt-in target like `make test-live`).
-- **BUG-035 (P1)**: When the CLI raises an exception, Rich tracebacks can print locals (including `Settings`), which may include API keys. Fix by disabling locals in Typer (`pretty_exceptions_show_locals=False`) and/or masking secrets (e.g., `SecretStr`).
-- **BUG-036 (P1)**: `data/wsi/README.md` verification commands assume a flat `tcga/<filename>.svs` layout, but recommended downloads use `gdc-client` which stores files under `tcga/<file_id>/<uuid-suffixed filename>.svs`. This causes false “Missing” reports. Fix by recommending `giant check-data` (or updating shell checks to match resolver behavior).
-- **BUG-037 (P2)**: `docs/DATA_ACQUISITION.md` includes a verification snippet that imports `pandas`, but `pandas` is not in `pyproject.toml` dependencies. Fix by rewriting the snippet using stdlib `csv` or directing users to `giant check-data`.
+- **BUG-033 (P0)**: ✅ Fixed. Makefile now uses `$(or $(DATASET),tcga)` + per-dataset targets (`benchmark-tcga`, etc.). CLI runner validates dataset before creating LLM provider (fail-fast).
+- **BUG-034 (P0)**: ✅ Fixed. `make test` excludes `live`/`cost` markers. Live tests require explicit `GIANT_RUN_LIVE_TESTS=1` environment variable.
+- **BUG-035 (P1)**: ✅ Fixed. Typer app sets `pretty_exceptions_show_locals=False`. Regression tests verify secrets don't leak.
+- **BUG-036 (P1)**: ✅ Fixed. `data/wsi/README.md` now recommends `giant check-data` which handles both flat and gdc-client layouts.
+- **BUG-037 (P2)**: ✅ Fixed. `docs/DATA_ACQUISITION.md` verification section uses `giant check-data` CLI (no pandas dependency).
 
 **Blocker status (data)**:
 

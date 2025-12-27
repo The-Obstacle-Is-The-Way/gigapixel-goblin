@@ -2,7 +2,7 @@
 
 ## Severity: P0 (Blocks benchmark runs via Makefile)
 
-## Status: Proposed Fix Spec (Not Implemented)
+## Status: ✅ Fixed (2025-12-26)
 
 ## Summary
 

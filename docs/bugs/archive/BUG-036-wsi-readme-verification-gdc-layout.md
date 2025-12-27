@@ -1,8 +1,8 @@
 # BUG-036: `data/wsi/README.md` Verification Assumes Flat TCGA Layout
 
-## Severity: P1 (Docs cause false “missing data” signals)
+## Severity: P1 (Docs cause false "missing data" signals)
 
-## Status: Proposed Fix Spec (Not Implemented)
+## Status: ✅ Fixed (2025-12-26)
 
 ## Summary
 
