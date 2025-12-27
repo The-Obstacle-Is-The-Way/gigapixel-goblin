@@ -1,4 +1,4 @@
-.PHONY: install install-system test test-watch test-cov lint format format-check typecheck check all clean download-data benchmark mutmut
+.PHONY: install install-system test test-watch test-cov test-live test-all lint format format-check typecheck check all clean download-data benchmark benchmark-tcga benchmark-gtex benchmark-panda mutmut
 
 install:
 	uv sync
