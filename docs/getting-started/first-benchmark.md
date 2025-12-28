@@ -92,7 +92,7 @@ Results are saved to `results/` with:
 | Benchmark | Our Result | Paper (GIANT x1) | Paper (GIANT x5) |
 |-----------|------------|------------------|------------------|
 | GTEx (20-way) | 67.6% | 53.7% | 60.7% |
-| TCGA (30-way) | TBD | 32.3% | 29.3% |
+| TCGA (30-way) | 25.2% | 32.3% | 29.3% |
 | PANDA (6-way) | TBD | 23.2% | 25.4% |
 
 ## Cost Estimates
