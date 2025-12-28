@@ -4,16 +4,11 @@ annotations_creators:
 - machine-generated
 language:
 - en
-license: cc-by-4.0
 multilinguality:
 - monolingual
 pretty_name: MultiPathQA
 size_categories:
 - n<1K
-source_datasets:
-- TCGA
-- GTEx
-- PANDA Challenge
 task_categories:
 - visual-question-answering
 - image-classification
@@ -30,6 +25,9 @@ tags:
 - benchmark
 - wsi
 - gigapixel
+- tcga
+- gtex
+- panda
 dataset_info:
   features:
   - name: benchmark_name
@@ -96,16 +94,16 @@ configs:
 
 - **Homepage:** [https://huggingface.co/datasets/tbuckley/MultiPathQA](https://huggingface.co/datasets/tbuckley/MultiPathQA)
 - **Repository:** [https://github.com/Harvard-Ophthalmology-AI-Lab/GIANT](https://github.com/Harvard-Ophthalmology-AI-Lab/GIANT)
-- **Paper:** [Navigating Gigapixel Pathology Images with Large Multimodal Models](https://arxiv.org/abs/2506.XXXXX)
+- **Paper:** [Navigating Gigapixel Pathology Images with Large Multimodal Models](https://arxiv.org/abs/2511.19652)
 - **Point of Contact:** Thomas A. Buckley (Harvard Medical School)
 
 ### Dataset Summary
 
-MultiPathQA is a benchmark dataset for evaluating large multimodal models (LMMs) on **whole-slide image (WSI) question answering** in computational pathology. The dataset comprises **934 WSI-level questions** spanning **862 unique whole-slide images** across five clinically-relevant diagnostic tasks.
+MultiPathQA is a benchmark dataset for evaluating large multimodal models (LMMs) on **whole-slide image (WSI) question answering** in computational pathology. The released `MultiPathQA.csv` contains **934 WSI-level questions** spanning **862 unique slides** (unique `file_id` / `image_path`) across five clinically-relevant tasks. (The GIANT paper reports 868 unique WSIs.)
 
 MultiPathQA is designed to evaluate whether LMMs can reason coherently and accurately over gigapixel pathology images. It accompanies the **GIANT (Gigapixel Image Agent for Navigating Tissue)** framework, which enables LMMs to iteratively pan, zoom, and reason across WSIs like a pathologist.
 
-A key distinguishing feature of MultiPathQA is **ExpertVQA**, a subset of 128 questions authored by two professional pathologists (one resident, one board-certified attending) that require direct slide interpretation at multiple scales—the first pathologist-generated WSI question-answering benchmark.
+A key distinguishing feature of MultiPathQA is **ExpertVQA**, a subset of 128 questions authored by two pathologists (one resident, one attending) that require direct slide interpretation at multiple scales—the first pathologist-generated WSI question-answering benchmark.
 
 ### Supported Tasks and Leaderboards
 
@@ -116,17 +114,17 @@ MultiPathQA supports evaluation across five distinct pathology tasks:
 | **GTEx** | 20-way organ classification from non-diseased tissue | 191 | 191 | Balanced Accuracy |
 | **TCGA** | 30-way cancer type diagnosis | 221 | 221 | Balanced Accuracy |
 | **PANDA** | 6-class prostate cancer ISUP grading (0-5) | 197 | 197 | Balanced Accuracy |
-| **SlideBenchVQA** | Free-form VQA from SlideChat benchmark | 197 | 183 | Accuracy |
+| **SlideBenchVQA** | Multiple-choice VQA sampled from SlideChat-VQA-TCGA-plus | 197 | 183 | Accuracy |
 | **ExpertVQA** | Pathologist-authored diagnostic questions | 128 | 76 | Accuracy |
 
-**Benchmark Results (from GIANT paper):**
+**Benchmark Results (from the GIANT paper, Table 1; mean ± bootstrap std.):**
 
 | Model | TCGA | GTEx | PANDA | SlideBenchVQA | ExpertVQA |
 |-------|------|------|-------|---------------|-----------|
-| GPT-5 + GIANT | 32.3% | 53.7% | 23.2% | 58.9% | 57.0% |
-| GPT-5 + GIANT x5 | 29.3% | 60.7% | 25.4% | 59.4% | **62.5%** |
-| TITAN (zero-shot) | **88.8%** | **96.3%** | 27.5% | 39.6% | 43.8% |
-| SlideChat (zero-shot) | 3.3% | 5.0% | 17.0% | **71.6%** | 37.5% |
+| GPT-5 + GIANT | 32.3 ± 3.5 | 53.7 ± 3.4 | 23.2 ± 2.3 | 58.9 ± 3.5 | 57.0 ± 4.5 |
+| GPT-5 + GIANT x5 | 29.3 ± 3.3 | 60.7 ± 3.2 | 25.4 ± 2.0 | 59.4 ± 3.4 | **62.5 ± 4.4** |
+| TITAN (zero-shot) | **88.8 ± 1.7** | **96.3 ± 1.3** | 27.5 ± 2.3 | 39.6 ± 3.5 | 43.8 ± 4.2 |
+| SlideChat (zero-shot) | 3.3 ± 1.2 | 5.0 ± 0.0 | 17.0 ± 0.4 | **71.6 ± 3.3** | 37.5 ± 4.3 |
 
 ### Languages
 
@@ -162,7 +160,7 @@ An example from ExpertVQA (pathologist-authored):
   "benchmark_id": "0",
   "image_path": "TCGA-HT-A616-01Z-00-DX1.svs",
   "answer": "1",
-  "options": "['Low', 'Moderate', 'High', 'Very High']",
+  "options": "['Low', 'Medium', 'High', 'Cannot determine']",
   "image_exists": true,
   "patch_exists": true,
   "is_valid": true,
@@ -178,15 +176,15 @@ An example from ExpertVQA (pathologist-authored):
 |-------|------|-------------|
 | `benchmark_name` | string | Task identifier: `gtex`, `tcga`, `panda`, `tcga_slidebench`, or `tcga_expert_vqa` |
 | `benchmark_id` | string | Unique identifier for the question within its benchmark |
-| `image_path` | string | Filename of the whole-slide image (`.svs` or `.tiff` format) |
-| `answer` | string | Ground truth answer (organ name, class number, or diagnosis) |
-| `options` | string | JSON-formatted list of multiple-choice options |
-| `image_exists` | bool | Whether the WSI file is available |
-| `patch_exists` | bool | Whether pre-extracted patches exist for the WSI |
-| `is_valid` | bool | Whether the instance passed quality control |
+| `image_path` | string | Filename of the whole-slide image (`.svs` or `.tiff` format); the WSI files are not included in this dataset repository |
+| `answer` | string | Ground truth answer. For `gtex`, this is the correct label string. For `panda`, this is the ISUP grade group `0`–`5` (stored as a string). For `tcga`, `tcga_slidebench`, and `tcga_expert_vqa`, this is a 1-based index into `options` (stored as a string). |
+| `options` | string | String encoding of a Python list of answer choices (parse with `ast.literal_eval`). Missing/empty for `panda`. |
+| `image_exists` | bool | Whether the WSI existed in the authors' environment at dataset build time (always `True` in this release) |
+| `patch_exists` | bool | Whether pre-extracted patches existed in the authors' environment (always `True` in this release) |
+| `is_valid` | bool | Whether the instance passed dataset quality checks (always `True` in this release) |
 | `metric_type` | string | Evaluation metric: `balanced_accuracy` or `accuracy` |
 | `file_id` | string | Base identifier for the WSI (without extension) |
-| `prompt` | string | The question prompt template for the model |
+| `prompt` | string | The question prompt; for `gtex` and `tcga` it includes a `{options}` placeholder. |
 
 ### Data Splits
 
@@ -221,9 +219,9 @@ MultiPathQA is released as a single evaluation set. It is intended for **benchma
 
 #### SlideBenchVQA (197 questions)
 
-- **Source:** Subset of SlideChat-VQA-TCGA-plus benchmark
-- **Task:** Free-form visual question answering
-- **Note:** Questions were generated from TCGA pathology reports
+- **Source:** Random sample from SlideChat-VQA-TCGA-plus (SlideChat / SlideBench pipeline)
+- **Task:** 4-option multiple-choice VQA (answers stored as 1-based indices)
+- **Note:** The GIANT paper samples 200 questions; 3 slides were missing or failed segmentation, yielding 197 questions over 183 unique images.
 
 #### ExpertVQA (128 questions)
 
@@ -264,19 +262,19 @@ WSIs were obtained from three publicly available sources:
 - **GTEx/TCGA/PANDA:** Labels derived from established clinical annotations in source datasets
 - **SlideBenchVQA:** Questions generated from TCGA pathology reports using LLM-based pipelines (see SlideChat paper)
 - **ExpertVQA:**
-  - Two pathologists (one resident, one board-certified attending) reviewed slides
-  - 90 WSIs selected via stratified sampling across 20 primary sites
-  - Pathologists formulated 1-3 diagnostic questions per selected slide
-  - Each question includes 4 answer choices with one verified correct label
+  - Two pathologists (one resident, one attending) reviewed slides
+  - 90 WSIs were sampled (one per patient) from the TCGA Uniform cohort via stratified sampling across the 20 most frequent primary sites; a subset of 76 WSIs was used for question writing
+  - Pathologists formulated 1-3 diagnostic multiple-choice questions per selected slide
+  - Each question includes 4 answer choices and one verified correct label
 
 #### Who are the annotators?
 
-- **ExpertVQA:** Two professional pathologists from Massachusetts General Hospital and Brown University
+- **ExpertVQA:** Two pathologists (one resident, one attending)
 - **Other benchmarks:** Annotations inherited from source datasets (TCGA, GTEx, PANDA) or prior work (SlideBench)
 
 ### Personal and Sensitive Information
 
-WSIs in TCGA and GTEx are derived from de-identified tissue samples. Patient identifiers have been removed from all source datasets. The PANDA Challenge data was collected with appropriate IRB approval and de-identification protocols.
+MultiPathQA is distributed as a CSV of prompts, labels, and slide filenames/identifiers; it does not include the underlying WSIs. Please consult the original source datasets (TCGA, GTEx, PANDA, and SlideChat/SlideBench) for their data access controls and usage terms.
 
 ## Considerations for Using the Data
 
@@ -299,7 +297,7 @@ Several potential biases should be considered:
 ### Other Known Limitations
 
 1. **WSI availability:** This dataset contains metadata and prompts only—actual WSI files must be obtained from original sources (TCGA, GTEx, PANDA)
-2. **File sizes:** WSIs are gigapixel images (typically 0.5-5 GB each); full benchmark requires ~500+ GB storage
+2. **Storage/compute:** Whole-slide images are large and may require substantial storage and preprocessing to work with at scale
 3. **SlideBenchVQA overlap:** SlideChat was trained on data generated by the same pipeline as SlideBenchVQA, potentially inflating its benchmark scores
 4. **Low-resolution limitations:** As noted in the paper, some SlideBench WSIs have unusually small file sizes suggestive of low-magnification scanning
 
@@ -325,23 +323,20 @@ Primary curators:
 
 ### Licensing Information
 
-This dataset is released under the **Creative Commons Attribution 4.0 International (CC BY 4.0)** license.
-
-Note that the underlying WSIs are subject to their original data use agreements:
-- **TCGA:** Open access with acknowledgment requirements
-- **GTEx:** dbGaP access for some data types
-- **PANDA:** Kaggle competition terms
+No explicit license information is included in the `tbuckley/MultiPathQA` Hugging Face dataset repository at the time of writing. Please consult the GIANT authors/maintainers before redistributing this dataset, and adhere to the access and licensing/terms of the underlying source datasets (TCGA, GTEx, PANDA, and SlideChat/SlideBench).
 
 ### Citation Information
 
 If you use MultiPathQA in your research, please cite:
 
 ```bibtex
-@article{buckley2025giant,
+@misc{buckley2025navigating,
   title={Navigating Gigapixel Pathology Images with Large Multimodal Models},
   author={Buckley, Thomas A. and Weihrauch, Kian R. and Latham, Katherine and Zhou, Andrew Z. and Manrai, Padmini A. and Manrai, Arjun K.},
-  journal={arXiv preprint},
-  year={2025}
+  year={2025},
+  eprint={2511.19652},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV}
 }
 ```
 
@@ -358,6 +353,7 @@ Thanks to the following for their contributions:
 ## Quick Start
 
 ```python
+import ast
 from datasets import load_dataset
 
 # Load the dataset
@@ -367,8 +363,12 @@ dataset = load_dataset("tbuckley/MultiPathQA")
 gtex_questions = dataset["train"].filter(lambda x: x["benchmark_name"] == "gtex")
 expert_vqa = dataset["train"].filter(lambda x: x["benchmark_name"] == "tcga_expert_vqa")
 
-# View a sample
-print(expert_vqa[0])
+# View a sample and decode the multiple-choice options
+row = expert_vqa[0]
+options = ast.literal_eval(row["options"])
+answer_index = int(row["answer"])  # 1-based
+print(row["prompt"])
+print("correct:", options[answer_index - 1])
 ```
 
 ## Data Acquisition
