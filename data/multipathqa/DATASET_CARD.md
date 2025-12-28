@@ -93,7 +93,6 @@ configs:
 ## Dataset Description
 
 - **Homepage:** [https://huggingface.co/datasets/tbuckley/MultiPathQA](https://huggingface.co/datasets/tbuckley/MultiPathQA)
-- **Repository:** [https://github.com/Harvard-Ophthalmology-AI-Lab/GIANT](https://github.com/Harvard-Ophthalmology-AI-Lab/GIANT)
 - **Paper:** [Navigating Gigapixel Pathology Images with Large Multimodal Models](https://arxiv.org/abs/2511.19652)
 - **Point of Contact:** Thomas A. Buckley (Harvard Medical School)
 
@@ -379,4 +378,4 @@ To obtain the actual WSI files:
 2. **GTEx:** [GTEx Portal](https://gtexportal.org/)
 3. **PANDA:** [Kaggle PANDA Challenge](https://www.kaggle.com/c/prostate-cancer-grade-assessment)
 
-For detailed download instructions, see the [GIANT repository](https://github.com/Harvard-Ophthalmology-AI-Lab/GIANT).
+For more details, see the [GIANT paper](https://arxiv.org/abs/2511.19652).
