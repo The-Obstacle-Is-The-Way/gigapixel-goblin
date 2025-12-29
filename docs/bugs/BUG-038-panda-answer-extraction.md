@@ -1,11 +1,12 @@
 # BUG-038: PANDA Answer Extraction + Scoring Issues
 
-**Status**: OPEN
-**Severity**: CRITICAL
+**Status**: FIXED (B1, B2)
+**Severity**: CRITICAL (was)
 **Component(s)**:
 - `src/giant/eval/answer_extraction.py` (B1)
 - `src/giant/llm/openai_client.py` (B2; affects PANDA runs)
 **Discovered**: 2025-12-29
+**Fixed**: 2025-12-29
 **Cost Impact**: Reported $73.38 for PANDA run (lower bound; parse-failed calls are not costed)
 
 ## Summary
@@ -313,8 +314,8 @@ PANDA is 10x more expensive per item because prostate grading requires more navi
 
 ## Sign-Off
 
-- [ ] Fix `_extract_panda_label()` to map null -> 0 (without mapping missing key)
-- [ ] Add unit tests for null + missing-key PANDA cases
-- [ ] Fix OpenAI `"Extra data"` parsing in `OpenAIProvider`
+- [x] Fix `_extract_panda_label()` to map null -> 0 (without mapping missing key) ✅ FIXED
+- [x] Add unit tests for null + missing-key PANDA cases ✅ 4 tests added
+- [x] Fix OpenAI `"Extra data"` parsing in `OpenAIProvider` ✅ FIXED
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis

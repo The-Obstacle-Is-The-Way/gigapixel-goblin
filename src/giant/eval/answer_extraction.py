@@ -24,6 +24,10 @@ _LETTER_RE = re.compile(r"\b([A-D])\b", re.IGNORECASE)
 # Number of options required for letter extraction (A-D mapping)
 _LETTER_OPTION_COUNT = 4
 
+# ISUP grade range for PANDA (0 = benign, 1-5 = cancer grades)
+_ISUP_GRADE_MIN = 0
+_ISUP_GRADE_MAX = 5
+
 
 @dataclass(frozen=True)
 class ExtractedAnswer:
@@ -39,13 +43,39 @@ class ExtractedAnswer:
 
 
 def _extract_panda_label(text: str) -> int | None:
-    """Extract ISUP grade from PANDA JSON response."""
+    """Extract ISUP grade from PANDA JSON response.
+
+    Handles:
+    - {"isup_grade": 0-5} -> returns integer (validated to 0..5)
+    - {"isup_grade": null} -> returns 0 (benign/no cancer)
+    - missing "isup_grade" key -> returns None (extraction failure)
+    """
     try:
         json_str = _extract_json_object(text)
         obj = json.loads(json_str)
-        return int(obj["isup_grade"])
+        if "isup_grade" not in obj:
+            return None
+        grade = obj["isup_grade"]
+        if grade is None:
+            return 0  # Benign/no cancer = ISUP Grade 0
+        grade_int = int(grade)
+        return grade_int if _ISUP_GRADE_MIN <= grade_int <= _ISUP_GRADE_MAX else None
     except Exception:
         return None
+
+
+def _has_isup_grade_key(text: str) -> bool:
+    """Check if text contains a JSON object with 'isup_grade' key.
+
+    Used to prevent fallback to naive integer extraction when PANDA JSON
+    was found but had an invalid grade (out of range or type error).
+    """
+    try:
+        json_str = _extract_json_object(text)
+        obj = json.loads(json_str)
+        return "isup_grade" in obj
+    except Exception:
+        return False
 
 
 def _extract_from_options(text: str, options: list[str]) -> int | None:
@@ -109,6 +139,11 @@ def extract_label(
     # Special handling for PANDA: extract JSON isup_grade
     if benchmark_name == "panda":
         label = _extract_panda_label(text)
+        # If PANDA JSON extraction returned a result, use it (don't fall back)
+        # If it returned None but JSON with isup_grade was present, don't fall back
+        # to integer extraction (which would grab coordinate numbers or invalid grades)
+        if label is not None or _has_isup_grade_key(text):
+            return ExtractedAnswer(label=label, raw=text)
 
     # If options exist, try letter (A-D), 1..N integer, or option text match
     if label is None and options:
@@ -116,7 +151,7 @@ def extract_label(
         # Options exist but no match found - return early with None
         return ExtractedAnswer(label=label, raw=text)
 
-    # No options: try integer extraction (e.g., PANDA grade fallback)
+    # No options: try integer extraction (fallback for non-PANDA or malformed PANDA)
     if label is None:
         label = _extract_integer(text)
 

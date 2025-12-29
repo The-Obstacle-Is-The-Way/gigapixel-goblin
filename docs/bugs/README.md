@@ -14,7 +14,7 @@ All bugs have been migrated to GitHub Issues for tracking:
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
-| **BUG-038** | **P0-P2** | **Comprehensive E2E Bug Audit (12 bugs found)** | LOCAL |
+| **BUG-038** | **P0-P2** | **Comprehensive E2E Bug Audit (12 bugs; B1+B2 FIXED)** | LOCAL |
 | BUG-018 | P3 | Missing CONCH tool integration | [#33](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/33) |
 | BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
 | BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
@@ -27,7 +27,7 @@ All bugs have been migrated to GitHub Issues for tracking:
 
 | Severity | Count | Critical Bugs |
 |----------|-------|---------------|
-| **CRITICAL** | 2 | PANDA null handling, JSON "Extra data" errors |
+| **CRITICAL** | 2 | ~~PANDA null handling~~, ~~JSON "Extra data" errors~~ ✅ FIXED |
 | **HIGH** | 3 | JSON extraction, Anthropic silent failure, token count crash |
 | **MEDIUM** | 5 | Step guard, retry counter, base64, recursion, action types |
 | **LOW** | 2 | Comments, validation |
@@ -38,7 +38,7 @@ All bugs have been migrated to GitHub Issues for tracking:
 - OpenAI `"Extra data"` parsing causes **18/609 hard failures (3.0%)** across all benchmarks and triggers frequent retries
 - Reported run costs are a lower bound because parse-failed calls do not accumulate `usage` today
 
-**Status**: AWAITING SENIOR REVIEW before implementing fixes.
+**Status**: CRITICAL BUGS FIXED (B1, B2). Remaining bugs (B3-B12) deferred.
 
 See [BUG-038-comprehensive-audit.md](./BUG-038-comprehensive-audit.md) for full analysis.
 See [BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) for original PANDA analysis.

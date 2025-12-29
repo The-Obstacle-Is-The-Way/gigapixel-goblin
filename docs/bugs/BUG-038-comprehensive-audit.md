@@ -1,8 +1,9 @@
 # BUG-038: Comprehensive E2E Bug Audit
 
-**Status**: OPEN - AWAITING SENIOR REVIEW
+**Status**: CRITICAL BUGS FIXED (B1, B2) - Other bugs deferred
 **Severity**: MIXED (see table below)
 **Audit Date**: 2025-12-29
+**Fix Date**: 2025-12-29
 **Audited By**: 8 parallel swarm agents
 **Cost Impact**: Reported $73.38 spent on PANDA benchmark run (lower bound; see Cost Notes)
 
@@ -30,8 +31,8 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 
 | ID | Location | Severity | Status | Description |
 |----|----------|----------|--------|-------------|
-| **B1** | `src/giant/eval/answer_extraction.py:41-48` | CRITICAL | CONFIRMED | PANDA `"isup_grade": null` must map to label 0; current code causes failures + mis-parses |
-| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | CONFIRMED | OpenAI `output_text` may contain trailing text; `json.loads()` raises `Extra data` (hard failures + retries + cost undercount) |
+| **B1** | `src/giant/eval/answer_extraction.py:41-48` | CRITICAL | **FIXED** | PANDA `"isup_grade": null` now maps to label 0 (benign); out-of-range grades return None without fallback |
+| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | Uses `json.JSONDecoder().raw_decode()` to ignore trailing text after JSON |
 | **B3** | `src/giant/eval/answer_extraction.py:126-142` | HIGH | CONFIRMED | Naive JSON extraction via `find`/`rfind` (should use decoder-based parsing) |
 | **B4** | `src/giant/llm/anthropic_client.py:91-99` | HIGH | IMPROVEMENT | Invalid JSON in stringified `action` loses root cause (decode error swallowed; pydantic error is less specific) |
 | **B5** | `src/giant/llm/openai_client.py:270-272`, `src/giant/llm/anthropic_client.py:247-249` | HIGH | DEFENSIVE | Guard against `usage.*_tokens is None` (TypeError today) |
@@ -272,12 +273,12 @@ Missing test cases identified:
 
 ## Sign-Off Checklist
 
-- [ ] **B1**: Fix `_extract_panda_label()` null → 0 (missing key remains failure)
-- [ ] **B2**: Fix OpenAI `"Extra data"` parsing (ignore trailing text; validate `StepResponse`)
-- [ ] Add unit tests for PANDA null + missing-key cases
-- [ ] Add unit tests for OpenAI trailing-text JSON
+- [x] **B1**: Fix `_extract_panda_label()` null → 0 (missing key remains failure) ✅ FIXED 2025-12-29
+- [x] **B2**: Fix OpenAI `"Extra data"` parsing (ignore trailing text; validate `StepResponse`) ✅ FIXED 2025-12-29
+- [x] Add unit tests for PANDA null + missing-key cases ✅ 4 new tests added
+- [x] Add unit tests for OpenAI trailing-text JSON ✅ 2 new tests added
 - [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
-- [ ] Review and approve remaining medium/low fixes
+- [ ] Review and approve remaining medium/low fixes (B3-B12 deferred)
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis
 
