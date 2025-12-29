@@ -14,7 +14,7 @@ All bugs have been migrated to GitHub Issues for tracking:
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
-| **BUG-038** | **P0-P2** | **Comprehensive E2E Bug Audit (12 bugs; B1+B2 FIXED)** | LOCAL |
+| **BUG-038** | **P0-P2** | **Comprehensive E2E Bug Audit (12 bugs; B1+B2+B3+B4+B10 FIXED)** | LOCAL |
 | BUG-018 | P3 | Missing CONCH tool integration | [#33](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/33) |
 | BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
 | BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
@@ -28,8 +28,8 @@ All bugs have been migrated to GitHub Issues for tracking:
 | Severity | Count | Critical Bugs |
 |----------|-------|---------------|
 | **CRITICAL** | 2 | ~~PANDA null handling~~, ~~JSON "Extra data" errors~~ ✅ FIXED |
-| **HIGH** | 3 | JSON extraction, Anthropic JSON-string parsing clarity, token count None handling |
-| **MEDIUM** | 4 | Retry counter, base64, recursion, action types |
+| **HIGH** | 3 | ~~JSON extraction~~, ~~Anthropic JSON-string parsing clarity~~ ✅ FIXED, token count None handling |
+| **MEDIUM** | 4 | Retry counter, base64, recursion, ~~action types~~ ✅ FIXED |
 | **LOW** | 2 | Comments, validation |
 
 Note: One originally-reported medium finding (step guard) was retracted after review in `docs/bugs/BUG-038-comprehensive-audit.md`.
@@ -40,7 +40,7 @@ Note: One originally-reported medium finding (step guard) was retracted after re
 - OpenAI `"Extra data"` parsing caused **18/609 hard failures (3.0%)** across all benchmarks and triggered frequent retries (fixed by B2)
 - Reported run costs can still be a lower bound: if parsing fails for any reason, the current clients raise before usage is accumulated; B2 removes the common “trailing text” parse failures
 
-**Status**: CRITICAL BUGS FIXED (B1, B2). Remaining bugs (B3-B12) deferred.
+**Status**: BUGS FIXED (B1, B2, B3, B4, B10). Remaining bugs (B5, B7, B8, B9, B11, B12) deferred.
 
 See [BUG-038-comprehensive-audit.md](./BUG-038-comprehensive-audit.md) for full analysis.
 See [BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) for original PANDA analysis.

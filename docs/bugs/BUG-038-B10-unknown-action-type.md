@@ -3,7 +3,10 @@
 **Status**: FIXED (2025-12-29)
 **Severity**: MEDIUM
 **Component**: `src/giant/llm/openai_client.py`
-**Lines**: 72-112 (`_normalize_openai_response`)
+**Fixed In**: `ee897191` (refactor: enhance JSON extraction and error handling)
+**Buggy Commit**: `9317d6d4` (pre-fix)
+**Current Lines (fixed)**: 72-117 (`_normalize_openai_response`)
+**Buggy Lines (pre-fix)**: 72-112 (`_normalize_openai_response`)
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -12,15 +15,17 @@
 
 ## Summary
 
-When OpenAI returns an unknown `action_type` (not `"crop"` or `"answer"`), `_normalize_openai_response()` passes it through unchanged and the error is raised later by `StepResponse.model_validate()`.
+When OpenAI returns an unknown `action_type` (not `"crop"` or `"answer"`), the original `_normalize_openai_response()` passed it through unchanged and the error was raised later by `StepResponse.model_validate()`.
 
 This is correct behavior (the response is invalid), but the resulting pydantic discriminator error is confusing for users debugging LLM outputs. This spec is about raising a clearer `LLMParseError` that explicitly says “unknown action_type”.
 
+This is fixed in `ee897191` by raising `LLMParseError` directly in `_normalize_openai_response()`.
+
 ---
 
-## Current Code
+## Original Code (pre-fix)
 
-**File**: `src/giant/llm/openai_client.py:72-112`
+**File (pre-fix)**: `src/giant/llm/openai_client.py:72-112` (commit `9317d6d4`)
 
 ```python
 def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
@@ -67,6 +72,59 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
 ```
 
 ---
+
+## Current Fixed Code
+
+**File (current)**: `src/giant/llm/openai_client.py:72-117` (commit `ee897191`)
+
+```python
+def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
+    """Convert OpenAI's flattened response to StepResponse-compatible format.
+
+    The OpenAI schema has all action fields present with nulls for unused ones.
+    This function filters out the null fields so pydantic can validate properly.
+
+    Args:
+        data: Raw parsed JSON from OpenAI response.
+
+    Returns:
+        Normalized dict suitable for StepResponse.model_validate().
+
+    Raises:
+        LLMParseError: If action_type is unknown.
+    """
+    if "action" not in data or not isinstance(data["action"], dict):
+        return data
+
+    action = data["action"]
+    action_type = action.get("action_type")
+
+    if action_type == "crop":
+        normalized_action = {
+            "action_type": "crop",
+            "x": action.get("x"),
+            "y": action.get("y"),
+            "width": action.get("width"),
+            "height": action.get("height"),
+        }
+    elif action_type == "answer":
+        normalized_action = {
+            "action_type": "answer",
+            "answer_text": action.get("answer_text"),
+        }
+    else:
+        # Raise clear error instead of confusing pydantic discriminator error
+        raise LLMParseError(
+            f"Unknown action_type '{action_type}'. Expected 'crop' or 'answer'.",
+            raw_output=str(action),
+            provider="openai",
+        )
+
+    return {
+        "reasoning": data.get("reasoning"),
+        "action": normalized_action,
+    }
+```
 
 ## Problem Analysis
 
@@ -281,23 +339,32 @@ class TestNormalizeOpenAIResponse:
 
 | File | Lines | Change |
 |------|-------|--------|
-| `src/giant/llm/openai_client.py` | 105-107 | Raise `LLMParseError` for unknown action types |
+| `src/giant/llm/openai_client.py` | 72-117 | Raise `LLMParseError` for unknown action types (implemented in `ee897191`) |
 
 ---
 
 ## Verification Steps
 
-### 1. Write Failing Test First (TDD)
+### 1. Confirm Regression Test Passes (current code)
 
 ```bash
-# Run test to confirm current implementation gives confusing error
 uv run pytest tests/unit/llm/test_openai.py::TestNormalizeOpenAIResponse::test_unknown_action_type_raises_clear_error -v
-# Expected: FAIL (no LLMParseError raised; unknown action_type passes through)
+# Expected: PASS (fixed in ee897191)
 ```
 
-### 2. Apply Fix
+### 2. (Optional) Reproduce the Original Behavior (pre-fix commit)
 
-Modify `_normalize_openai_response` to raise `LLMParseError`.
+```bash
+git switch --detach 9317d6d4
+uv run python - <<'PY'
+from giant.llm.openai_client import _normalize_openai_response
+
+data = {"reasoning": "I want to zoom", "action": {"action_type": "zoom", "level": 2}}
+print(_normalize_openai_response(data))
+PY
+# Expected: returns a dict (no exception); later StepResponse validation fails with a pydantic discriminator error
+git switch -
+```
 
 ### 3. Verify Fix
 

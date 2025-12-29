@@ -3,7 +3,10 @@
 **Status**: FIXED (2025-12-29)
 **Severity**: HIGH
 **Component**: `src/giant/llm/anthropic_client.py`
-**Lines**: 73-106 (swallowed `JSONDecodeError` at 91-99)
+**Fixed In**: `ee897191` (refactor: enhance JSON extraction and error handling)
+**Buggy Commit**: `9317d6d4` (pre-fix)
+**Current Lines (fixed)**: 73-113
+**Buggy Lines (pre-fix)**: 73-106 (swallowed `JSONDecodeError` at 97-98)
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -12,13 +15,15 @@
 
 ## Summary
 
-When Anthropic returns `tool_input["action"]` as a JSON string instead of a parsed dict, the current code catches and silently discards the `JSONDecodeError`. This causes pydantic validation to fail with a confusing error message that doesn't indicate the root cause (malformed JSON string).
+When Anthropic returns `tool_input["action"]` as a JSON string instead of a parsed dict, the original implementation swallowed `JSONDecodeError` and let pydantic fail later with a confusing message that didn't indicate the root cause (malformed JSON string).
+
+This is fixed in `ee897191` by raising `LLMParseError` immediately with the underlying `JSONDecodeError` details.
 
 ---
 
-## Current Buggy Code
+## Original Buggy Code (pre-fix)
 
-**File**: `src/giant/llm/anthropic_client.py:73-106`
+**File (pre-fix)**: `src/giant/llm/anthropic_client.py:73-106` (commit `9317d6d4`)
 
 ```python
 def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse:
@@ -58,6 +63,54 @@ def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse
 ```
 
 ---
+
+## Current Fixed Code
+
+**File (current)**: `src/giant/llm/anthropic_client.py:73-113` (commit `ee897191`)
+
+```python
+def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse:
+    """Parse tool use input into StepResponse.
+
+    Handles the case where Anthropic returns nested fields as JSON strings
+    instead of parsed dicts (common with complex tool schemas).
+
+    Args:
+        tool_input: The input dictionary from the tool use.
+
+    Returns:
+        Parsed StepResponse.
+
+    Raises:
+        LLMParseError: If parsing fails.
+    """
+    try:
+        # Handle case where 'action' is returned as a JSON string instead of dict.
+        # If the string is invalid JSON, raise an LLMParseError that preserves the
+        # real root cause (instead of swallowing JSONDecodeError).
+        if isinstance(tool_input.get("action"), str):
+            action_str = tool_input["action"]
+            try:
+                tool_input = {
+                    **tool_input,
+                    "action": json.loads(action_str),
+                }
+            except json.JSONDecodeError as e:
+                raise LLMParseError(
+                    "Anthropic tool_input.action was a string but was not "
+                    f"valid JSON: {e}",
+                    raw_output=str(tool_input),
+                    provider="anthropic",
+                ) from e
+
+        return StepResponse.model_validate(tool_input)
+    except ValidationError as e:
+        raise LLMParseError(
+            f"Failed to parse StepResponse: {e}",
+            raw_output=str(tool_input),
+            provider="anthropic",
+        ) from e
+```
 
 ## Problem Analysis
 
@@ -179,7 +232,7 @@ except json.JSONDecodeError as e:
 
 **File**: `tests/unit/llm/test_anthropic.py`
 
-Add these tests to the existing `TestParseToolUseToStepResponse` class.
+Regression tests are implemented in the existing `TestParseToolUseToStepResponse` class (added in `ee897191`).
 
 ```python
     def test_valid_json_string_action(self) -> None:
@@ -225,17 +278,30 @@ Add these tests to the existing `TestParseToolUseToStepResponse` class.
 
 ## Verification Steps
 
-### 1. Write Failing Test First (TDD)
+### 1. Confirm Regression Test Passes (current code)
 
 ```bash
-# Run test to confirm current implementation gives confusing error
 uv run pytest tests/unit/llm/test_anthropic.py::TestParseToolUseToStepResponse::test_invalid_json_string_action_raises_clear_error -v
-# Expected: FAIL (current error says "Input should be a valid dictionary" not "invalid JSON")
+# Expected: PASS (fixed in ee897191)
 ```
 
-### 2. Apply Fix
+### 2. (Optional) Reproduce the Original Behavior (pre-fix commit)
 
-Edit `src/giant/llm/anthropic_client.py:91-99` to raise immediately with context.
+```bash
+git switch --detach 9317d6d4
+uv run python - <<'PY'
+from giant.llm.anthropic_client import _parse_tool_use_to_step_response
+
+tool_input = {"reasoning": "I see tissue", "action": '{action_type: "crop", x: 100}'}
+try:
+    _parse_tool_use_to_step_response(tool_input)
+except Exception as e:
+    print(type(e).__name__)
+    print(str(e))
+PY
+# Expected: error does not include the underlying JSONDecodeError details
+git switch -
+```
 
 ### 3. Verify Fix
 

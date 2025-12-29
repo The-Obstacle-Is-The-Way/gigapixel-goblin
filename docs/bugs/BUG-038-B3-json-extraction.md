@@ -3,7 +3,10 @@
 **Status**: FIXED (2025-12-29)
 **Severity**: HIGH
 **Component**: `src/giant/eval/answer_extraction.py`
-**Lines**: 151-167
+**Fixed In**: `ee897191` (refactor: enhance JSON extraction and error handling)
+**Buggy Commit**: `9317d6d4` (pre-fix)
+**Current Lines (fixed)**: 151-180
+**Buggy Lines (pre-fix)**: 151-167
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -12,13 +15,15 @@
 
 ## Summary
 
-The `_extract_json_object()` helper uses naive brace-matching (`find("{")` + `rfind("}")`) to extract JSON from text. This can span multiple JSON objects when the LLM outputs text containing more than one JSON structure, producing invalid JSON that fails to parse.
+The original `_extract_json_object()` implementation used naive brace-matching (`find("{")` + `rfind("}")`) to extract JSON from text. This could span multiple JSON objects when the LLM output contained more than one JSON structure, producing invalid JSON that fails to parse.
+
+This is fixed in `ee897191` by using `json.JSONDecoder().raw_decode()` to parse the first complete JSON object.
 
 ---
 
-## Current Buggy Code
+## Original Buggy Code (pre-fix)
 
-**File**: `src/giant/eval/answer_extraction.py:151-167`
+**File (pre-fix)**: `src/giant/eval/answer_extraction.py:151-167` (commit `9317d6d4`)
 
 ```python
 def _extract_json_object(text: str) -> str:
@@ -41,6 +46,43 @@ def _extract_json_object(text: str) -> str:
 ```
 
 ---
+
+## Current Fixed Code
+
+**File (current)**: `src/giant/eval/answer_extraction.py:151-180` (commit `ee897191`)
+
+```python
+def _extract_json_object(text: str) -> str:
+    """Extract the first valid JSON object from text.
+
+    Uses json.JSONDecoder().raw_decode() to find the first complete
+    JSON object, ignoring any text before or after it.
+
+    Args:
+        text: Text potentially containing a JSON object.
+
+    Returns:
+        The extracted JSON string (reserialized for validity).
+
+    Raises:
+        ValueError: If no valid JSON object is found.
+    """
+    # Find first '{' to start scanning
+    start = text.find("{")
+    if start == -1:
+        raise ValueError("No JSON object found")
+
+    # Use raw_decode to parse the first complete JSON object
+    decoder = json.JSONDecoder()
+    try:
+        obj, _ = decoder.raw_decode(text, idx=start)
+        if not isinstance(obj, dict):
+            raise ValueError("Extracted JSON is not an object")
+        # Reserialize to ensure valid JSON string
+        return json.dumps(obj)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"No valid JSON object found: {e}") from e
+```
 
 ## Problem Analysis
 
@@ -255,17 +297,30 @@ class TestExtractJsonObject:
 
 ## Verification Steps
 
-### 1. Write Failing Test First (TDD)
+### 1. Confirm Regression Test Passes (current code)
 
 ```bash
-# Run test to confirm current implementation fails on multi-object case
 uv run pytest tests/unit/eval/test_answer_extraction.py::TestExtractJsonObject::test_multiple_json_objects_returns_first -v
-# Expected: FAIL (current implementation returns invalid JSON spanning both objects)
+# Expected: PASS (fixed in ee897191)
 ```
 
-### 2. Apply Fix
+### 2. (Optional) Reproduce the Original Failure (pre-fix commit)
 
-Edit `src/giant/eval/answer_extraction.py:151-167` with the fix above.
+```bash
+git switch --detach 9317d6d4
+uv run python - <<'PY'
+import json
+
+from giant.eval.answer_extraction import _extract_json_object
+
+text = 'Reasoning: {"step": 1} Action: {"action_type": "crop"}'
+extracted = _extract_json_object(text)
+print(extracted)
+json.loads(extracted)
+PY
+# Expected: json.JSONDecodeError (pre-fix implementation spans multiple objects)
+git switch -
+```
 
 ### 3. Verify Fix
 
