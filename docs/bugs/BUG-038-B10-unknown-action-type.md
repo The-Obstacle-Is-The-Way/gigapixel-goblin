@@ -1,6 +1,6 @@
 # BUG-038-B10: Unknown Action Type Error Clarity
 
-**Status**: IMPROVEMENT (error clarity; not yet fixed)
+**Status**: FIXED (2025-12-29)
 **Severity**: MEDIUM
 **Component**: `src/giant/llm/openai_client.py`
 **Lines**: 72-112 (`_normalize_openai_response`)
@@ -327,10 +327,10 @@ uv run ruff check .
 
 ## Sign-Off Checklist
 
-- [ ] Failing tests written for unknown action_type
-- [ ] Fix applied to `_normalize_openai_response()`
-- [ ] All 7 test cases pass
-- [ ] Full test suite passes (`uv run pytest tests/unit`)
-- [ ] Type check passes (`uv run mypy src/giant`)
-- [ ] Lint passes (`uv run ruff check .`)
+- [x] Failing tests written for unknown action_type
+- [x] Fix applied to `_normalize_openai_response()`
+- [x] All 7 test cases pass
+- [x] Full test suite passes (`uv run pytest tests/unit`)
+- [x] Type check passes (`uv run mypy src/giant`)
+- [x] Lint passes (`uv run ruff check .`)
 - [ ] PR created and merged

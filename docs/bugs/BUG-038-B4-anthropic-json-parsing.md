@@ -1,6 +1,6 @@
 # BUG-038-B4: Silent JSON Parsing Failure in Anthropic Client
 
-**Status**: IMPROVEMENT (error clarity; not yet fixed)
+**Status**: FIXED (2025-12-29)
 **Severity**: HIGH
 **Component**: `src/giant/llm/anthropic_client.py`
 **Lines**: 73-106 (swallowed `JSONDecodeError` at 91-99)
@@ -265,10 +265,10 @@ uv run ruff check .
 
 ## Sign-Off Checklist
 
-- [ ] Failing test written for `test_invalid_json_string_action_raises_clear_error`
-- [ ] Fix applied to `_parse_tool_use_to_step_response()`
-- [ ] All 8 test cases pass
-- [ ] Full test suite passes (`uv run pytest tests/unit`)
-- [ ] Type check passes (`uv run mypy src/giant`)
-- [ ] Lint passes (`uv run ruff check .`)
+- [x] Failing test written for `test_invalid_json_string_action_raises_clear_error`
+- [x] Fix applied to `_parse_tool_use_to_step_response()`
+- [x] All 8 test cases pass
+- [x] Full test suite passes (`uv run pytest tests/unit`)
+- [x] Type check passes (`uv run mypy src/giant`)
+- [x] Lint passes (`uv run ruff check .`)
 - [ ] PR created and merged
