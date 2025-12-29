@@ -14,13 +14,23 @@ All bugs have been migrated to GitHub Issues for tracking:
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
+| **BUG-038** | **P1** | **PANDA answer extraction: `isup_grade: null` not mapped to Grade 0** | LOCAL |
 | BUG-018 | P3 | Missing CONCH tool integration | [#33](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/33) |
 | BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
 | BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
 
 ## Local Audit Findings (Not Yet Filed)
 
-_No pending local audit findings. All benchmark-prep bugs (BUG-033 through BUG-037) have been fixed and archived._
+### E2E Benchmark Audit (2025-12-29)
+
+**BUG-038 (P1)**: PANDA answer extraction failures - 53/197 (26.9%) items failed to extract.
+- **Root cause**: `isup_grade: null` not mapped to ISUP Grade 0 (benign)
+- **Impact**: 17 correct answers discarded; balanced accuracy reported as 9.4% instead of ~24%
+- **Secondary issue**: 18/609 items across all benchmarks failed with "Extra data" JSON errors
+- **Lesson**: Always do dry runs (`--max-items=5`) before expensive benchmarks
+- **Cost wasted**: $73.38 on PANDA with extraction bug
+
+See [BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) for full analysis.
 
 ## Archived (Fixed) Bugs
 
