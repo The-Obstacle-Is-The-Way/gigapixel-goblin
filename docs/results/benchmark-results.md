@@ -52,6 +52,11 @@ Our implementation significantly outperforms the paper's thumbnail and patch bas
 - **Full Results JSON**: `results/tcga_giant_openai_gpt-5.2_results.json`
 - **Checkpoint**: `results/checkpoints/tcga_giant_openai_gpt-5.2.checkpoint.json`
 
+### PANDA Result Files
+- **Full Results JSON**: `results/panda_giant_openai_gpt-5.2_results.json`
+- **Checkpoint**: `results/checkpoints/panda_giant_openai_gpt-5.2.checkpoint.json`
+- **Log File**: `results/panda_benchmark.log`
+
 ### Trajectory Files
 Individual slide trajectories with full LLM reasoning are saved in:
 ```text
@@ -155,15 +160,87 @@ Our implementation outperforms the paper's thumbnail and patch baselines (9.2% a
 
 ---
 
-## Future Benchmarks
+## PANDA Prostate Grading (6-way)
 
-| Benchmark | Status | Paper Result (GIANT x1) |
-|-----------|--------|-------------------------|
-| GTEx (Organ, 20-way) | **COMPLETE** ✓ | 53.7% |
-| TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | 32.3% |
-| PANDA (Grading, 6-way) | Pending | 23.2% |
-| ExpertVQA | Pending | 57.0% |
-| SlideBenchVQA | Pending | 58.9% |
+**Date**: 2025-12-29
+**Run ID**: `panda_giant_openai_gpt-5.2`
+
+### Our Results vs Paper
+
+| Metric | Our Result | Paper (GPT-5 GIANT) | Paper (GPT-5 GIANT x5) |
+|--------|------------|---------------------|------------------------|
+| **Balanced Accuracy** | **9.4% ± 2.2%** | 23.2% | 25.4% |
+| Bootstrap CI (95%) | 5.3% - 14.0% | - | - |
+| Items Processed | 197/197 | 197 | 197 |
+| Errors | 6 | - | - |
+| Extraction Failures | 47 (24%) | - | - |
+| Total Cost | $73.38 | - | - |
+
+### Analysis
+
+Our result of **9.4%** significantly underperforms the paper's single-run GIANT result (**23.2%**). This is the largest gap we've seen across benchmarks.
+
+**Key Issue: High Extraction Failure Rate**
+
+The 47/197 (24%) extraction failures are the primary cause of underperformance. This indicates that the model is producing answers in formats that our answer extraction logic cannot parse for Gleason grading.
+
+**Possible reasons for underperformance:**
+
+1. **Answer Extraction**: PANDA uses Gleason grading (0-5 scale with ISUP grades). Our extraction regex may not handle the variety of formats GPT produces for Gleason scores
+2. **Task Complexity**: Prostate cancer grading requires very fine-grained pattern recognition (Gleason patterns 3, 4, 5)
+3. **High Cost per Item**: $73.38 / 197 = ~$0.37/item - nearly 10x more expensive than GTEx
+
+### Comparison to Baselines (from paper)
+
+| Method | PANDA Balanced Accuracy |
+|--------|-------------------------|
+| Paper: GIANT x5 (GPT-5) | 25.4% |
+| Paper: GIANT x1 (GPT-5) | 23.2% |
+| **Our GIANT (gpt-5.2)** | **9.4%** |
+| Paper: Thumbnail (GPT-5) | 17.9% |
+| Paper: Patch (GPT-5) | 12.6% |
+| Paper: TITAN | 59.9% |
+| Paper: SlideChat | 16.7% |
+
+### Recommended Fix
+
+The high extraction failure rate (24%) suggests we need to improve the `answer_extraction.py` logic for PANDA's 6-way Gleason grading format. Specifically:
+- Parse "ISUP Grade Group X" format
+- Parse "Gleason X+Y=Z" format
+- Parse numeric answers (0-5)
+
+---
+
+## Summary Statistics (PANDA)
+
+```json
+{
+  "metric_type": "balanced_accuracy",
+  "point_estimate": 0.094,
+  "bootstrap_mean": 0.094,
+  "bootstrap_std": 0.022,
+  "bootstrap_ci_lower": 0.053,
+  "bootstrap_ci_upper": 0.140,
+  "n_replicates": 1000,
+  "n_total": 197,
+  "n_errors": 6,
+  "n_extraction_failures": 47
+}
+```
+
+---
+
+## Benchmark Summary
+
+| Benchmark | Status | Our Result | Paper (x1) | Paper (x5) | Cost |
+|-----------|--------|------------|------------|------------|------|
+| GTEx (Organ, 20-way) | **COMPLETE** ✓ | **67.6%** | 53.7% | 60.7% | $7.21 |
+| TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | **25.2%** | 32.3% | 29.3% | $15.14 |
+| PANDA (Grading, 6-way) | **COMPLETE** ✓ | **9.4%** ⚠️ | 23.2% | 25.4% | $73.38 |
+| ExpertVQA | Pending | - | 57.0% | 62.5% | - |
+| SlideBenchVQA | Pending | - | 58.9% | 61.3% | - |
+
+**Total E2E Validation Cost**: $95.73 (609 WSIs processed)
 
 ---
 
