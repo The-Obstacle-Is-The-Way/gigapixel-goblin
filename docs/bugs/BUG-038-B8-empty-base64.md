@@ -3,7 +3,7 @@
 **Status**: CONFIRMED (not yet fixed)
 **Severity**: MEDIUM
 **Component**: `src/giant/llm/converters.py`
-**Lines**: 260-268
+**Lines**: 247-269
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -163,7 +163,7 @@ Add these test methods to the existing `TestCountImagePixelsInMessages` class.
 
 | File | Lines | Change |
 |------|-------|--------|
-| `src/giant/llm/converters.py` | 260-267 | Add empty string check (before decoding/open) |
+| `src/giant/llm/converters.py` | 247-269 | Add empty string + empty bytes checks in `count_image_pixels_in_messages()` |
 
 ---
 
