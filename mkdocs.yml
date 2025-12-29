@@ -28,6 +28,8 @@ plugins:
 # Keep archived bug reports in the build but hide from nav.
 not_in_nav: |
   archive/**
+  bugs/BUG-*.md
+  data/dataset-card.md
 
 # Enable link/anchor validation (pair with `mkdocs build --strict` in CI).
 validation:
@@ -96,21 +98,6 @@ nav:
   # Specifications (Implementation details)
   - Specifications:
       - Overview: specs/README.md
-      - Spec-01 Foundation: specs/spec-01-foundation.md
-      - Spec-02 WSI Data: specs/spec-02-wsi-data.md
-      - Spec-03 Coordinates: specs/spec-03-coordinates.md
-      - Spec-04 Level Selection: specs/spec-04-level-selection.md
-      - Spec-05 Cropping: specs/spec-05-cropping.md
-      - Spec-05.5 WSI Checkpoint: specs/spec-05.5-wsi-integration-checkpoint.md
-      - Spec-06 LLM Provider: specs/spec-06-llm-provider.md
-      - Spec-07 Navigation Prompt: specs/spec-07-navigation-prompt.md
-      - Spec-08 Context Manager: specs/spec-08-context-manager.md
-      - Spec-08.5 LLM Checkpoint: specs/spec-08.5-llm-integration-checkpoint.md
-      - Spec-09 GIANT Agent: specs/spec-09-giant-agent.md
-      - Spec-10 Evaluation: specs/spec-10-evaluation.md
-      - Spec-11 CLAM Integration: specs/spec-11-clam-integration.md
-      - Spec-11.5 E2E Validation: specs/spec-11.5-e2e-validation-checkpoint.md
-      - Spec-12 CLI API: specs/spec-12-cli-api.md
 
   # Bugs & Research
   - Bugs: bugs/README.md

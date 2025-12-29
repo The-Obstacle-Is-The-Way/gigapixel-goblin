@@ -47,6 +47,45 @@ class TestExtractLabelPanda:
         result = extract_label(prediction, benchmark_name="panda", options=None)
         assert result.label == 0
 
+    # BUG-038 B1: PANDA null handling tests
+    def test_panda_null_isup_grade(self) -> None:
+        """isup_grade: null should map to Grade 0 (benign)."""
+        prediction = '{"isup_grade": null}'
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label == 0
+
+    def test_panda_null_with_full_json(self) -> None:
+        """Full PANDA response with null grade maps to benign (0)."""
+        prediction = (
+            '{"primary_pattern": null, "secondary_pattern": null, "isup_grade": null}'
+        )
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label == 0
+
+    def test_panda_missing_isup_grade_key(self) -> None:
+        """Missing isup_grade key should fail extraction (not treated as benign)."""
+        prediction = '{"reasoning": "some text"}'
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label is None
+
+    def test_panda_missing_isup_grade_key_with_digit(self) -> None:
+        """Missing isup_grade key must not fall back to integer extraction."""
+        prediction = '{"reasoning": "grade 2"}'
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label is None
+
+    def test_panda_invalid_json_no_fallback(self) -> None:
+        """Invalid JSON with braces must not fall back to integer extraction."""
+        prediction = '{"isup_grade": 2}}'
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label is None
+
+    def test_panda_out_of_range_grade(self) -> None:
+        """Out of range isup_grade (e.g., 6) should fail extraction."""
+        prediction = '{"isup_grade": 6}'
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label is None
+
 
 class TestExtractLabelMultipleChoice:
     """Tests for multiple-choice answer extraction."""

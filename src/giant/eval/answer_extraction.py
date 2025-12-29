@@ -24,6 +24,10 @@ _LETTER_RE = re.compile(r"\b([A-D])\b", re.IGNORECASE)
 # Number of options required for letter extraction (A-D mapping)
 _LETTER_OPTION_COUNT = 4
 
+# ISUP grade range for PANDA (0 = benign, 1-5 = cancer grades)
+_ISUP_GRADE_MIN = 0
+_ISUP_GRADE_MAX = 5
+
 
 @dataclass(frozen=True)
 class ExtractedAnswer:
@@ -39,13 +43,28 @@ class ExtractedAnswer:
 
 
 def _extract_panda_label(text: str) -> int | None:
-    """Extract ISUP grade from PANDA JSON response."""
-    try:
-        json_str = _extract_json_object(text)
-        obj = json.loads(json_str)
-        return int(obj["isup_grade"])
-    except Exception:
+    """Extract ISUP grade from PANDA JSON response.
+
+    Handles:
+    - {"isup_grade": 0-5} -> returns integer (validated to 0..5)
+    - {"isup_grade": null} -> returns 0 (benign/no cancer)
+    - missing "isup_grade" key -> returns None (extraction failure)
+    """
+    json_str = _extract_json_object(text)
+    obj = json.loads(json_str)
+    if not isinstance(obj, dict):
         return None
+
+    if "isup_grade" not in obj:
+        return None
+    grade = obj["isup_grade"]
+    if grade is None:
+        return 0  # Benign/no cancer = ISUP Grade 0
+    try:
+        grade_int = int(grade)
+    except (TypeError, ValueError):
+        return None
+    return grade_int if _ISUP_GRADE_MIN <= grade_int <= _ISUP_GRADE_MAX else None
 
 
 def _extract_from_options(text: str, options: list[str]) -> int | None:
@@ -108,7 +127,13 @@ def extract_label(
 
     # Special handling for PANDA: extract JSON isup_grade
     if benchmark_name == "panda":
-        label = _extract_panda_label(text)
+        try:
+            label = _extract_panda_label(text)
+            return ExtractedAnswer(label=label, raw=text)
+        except json.JSONDecodeError:
+            return ExtractedAnswer(label=None, raw=text)
+        except ValueError:
+            label = None
 
     # If options exist, try letter (A-D), 1..N integer, or option text match
     if label is None and options:
@@ -116,7 +141,7 @@ def extract_label(
         # Options exist but no match found - return early with None
         return ExtractedAnswer(label=label, raw=text)
 
-    # No options: try integer extraction (e.g., PANDA grade fallback)
+    # No options: try integer extraction (fallback for non-PANDA or malformed PANDA)
     if label is None:
         label = _extract_integer(text)
 

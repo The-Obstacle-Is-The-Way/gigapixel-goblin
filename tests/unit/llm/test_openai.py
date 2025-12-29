@@ -188,6 +188,86 @@ class TestOpenAIProviderGenerate:
             assert exc_info.value.provider == "openai"
             assert exc_info.value.raw_output == "not valid json"
 
+    # BUG-038 B2: JSON with trailing text should parse successfully
+    @pytest.mark.asyncio
+    async def test_parse_response_with_trailing_text(
+        self, test_settings: Settings, sample_messages: list[Message]
+    ) -> None:
+        """JSON with trailing text should parse successfully (BUG-038 B2)."""
+        provider = OpenAIProvider(settings=test_settings)
+
+        mock_response = MagicMock()
+        # LLM sometimes adds explanatory text after JSON
+        mock_response.output_text = (
+            '{"reasoning": "Based on analysis", '
+            '"action": {"action_type": "answer", "answer_text": "Benign"}}'
+            " I hope this helps explain my reasoning."
+        )
+        mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
+
+        with patch.object(
+            provider._client.responses, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            # Should NOT raise - trailing text should be ignored
+            result = await provider.generate_response(sample_messages)
+
+            assert result.step_response.reasoning == "Based on analysis"
+            assert result.step_response.action.action_type == "answer"
+            assert result.step_response.action.answer_text == "Benign"
+
+    @pytest.mark.asyncio
+    async def test_parse_response_with_newlines_and_trailing(
+        self, test_settings: Settings, sample_messages: list[Message]
+    ) -> None:
+        """JSON with newlines and trailing text should parse (BUG-038 B2)."""
+        provider = OpenAIProvider(settings=test_settings)
+
+        mock_response = MagicMock()
+        mock_response.output_text = (
+            '{"reasoning": "test", "action": {"action_type": "crop", '
+            '"x": 100, "y": 200, "width": 50, "height": 50}}\n\n'
+            "Let me know if you need more info."
+        )
+        mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
+
+        with patch.object(
+            provider._client.responses, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            result = await provider.generate_response(sample_messages)
+
+            assert result.step_response.action.action_type == "crop"
+            assert result.step_response.action.x == 100
+
+    @pytest.mark.asyncio
+    async def test_parse_response_with_leading_whitespace_and_trailing(
+        self, test_settings: Settings, sample_messages: list[Message]
+    ) -> None:
+        """Leading whitespace + trailing text should parse (BUG-038 B2)."""
+        provider = OpenAIProvider(settings=test_settings)
+
+        mock_response = MagicMock()
+        mock_response.output_text = (
+            "\n  "
+            '{"reasoning": "ws", "action": {"action_type": "answer", '
+            '"answer_text": "ok"}} trailing'
+        )
+        mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
+
+        with patch.object(
+            provider._client.responses, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            result = await provider.generate_response(sample_messages)
+
+            assert result.step_response.reasoning == "ws"
+            assert result.step_response.action.action_type == "answer"
+            assert result.step_response.action.answer_text == "ok"
+
     @pytest.mark.asyncio
     async def test_parse_error_on_missing_output(
         self, test_settings: Settings, sample_messages: list[Message]

@@ -241,8 +241,16 @@ class OpenAIProvider:
                 )
 
             try:
-                # Parse JSON and normalize the flattened OpenAI format
-                raw_data = json.loads(output_text)
+                # Parse JSON using raw_decode to handle trailing text (BUG-038 B2)
+                # LLMs sometimes append explanatory text after the JSON object
+                decoder = json.JSONDecoder()
+                leading_ws = len(output_text) - len(output_text.lstrip())
+                raw_data, end_idx = decoder.raw_decode(output_text, idx=leading_ws)
+                if end_idx < len(output_text.rstrip()):
+                    logger.debug(
+                        "Ignored trailing text after JSON: %s",
+                        output_text[end_idx:].strip()[:50],
+                    )
                 normalized_data = _normalize_openai_response(raw_data)
                 step_response = StepResponse.model_validate(normalized_data)
             except json.JSONDecodeError as e:
