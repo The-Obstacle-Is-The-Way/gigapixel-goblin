@@ -31,8 +31,8 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 
 | ID | Location | Severity | Status | Description |
 |----|----------|----------|--------|-------------|
-| **B1** | `src/giant/eval/answer_extraction.py:41-48` | CRITICAL | **FIXED** | PANDA `"isup_grade": null` now maps to label 0 (benign); out-of-range grades return None without fallback |
-| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | Uses `json.JSONDecoder().raw_decode()` to ignore trailing text after JSON |
+| **B1** | `src/giant/eval/answer_extraction.py:45-74` | CRITICAL | **FIXED** | PANDA `"isup_grade": null` maps to label 0 (benign); any JSON present but missing/invalid/out-of-range returns `None` without integer fallback |
+| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
 | **B3** | `src/giant/eval/answer_extraction.py:126-142` | HIGH | CONFIRMED | Naive JSON extraction via `find`/`rfind` (should use decoder-based parsing) |
 | **B4** | `src/giant/llm/anthropic_client.py:91-99` | HIGH | IMPROVEMENT | Invalid JSON in stringified `action` loses root cause (decode error swallowed; pydantic error is less specific) |
 | **B5** | `src/giant/llm/openai_client.py:270-272`, `src/giant/llm/anthropic_client.py:247-249` | HIGH | DEFENSIVE | Guard against `usage.*_tokens is None` (TypeError today) |
@@ -72,15 +72,32 @@ def _extract_panda_label(text: str) -> int | None:
 - As-run PANDA metric: **9.4% ± 2.2% balanced accuracy** (`n_errors=6`, `n_extraction_failures=47`)
 - Rescore-only with B1 fix (no new LLM calls): **~19.8% balanced accuracy**, **~28.4% raw accuracy** (still includes 6 B2 failures)
 
-**Fix (must distinguish null vs missing key):**
+**Fix (must distinguish null vs missing key, and avoid integer fallback when JSON is present):**
 ```python
+# In _extract_panda_label(text):
+json_str = _extract_json_object(text)
+obj = json.loads(json_str)
+if not isinstance(obj, dict):
+    return None
 if "isup_grade" not in obj:
     return None
 grade = obj["isup_grade"]
 if grade is None:
     return 0  # Benign/no cancer = ISUP Grade 0
-grade_int = int(grade)
+try:
+    grade_int = int(grade)
+except (TypeError, ValueError):
+    return None
 return grade_int if 0 <= grade_int <= 5 else None
+
+# In extract_label(..., benchmark_name="panda"):
+try:
+    label = _extract_panda_label(text)
+    return ExtractedAnswer(label=label, raw=text)  # JSON present → no fallback
+except json.JSONDecodeError:
+    return ExtractedAnswer(label=None, raw=text)  # JSON present but invalid → no fallback
+except ValueError:
+    pass  # No JSON object → allow integer fallback
 ```
 
 ---
@@ -107,10 +124,9 @@ Python's `json.loads()` fails with "Extra data" error.
   - `results/panda_benchmark.log`: 56 occurrences
 - **Cost tracking is undercounted** today: parse-failed calls do not accumulate `usage`, and the 18 hard failures show `cost_usd=0`, `total_tokens=0` in results.
 
-**Fix (robust; avoid regex brace matching):**
-- Parse the first valid JSON object from `output_text` using `json.JSONDecoder().raw_decode()` (ignore trailing content).
-- Validate against `StepResponse`; if the first JSON object is not a valid `StepResponse`, scan for the next JSON object and retry.
-- (Optional but recommended) Accumulate `usage`/cost even when parsing fails, so retries reflect real spend.
+**Fix (implemented; avoids brace matching):**
+- Parse the first JSON value from `output_text` using `json.JSONDecoder().raw_decode()` starting after leading whitespace (ignore trailing content).
+- Validate against `StepResponse`; raise `LLMParseError` on `JSONDecodeError` / `ValidationError`.
 
 ---
 
@@ -275,8 +291,8 @@ Missing test cases identified:
 
 - [x] **B1**: Fix `_extract_panda_label()` null → 0 (missing key remains failure) ✅ FIXED 2025-12-29
 - [x] **B2**: Fix OpenAI `"Extra data"` parsing (ignore trailing text; validate `StepResponse`) ✅ FIXED 2025-12-29
-- [x] Add unit tests for PANDA null + missing-key cases ✅ 4 new tests added
-- [x] Add unit tests for OpenAI trailing-text JSON ✅ 2 new tests added
+- [x] Add unit tests for PANDA null + missing-key cases ✅ 6 new tests added
+- [x] Add unit tests for OpenAI trailing-text JSON ✅ 3 new tests added
 - [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
 - [ ] Review and approve remaining medium/low fixes (B3-B12 deferred)
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)

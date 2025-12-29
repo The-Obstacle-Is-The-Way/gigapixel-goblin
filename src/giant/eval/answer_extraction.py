@@ -50,32 +50,21 @@ def _extract_panda_label(text: str) -> int | None:
     - {"isup_grade": null} -> returns 0 (benign/no cancer)
     - missing "isup_grade" key -> returns None (extraction failure)
     """
-    try:
-        json_str = _extract_json_object(text)
-        obj = json.loads(json_str)
-        if "isup_grade" not in obj:
-            return None
-        grade = obj["isup_grade"]
-        if grade is None:
-            return 0  # Benign/no cancer = ISUP Grade 0
-        grade_int = int(grade)
-        return grade_int if _ISUP_GRADE_MIN <= grade_int <= _ISUP_GRADE_MAX else None
-    except Exception:
+    json_str = _extract_json_object(text)
+    obj = json.loads(json_str)
+    if not isinstance(obj, dict):
         return None
 
-
-def _has_isup_grade_key(text: str) -> bool:
-    """Check if text contains a JSON object with 'isup_grade' key.
-
-    Used to prevent fallback to naive integer extraction when PANDA JSON
-    was found but had an invalid grade (out of range or type error).
-    """
+    if "isup_grade" not in obj:
+        return None
+    grade = obj["isup_grade"]
+    if grade is None:
+        return 0  # Benign/no cancer = ISUP Grade 0
     try:
-        json_str = _extract_json_object(text)
-        obj = json.loads(json_str)
-        return "isup_grade" in obj
-    except Exception:
-        return False
+        grade_int = int(grade)
+    except (TypeError, ValueError):
+        return None
+    return grade_int if _ISUP_GRADE_MIN <= grade_int <= _ISUP_GRADE_MAX else None
 
 
 def _extract_from_options(text: str, options: list[str]) -> int | None:
@@ -138,12 +127,13 @@ def extract_label(
 
     # Special handling for PANDA: extract JSON isup_grade
     if benchmark_name == "panda":
-        label = _extract_panda_label(text)
-        # If PANDA JSON extraction returned a result, use it (don't fall back)
-        # If it returned None but JSON with isup_grade was present, don't fall back
-        # to integer extraction (which would grab coordinate numbers or invalid grades)
-        if label is not None or _has_isup_grade_key(text):
+        try:
+            label = _extract_panda_label(text)
             return ExtractedAnswer(label=label, raw=text)
+        except json.JSONDecodeError:
+            return ExtractedAnswer(label=None, raw=text)
+        except ValueError:
+            label = None
 
     # If options exist, try letter (A-D), 1..N integer, or option text match
     if label is None and options:

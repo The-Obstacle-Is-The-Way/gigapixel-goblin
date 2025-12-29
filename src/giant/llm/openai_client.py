@@ -243,7 +243,9 @@ class OpenAIProvider:
             try:
                 # Parse JSON using raw_decode to handle trailing text (BUG-038 B2)
                 # LLMs sometimes append explanatory text after the JSON object
-                raw_data, end_idx = json.JSONDecoder().raw_decode(output_text)
+                decoder = json.JSONDecoder()
+                leading_ws = len(output_text) - len(output_text.lstrip())
+                raw_data, end_idx = decoder.raw_decode(output_text, idx=leading_ws)
                 if end_idx < len(output_text.rstrip()):
                     logger.debug(
                         "Ignored trailing text after JSON: %s",

@@ -68,6 +68,18 @@ class TestExtractLabelPanda:
         result = extract_label(prediction, benchmark_name="panda", options=None)
         assert result.label is None
 
+    def test_panda_missing_isup_grade_key_with_digit(self) -> None:
+        """Missing isup_grade key must not fall back to integer extraction."""
+        prediction = '{"reasoning": "grade 2"}'
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label is None
+
+    def test_panda_invalid_json_no_fallback(self) -> None:
+        """Invalid JSON with braces must not fall back to integer extraction."""
+        prediction = '{"isup_grade": 2}}'
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label is None
+
     def test_panda_out_of_range_grade(self) -> None:
         """Out of range isup_grade (e.g., 6) should fail extraction."""
         prediction = '{"isup_grade": 6}'

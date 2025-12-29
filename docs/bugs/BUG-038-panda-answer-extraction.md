@@ -221,18 +221,30 @@ def _extract_panda_label(text: str) -> int | None:
     - {"isup_grade": null} -> returns 0 (benign/no cancer)
     - missing "isup_grade" -> returns None (extraction failure)
     """
-    try:
-        json_str = _extract_json_object(text)
-        obj = json.loads(json_str)
-        if "isup_grade" not in obj:
-            return None
-        grade = obj["isup_grade"]
-        if grade is None:
-            return 0  # Benign/no cancer = ISUP Grade 0
-        grade_int = int(grade)
-        return grade_int if 0 <= grade_int <= 5 else None
-    except Exception:
+    json_str = _extract_json_object(text)
+    obj = json.loads(json_str)
+    if not isinstance(obj, dict):
         return None
+    if "isup_grade" not in obj:
+        return None
+    grade = obj["isup_grade"]
+    if grade is None:
+        return 0  # Benign/no cancer = ISUP Grade 0
+    try:
+        grade_int = int(grade)
+    except (TypeError, ValueError):
+        return None
+    return grade_int if 0 <= grade_int <= 5 else None
+
+
+# In extract_label(..., benchmark_name="panda"):
+try:
+    label = _extract_panda_label(text)
+    return ExtractedAnswer(label=label, raw=text)  # JSON present → no fallback
+except json.JSONDecodeError:
+    return ExtractedAnswer(label=None, raw=text)  # JSON present but invalid → no fallback
+except ValueError:
+    pass  # No JSON object → allow integer fallback
 ```
 
 ### 2. Fix OpenAI `"Extra data"` Parsing (P0 / CRITICAL)
@@ -240,7 +252,7 @@ def _extract_panda_label(text: str) -> int | None:
 ```python
 # In src/giant/llm/openai_client.py
 
-Implement first-valid-JSON parsing using `json.JSONDecoder().raw_decode()` (optionally scanning multiple `{` positions) and validate against `StepResponse`.
+Parse `output_text` with `json.JSONDecoder().raw_decode()` starting after leading whitespace, ignore trailing content, then validate against `StepResponse`.
 ```
 
 ### 3. Add Dry Run Requirement to Benchmarking (PROCESS)
@@ -315,7 +327,7 @@ PANDA is 10x more expensive per item because prostate grading requires more navi
 ## Sign-Off
 
 - [x] Fix `_extract_panda_label()` to map null -> 0 (without mapping missing key) ✅ FIXED
-- [x] Add unit tests for null + missing-key PANDA cases ✅ 4 tests added
+- [x] Add unit tests for null + missing-key PANDA cases ✅ 6 tests added
 - [x] Fix OpenAI `"Extra data"` parsing in `OpenAIProvider` ✅ FIXED
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis
