@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from giant.eval.answer_extraction import ExtractedAnswer, extract_label
+import json
+
+import pytest
+
+from giant.eval.answer_extraction import (
+    ExtractedAnswer,
+    _extract_json_object,
+    extract_label,
+)
 
 
 class TestExtractedAnswer:
@@ -75,10 +83,10 @@ class TestExtractLabelPanda:
         assert result.label is None
 
     def test_panda_invalid_json_no_fallback(self) -> None:
-        """Invalid JSON with braces must not fall back to integer extraction."""
+        """Invalid JSON with braces matches now thanks to robust extraction."""
         prediction = '{"isup_grade": 2}}'
         result = extract_label(prediction, benchmark_name="panda", options=None)
-        assert result.label is None
+        assert result.label == 2
 
     def test_panda_out_of_range_grade(self) -> None:
         """Out of range isup_grade (e.g., 6) should fail extraction."""
@@ -219,3 +227,80 @@ class TestExtractLabelEdgeCases:
         This indicates moderate disease."""
         result = extract_label(prediction, benchmark_name="panda", options=None)
         assert result.label == 2
+
+
+class TestExtractJsonObject:
+    """Tests for _extract_json_object helper."""
+
+    def test_single_json_object(self) -> None:
+        """Single JSON object extracts correctly."""
+        text = '{"key": "value"}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"key": "value"}
+
+    def test_json_with_leading_text(self) -> None:
+        """JSON with leading text extracts correctly."""
+        text = 'Here is my response: {"key": "value"}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"key": "value"}
+
+    def test_json_with_trailing_text(self) -> None:
+        """JSON with trailing text extracts correctly."""
+        text = '{"key": "value"} I hope this helps!'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"key": "value"}
+
+    def test_multiple_json_objects_returns_first(self) -> None:
+        """Multiple JSON objects: returns first valid object (BUG-038-B3)."""
+        text = 'Reasoning: {"step": 1} Action: {"action_type": "crop"}'
+        result = _extract_json_object(text)
+        # Should return first object, not span both
+        assert json.loads(result) == {"step": 1}
+
+    def test_nested_json_object(self) -> None:
+        """Nested JSON object extracts correctly."""
+        text = '{"outer": {"inner": 1}}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"outer": {"inner": 1}}
+
+    def test_deeply_nested_json_object(self) -> None:
+        """Deeply nested JSON extracts correctly."""
+        text = '{"a": {"b": {"c": {"d": 1}}}}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"a": {"b": {"c": {"d": 1}}}}
+
+    def test_json_in_markdown_code_fence(self) -> None:
+        """JSON inside a Markdown code fence extracts correctly."""
+        text = '```json\n{"key": "value"}\n```'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"key": "value"}
+
+    def test_no_json_raises_value_error(self) -> None:
+        """No JSON object raises ValueError."""
+        text = "No JSON here, just plain text"
+        with pytest.raises(ValueError, match="No JSON object found"):
+            _extract_json_object(text)
+
+    def test_empty_string_raises_value_error(self) -> None:
+        """Empty string raises ValueError."""
+        with pytest.raises(ValueError, match="No JSON object found"):
+            _extract_json_object("")
+
+    def test_json_array_raises_value_error(self) -> None:
+        """JSON array (not object) raises ValueError."""
+        text = "[1, 2, 3]"
+        with pytest.raises(ValueError, match="No JSON object found"):
+            _extract_json_object(text)
+
+    def test_panda_style_response(self) -> None:
+        """PANDA-style response with isup_grade extracts correctly."""
+        text = '{"primary_pattern": null, "secondary_pattern": null, "isup_grade": 3}'
+        result = _extract_json_object(text)
+        parsed = json.loads(result)
+        assert parsed["isup_grade"] == 3
+
+    def test_malformed_json_raises_value_error(self) -> None:
+        """Malformed JSON raises ValueError."""
+        text = '{"key": value}'  # Missing quotes around value
+        with pytest.raises(ValueError, match="No valid JSON object found"):
+            _extract_json_object(text)

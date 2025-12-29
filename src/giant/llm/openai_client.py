@@ -80,6 +80,9 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
 
     Returns:
         Normalized dict suitable for StepResponse.model_validate().
+
+    Raises:
+        LLMParseError: If action_type is unknown.
     """
     if "action" not in data or not isinstance(data["action"], dict):
         return data
@@ -88,7 +91,6 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
     action_type = action.get("action_type")
 
     if action_type == "crop":
-        # Keep only crop fields
         normalized_action = {
             "action_type": "crop",
             "x": action.get("x"),
@@ -97,14 +99,17 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
             "height": action.get("height"),
         }
     elif action_type == "answer":
-        # Keep only answer fields
         normalized_action = {
             "action_type": "answer",
             "answer_text": action.get("answer_text"),
         }
     else:
-        # Unknown action type, pass through as-is
-        normalized_action = action
+        # Raise clear error instead of confusing pydantic discriminator error
+        raise LLMParseError(
+            f"Unknown action_type '{action_type}'. Expected 'crop' or 'answer'.",
+            raw_output=str(action),
+            provider="openai",
+        )
 
     return {
         "reasoning": data.get("reasoning"),

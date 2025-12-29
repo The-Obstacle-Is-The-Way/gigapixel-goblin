@@ -1,4 +1,4 @@
-"""Tests for giant.llm.openai_client module."""
+"Tests for giant.llm.openai_client module."
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -7,7 +7,11 @@ from openai import APIConnectionError
 
 from giant.config import Settings
 from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
-from giant.llm.openai_client import OpenAIProvider, _build_json_schema
+from giant.llm.openai_client import (
+    OpenAIProvider,
+    _build_json_schema,
+    _normalize_openai_response,
+)
 from giant.llm.protocol import (
     LLMError,
     LLMParseError,
@@ -89,6 +93,99 @@ class TestBuildJsonSchema:
         assert "answer_text" in props
 
 
+class TestNormalizeOpenAIResponse:
+    """Tests for _normalize_openai_response helper."""
+
+    def test_crop_action_normalized(self) -> None:
+        """Crop action is normalized correctly."""
+        data = {
+            "reasoning": "I see something",
+            "action": {
+                "action_type": "crop",
+                "x": 100,
+                "y": 200,
+                "width": 50,
+                "height": 50,
+                "answer_text": None,  # OpenAI includes nulls
+            },
+        }
+        result = _normalize_openai_response(data)
+        assert result["action"]["action_type"] == "crop"
+        assert "answer_text" not in result["action"]  # Null filtered out
+
+    def test_answer_action_normalized(self) -> None:
+        """Answer action is normalized correctly."""
+        data = {
+            "reasoning": "This is benign",
+            "action": {
+                "action_type": "answer",
+                "answer_text": "Benign tissue",
+                "x": None,
+                "y": None,
+                "width": None,
+                "height": None,
+            },
+        }
+        result = _normalize_openai_response(data)
+        assert result["action"]["action_type"] == "answer"
+        assert result["action"]["answer_text"] == "Benign tissue"
+        assert "x" not in result["action"]  # Null filtered out
+
+    def test_unknown_action_type_raises_clear_error(self) -> None:
+        """Unknown action_type raises LLMParseError with clear message (BUG-038-B10)."""
+        data = {
+            "reasoning": "I want to zoom",
+            "action": {
+                "action_type": "zoom",  # Unknown
+                "level": 2,
+            },
+        }
+        with pytest.raises(LLMParseError) as exc_info:
+            _normalize_openai_response(data)
+
+        assert "Unknown action_type" in str(exc_info.value)
+        assert "zoom" in str(exc_info.value)
+        assert "crop" in str(exc_info.value) or "answer" in str(exc_info.value)
+
+    def test_none_action_type_raises_clear_error(self) -> None:
+        """None action_type raises LLMParseError."""
+        data = {
+            "reasoning": "No action",
+            "action": {
+                "action_type": None,
+            },
+        }
+        with pytest.raises(LLMParseError) as exc_info:
+            _normalize_openai_response(data)
+
+        assert "Unknown action_type" in str(exc_info.value)
+
+    def test_missing_action_type_raises_clear_error(self) -> None:
+        """Missing action_type raises LLMParseError."""
+        data = {
+            "reasoning": "Bad action",
+            "action": {
+                "x": 100,  # No action_type
+            },
+        }
+        with pytest.raises(LLMParseError) as exc_info:
+            _normalize_openai_response(data)
+
+        assert "Unknown action_type" in str(exc_info.value)
+
+    def test_missing_action_key_returns_data(self) -> None:
+        """Missing 'action' key passes through (let pydantic handle)."""
+        data = {"reasoning": "No action key"}
+        result = _normalize_openai_response(data)
+        assert result == data
+
+    def test_non_dict_action_returns_data(self) -> None:
+        """Non-dict action passes through (let pydantic handle)."""
+        data = {"reasoning": "Bad action", "action": "not a dict"}
+        result = _normalize_openai_response(data)
+        assert result == data
+
+
 class TestOpenAIProviderInit:
     """Tests for OpenAIProvider initialization."""
 
@@ -114,7 +211,9 @@ class TestOpenAIProviderGenerate:
 
     @pytest.mark.asyncio
     async def test_successful_crop_response(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """Test successful response with crop action."""
         provider = OpenAIProvider(settings=test_settings)
@@ -144,7 +243,9 @@ class TestOpenAIProviderGenerate:
 
     @pytest.mark.asyncio
     async def test_successful_answer_response(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """Test successful response with answer action."""
         provider = OpenAIProvider(settings=test_settings)
@@ -168,7 +269,9 @@ class TestOpenAIProviderGenerate:
 
     @pytest.mark.asyncio
     async def test_parse_error_on_invalid_json(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """Test that invalid JSON raises LLMParseError."""
         provider = OpenAIProvider(settings=test_settings)
@@ -191,7 +294,9 @@ class TestOpenAIProviderGenerate:
     # BUG-038 B2: JSON with trailing text should parse successfully
     @pytest.mark.asyncio
     async def test_parse_response_with_trailing_text(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """JSON with trailing text should parse successfully (BUG-038 B2)."""
         provider = OpenAIProvider(settings=test_settings)
@@ -219,7 +324,9 @@ class TestOpenAIProviderGenerate:
 
     @pytest.mark.asyncio
     async def test_parse_response_with_newlines_and_trailing(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """JSON with newlines and trailing text should parse (BUG-038 B2)."""
         provider = OpenAIProvider(settings=test_settings)
@@ -244,7 +351,9 @@ class TestOpenAIProviderGenerate:
 
     @pytest.mark.asyncio
     async def test_parse_response_with_leading_whitespace_and_trailing(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """Leading whitespace + trailing text should parse (BUG-038 B2)."""
         provider = OpenAIProvider(settings=test_settings)
@@ -270,7 +379,9 @@ class TestOpenAIProviderGenerate:
 
     @pytest.mark.asyncio
     async def test_parse_error_on_missing_output(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """Test that missing output raises LLMParseError."""
         provider = OpenAIProvider(settings=test_settings)
@@ -291,7 +402,9 @@ class TestOpenAIProviderGenerate:
 
     @pytest.mark.asyncio
     async def test_cost_calculation_includes_images(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """Test that cost calculation includes image costs."""
         provider = OpenAIProvider(settings=test_settings)
@@ -323,7 +436,9 @@ class TestOpenAIProviderCircuitBreaker:
 
     @pytest.mark.asyncio
     async def test_circuit_breaker_opens_on_failures(
-        self, test_settings: Settings, sample_messages: list[Message]
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
     ) -> None:
         """Test that circuit breaker opens after transient failures.
 
