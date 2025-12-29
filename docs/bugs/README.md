@@ -28,15 +28,17 @@ All bugs have been migrated to GitHub Issues for tracking:
 | Severity | Count | Critical Bugs |
 |----------|-------|---------------|
 | **CRITICAL** | 2 | ~~PANDA null handling~~, ~~JSON "Extra data" errors~~ ✅ FIXED |
-| **HIGH** | 3 | JSON extraction, Anthropic silent failure, token count crash |
-| **MEDIUM** | 5 | Step guard, retry counter, base64, recursion, action types |
+| **HIGH** | 3 | JSON extraction, Anthropic JSON-string parsing clarity, token count None handling |
+| **MEDIUM** | 4 | Retry counter, base64, recursion, action types |
 | **LOW** | 2 | Comments, validation |
+
+Note: One originally-reported medium finding (step guard) was retracted after review in `docs/bugs/BUG-038-comprehensive-audit.md`.
 
 **Primary Impact**:
 - PANDA reports **9.4% balanced accuracy**; rescoring the existing run with the B1 fix (null → 0) yields **~19.8% balanced accuracy** (still includes 6 B2 hard failures)
-- PANDA outputs `"isup_grade": null` in **115/197** items; current extractor turns many of these into out-of-range labels via integer fallback
-- OpenAI `"Extra data"` parsing causes **18/609 hard failures (3.0%)** across all benchmarks and triggers frequent retries
-- Reported run costs are a lower bound because parse-failed calls do not accumulate `usage` today
+- PANDA outputs `"isup_grade": null` in **115/197** items; the pre-fix extractor turned many of these into extraction failures or bad integer fallbacks (fixed by B1)
+- OpenAI `"Extra data"` parsing caused **18/609 hard failures (3.0%)** across all benchmarks and triggered frequent retries (fixed by B2)
+- Reported run costs can still be a lower bound: if parsing fails for any reason, the current clients raise before usage is accumulated; B2 removes the common “trailing text” parse failures
 
 **Status**: CRITICAL BUGS FIXED (B1, B2). Remaining bugs (B3-B12) deferred.
 

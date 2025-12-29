@@ -7,14 +7,14 @@
 - `src/giant/llm/openai_client.py` (B2; affects PANDA runs)
 **Discovered**: 2025-12-29
 **Fixed**: 2025-12-29
-**Cost Impact**: Reported $73.38 for PANDA run (lower bound; parse-failed calls are not costed)
+**Cost Impact**: Reported $73.38 for PANDA run (lower bound; parse failures raise before usage is accumulated)
 
 ## Summary
 
-The PANDA benchmark (Prostate grading, 6-way ISUP classification, labels 0–5) is currently distorted by two independent issues:
+The PANDA benchmark run artifacts produced on 2025-12-29 were distorted by two independent issues (B1, B2). Both are now fixed in code; the metrics and counts below refer to the saved pre-fix run artifacts.
 
-1) **B1 (answer extraction)**: PANDA JSON outputs frequently contain `"isup_grade": null` to represent benign/no cancer (label 0). Current extraction treats `null` as a failure and then falls back to naive integer extraction, which often grabs **coordinate numbers** and produces **out-of-range labels**.
-2) **B2 (OpenAI structured output parsing)**: `OpenAIProvider` uses `json.loads(output_text)` and crashes with `Extra data` when the model appends trailing text after a valid JSON object. This causes retries (wasted spend) and **6/197 hard failures** in PANDA.
+1) **B1 (answer extraction; fixed)**: PANDA JSON outputs frequently contain `"isup_grade": null` to represent benign/no cancer (label 0). The pre-fix extractor treated `null` as a failure and then fell back to naive integer extraction, which often grabbed **coordinate numbers** and produced **out-of-range labels**.
+2) **B2 (OpenAI structured output parsing; fixed)**: The pre-fix `OpenAIProvider` used `json.loads(output_text)` and failed with `Extra data` when the model appended trailing text after a valid JSON object. This caused retries (wasted spend) and **6/197 hard failures** in the saved PANDA artifacts.
 
 **Measured on current artifacts** (`results/panda_giant_openai_gpt-5.2_results.json`, `results/panda_benchmark.log`):
 - As-run PANDA metric (balanced accuracy): **9.4% ± 2.2%** (`n_errors=6`, `n_extraction_failures=47`)
@@ -42,7 +42,7 @@ When the LLM determines "no cancer detected", it returns a clinically accurate r
 
 **Clinical / dataset context:** MultiPathQA PANDA uses labels 0–5 where **0 = benign/no cancer**. When the model indicates benign and emits `null`, the canonicalized label should be 0.
 
-**Bug Location:** `_extract_panda_label()` in `answer_extraction.py:41-48`:
+**Pre-fix code (for reference):**
 
 ```python
 def _extract_panda_label(text: str) -> int | None:
@@ -55,23 +55,7 @@ def _extract_panda_label(text: str) -> int | None:
         return None  # <-- Returns None instead of 0
 ```
 
-**Fix Required (must distinguish null vs missing key):**
-```python
-def _extract_panda_label(text: str) -> int | None:
-    """Extract ISUP grade from PANDA JSON response."""
-    try:
-        json_str = _extract_json_object(text)
-        obj = json.loads(json_str)
-        if "isup_grade" not in obj:
-            return None
-        grade = obj["isup_grade"]
-        if grade is None:
-            return 0  # Benign/no cancer = ISUP Grade 0
-        grade_int = int(grade)
-        return grade_int if 0 <= grade_int <= 5 else None
-    except Exception:
-        return None
-```
+**Fixed implementation (current code):** `src/giant/eval/answer_extraction.py` now maps `null -> 0`, treats missing/out-of-range as extraction failure (`None`), and only falls back to integer parsing when *no JSON object is present at all*.
 
 ### Secondary Bug: JSON Parsing "Extra Data" Errors
 
@@ -94,15 +78,17 @@ Python's `json.loads()` fails with "Extra data" when there's content after the f
 - GTEx: 6/191 (3.1%)
 - PANDA: 6/197 (3.0%)
 
-**Bug Location:** `openai_client.py:245`:
+**Pre-fix code (for reference):**
 ```python
 raw_data = json.loads(output_text)  # Fails on trailing text
 ```
 
-**Fix Required (robust; avoid regex brace matching):**
-- Parse the first **valid JSON object** from `output_text` (ignore trailing content) using `json.JSONDecoder().raw_decode()`.
-- Validate against `StepResponse`; if the first JSON object is not a valid `StepResponse`, scan for the next JSON object and retry.
-- **Cost accounting note**: today, parse-failed calls drop `usage` on the floor (and results show `cost_usd=0`, `total_tokens=0` for the 18 hard failures). Fixing B2 should also address undercounted spend.
+**Fixed implementation (current code):**
+- Parse the first JSON value in `output_text` via `json.JSONDecoder().raw_decode()` (starting after leading whitespace)
+- Ignore trailing text after the JSON value
+- Validate with `StepResponse.model_validate()` and raise `LLMParseError` on failure
+
+**Cost accounting note:** any parse failure still raises before usage is accumulated, but B2 removes the common “trailing text after JSON” failure mode and eliminates the 18/609 `"Extra data"` hard failures in the audited artifacts.
 
 ## Data Analysis
 
@@ -115,7 +101,7 @@ raw_data = json.loads(output_text)  # Fails on trailing text
 | → mis-parsed label via integer fallback | 68 | 34.5% |
 | → (subset) out-of-range label (not 0–5) | 32 | 16.2% |
 
-**Why this matters:** the 68 mis-parsed null-grade outputs are **not counted** as “extraction failures” today, but they still corrupt scoring (e.g., labels like 1700).
+**Why this matters:** in the pre-fix artifacts, the 68 mis-parsed null-grade outputs were **not counted** as “extraction failures”, but they still corrupted scoring (e.g., labels like 1700).
 
 ### Ground Truth for All `"isup_grade": null` Outputs (n=115)
 
@@ -128,7 +114,7 @@ raw_data = json.loads(output_text)  # Fails on trailing text
 | ISUP Grade 4 | 11 | No (missed cancer) |
 | ISUP Grade 5 | 10 | No (missed cancer) |
 
-**Key Insight:** There are **41 benign (truth=0)** cases inside the null outputs; only 5/41 are currently scored as correct because the extractor drops into integer fallback.
+**Key Insight:** There are **41 benign (truth=0)** cases inside the null outputs; only 5/41 are scored as correct in the as-run artifact because the pre-fix extractor dropped into integer fallback.
 
 ### Rescore-Only Impact of the B1 Fix (No New LLM Calls)
 
@@ -140,7 +126,7 @@ Using the saved predictions in `results/panda_giant_openai_gpt-5.2_results.json`
 | Raw Accuracy (paper-faithful; failures incorrect) | 10.7% | ~28.4% |
 | Grade 0 Recall | 24.1% (13/54) | ~90.7% (49/54) |
 
-Note: This still includes the 6 hard failures caused by B2 (empty prediction / max retries exceeded).
+Note: In the saved pre-fix artifacts, this still includes the 6 hard failures caused by B2 (empty prediction / max retries exceeded).
 
 ## Per-Class Recall (Balanced Accuracy Components)
 
@@ -206,7 +192,7 @@ To see how often B2 forces retries in PANDA:
 rg -c "Failed to parse JSON: Extra data" results/panda_benchmark.log
 ```
 
-## Fix Plan
+## Fix (Implemented)
 
 ### 1. Fix `_extract_panda_label()` (P0 / CRITICAL)
 
@@ -268,31 +254,11 @@ uv run giant benchmark panda --max-items=5 -v
 # GTEx: $0.038/item = $7/191 items
 ```
 
-## Testing
+## Testing (Implemented)
 
-Add test cases (at minimum):
-
-```python
-# In tests/unit/eval/test_answer_extraction.py
-
-def test_panda_null_isup_grade():
-    """isup_grade: null should map to Grade 0 (benign)."""
-    text = '{"primary_pattern": null, "isup_grade": null}'
-    result = extract_label(text, benchmark_name="panda", options=None)
-    assert result.label == 0
-
-def test_panda_missing_isup_grade_is_failure():
-    """Missing isup_grade should not be treated as benign."""
-    text = '{"reasoning": "no key"}'
-    result = extract_label(text, benchmark_name="panda", options=None)
-    assert result.label is None
-
-def test_panda_valid_isup_grade():
-    """Normal isup_grade extraction."""
-    text = '{"isup_grade": 3}'
-    result = extract_label(text, benchmark_name="panda", options=None)
-    assert result.label == 3
-```
+Regression coverage is in:
+- `tests/unit/eval/test_answer_extraction.py::TestExtractLabelPanda` (null/missing-key/invalid-json/out-of-range PANDA cases)
+- `tests/unit/llm/test_openai.py::TestOpenAIProviderGenerate` (trailing-text JSON parsing cases)
 
 ## Lessons Learned
 
@@ -300,7 +266,7 @@ def test_panda_valid_isup_grade():
 
 2. **Validate extraction logic against all answer formats:** The PANDA dataset has a `null` case that wasn't tested.
 
-3. **Log parse retries prominently:** `"Extra data"` parse failures are frequent and currently trigger silent re-queries.
+3. **Log parse retries prominently:** parse failures can trigger agent-level retries; keep retry logs and raw outputs easy to find when debugging.
 
 4. **Test with real model outputs:** Unit tests used synthetic data; real LLM outputs are messier.
 
@@ -320,7 +286,7 @@ def test_panda_valid_isup_grade():
 | PANDA | 197 | $73.38 | $0.37 | 6 (3.0%) | 47 (23.9%) |
 | **Total** | **609** | **$95.73** | - | **18 (3.0%)** | **47 (7.7%)** |
 
-**Important:** Reported costs are a lower bound because parse-failed calls (B2) do not accumulate `usage`/cost today.
+**Important:** Reported costs can be a lower bound because parse failures raise before usage is accumulated; after the B2 fix, the common `"Extra data"` failures are eliminated, but other parse failures would still drop usage.
 
 PANDA is 10x more expensive per item because prostate grading requires more navigation steps to examine Gleason patterns at cellular resolution.
 
