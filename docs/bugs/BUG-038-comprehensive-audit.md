@@ -4,41 +4,44 @@
 **Severity**: MIXED (see table below)
 **Audit Date**: 2025-12-29
 **Audited By**: 8 parallel swarm agents
-**Cost Impact**: $73.38 wasted on PANDA benchmark run
+**Cost Impact**: Reported $73.38 spent on PANDA benchmark run (lower bound; see Cost Notes)
 
 ---
 
 ## Executive Summary
 
-Comprehensive codebase audit discovered **12 bugs** across 8 audit domains:
+Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 
-| Severity | Count | Impact |
+| Category | Count | Impact |
 |----------|-------|--------|
-| **CRITICAL** | 2 | Directly affects benchmark accuracy |
-| **HIGH** | 3 | Causes failures or incorrect costs |
-| **MEDIUM** | 5 | Edge cases, robustness issues |
-| **LOW** | 2 | Documentation, design issues |
+| **CRITICAL** | 2 | Directly affects benchmark scoring / completion |
+| **HIGH** | 3 | Robustness + error clarity + defensive guards |
+| **MEDIUM** | 4 | Edge cases, retry semantics, robustness issues |
+| **LOW** | 2 | Documentation / validation ergonomics |
+| **RETRACTED** | 1 | Not a bug after review |
 
-**Primary Finding**: PANDA benchmark reports 9.4% accuracy but should report ~24% due to extraction bug that discards 17 correct answers.
+**Primary Findings (verified against current code + saved run artifacts):**
+- PANDA reports **9.4% balanced accuracy** largely because `"isup_grade": null` is not mapped to benign label 0; rescoring the existing run with only the B1 fix yields **~19.8% balanced accuracy** (still includes 6 hard failures from B2).
+- OpenAI `"Extra data"` parse failures block **18/609 items (3.0%)** across all benchmarks and trigger frequent retries (see log counts in B2), which also **undercounts spend** because parse-failed calls do not accumulate `usage`.
 
 ---
 
-## Bug Summary Table
+## Finding Summary Table
 
-| ID | File | Line | Severity | Description |
-|----|------|------|----------|-------------|
-| **B1** | `answer_extraction.py` | 41-48 | CRITICAL | `isup_grade: null` not mapped to Grade 0 |
-| **B2** | `openai_client.py` | 245 | CRITICAL | JSON "Extra data" error on trailing LLM text |
-| **B3** | `answer_extraction.py` | 126-142 | HIGH | Naive brace-matching JSON extraction |
-| **B4** | `anthropic_client.py` | 97 | HIGH | Silent JSON parsing failure in tool use |
-| **B5** | `openai_client.py` | 270-272 | HIGH | Potential crash on None token counts |
-| **B6** | `context.py` | 159 | MEDIUM | Off-by-one in step guard |
-| **B7** | `runner.py` | 274-431 | MEDIUM | Asymmetric retry counter logic |
-| **B8** | `converters.py` | 260-268 | MEDIUM | Empty base64 not caught early |
-| **B9** | `runner.py` | 444-450 | MEDIUM | Recursive retry handling (bounded) |
-| **B10** | `openai_client.py` | 105-107 | MEDIUM | Unknown action types pass unchecked |
-| **B11** | `context.py` | 268 | LOW | Misleading comment on step index |
-| **B12** | `protocol.py` | 129-137 | LOW | Empty Message.content allowed |
+| ID | Location | Severity | Status | Description |
+|----|----------|----------|--------|-------------|
+| **B1** | `src/giant/eval/answer_extraction.py:41-48` | CRITICAL | CONFIRMED | PANDA `"isup_grade": null` must map to label 0; current code causes failures + mis-parses |
+| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | CONFIRMED | OpenAI `output_text` may contain trailing text; `json.loads()` raises `Extra data` (hard failures + retries + cost undercount) |
+| **B3** | `src/giant/eval/answer_extraction.py:126-142` | HIGH | CONFIRMED | Naive JSON extraction via `find`/`rfind` (should use decoder-based parsing) |
+| **B4** | `src/giant/llm/anthropic_client.py:91-99` | HIGH | IMPROVEMENT | Invalid JSON in stringified `action` loses root cause (decode error swallowed; pydantic error is less specific) |
+| **B5** | `src/giant/llm/openai_client.py:270-272`, `src/giant/llm/anthropic_client.py:247-249` | HIGH | DEFENSIVE | Guard against `usage.*_tokens is None` (TypeError today) |
+| **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | Step guard is correct and unit-tested; no off-by-one bug found |
+| **B7** | `src/giant/agent/runner.py:270-437` | MEDIUM | REVIEW | Retry/error counter semantics are hard to reason about; may prematurely exhaust retries |
+| **B8** | `src/giant/llm/converters.py:260-268` | MEDIUM | CONFIRMED | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
+| **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | IMPROVEMENT | Recursive retry for invalid crops (bounded, but avoidable) |
+| **B10** | `src/giant/llm/openai_client.py:105-107` | MEDIUM | IMPROVEMENT | Unknown action types produce pydantic discriminator errors; can raise clearer `LLMParseError` |
+| **B11** | `src/giant/agent/context.py:268` | LOW | IMPROVEMENT | Misleading comment on user message index vs step number |
+| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | IMPROVEMENT | Consider `min_length=1` for `Message.content` to prevent empty API payloads |
 
 ---
 
@@ -48,7 +51,7 @@ Comprehensive codebase audit discovered **12 bugs** across 8 audit domains:
 
 **Location**: `src/giant/eval/answer_extraction.py:41-48`
 
-**Problem**: When LLM correctly determines "no cancer", it returns `{"isup_grade": null}`. The code crashes on `int(None)`, catches the exception, and returns `None` as extraction failure instead of Grade 0.
+**Problem**: When the model indicates benign/no cancer, PANDA predictions frequently include `{"isup_grade": null}`. Current extraction raises `TypeError` on `int(None)`, returns `None`, and then `extract_label()` falls back to naive integer parsing (often grabbing coordinate numbers), producing out-of-range or incorrect labels.
 
 **Code**:
 ```python
@@ -61,18 +64,22 @@ def _extract_panda_label(text: str) -> int | None:
         return None  # Returns failure instead of 0
 ```
 
-**Impact**:
-- 47/197 PANDA items (23.9%) fail extraction
-- 17/47 were actually CORRECT (ground truth = Grade 0)
-- Current accuracy: 9.4% → With fix: ~24% (paper baseline: 23.2%)
-- Cost wasted: $73.38
+**Impact (from `results/panda_giant_openai_gpt-5.2_results.json`)**:
+- `"isup_grade": null` appears in **115/197** PANDA predictions (58.4%)
+  - 47/115 become `predicted_label=None` (extraction failures)
+  - 68/115 are mis-parsed via integer fallback (including **32 out-of-range labels** like 1700)
+- As-run PANDA metric: **9.4% ± 2.2% balanced accuracy** (`n_errors=6`, `n_extraction_failures=47`)
+- Rescore-only with B1 fix (no new LLM calls): **~19.8% balanced accuracy**, **~28.4% raw accuracy** (still includes 6 B2 failures)
 
-**Fix**:
+**Fix (must distinguish null vs missing key):**
 ```python
-grade = obj.get("isup_grade")
+if "isup_grade" not in obj:
+    return None
+grade = obj["isup_grade"]
 if grade is None:
-    return 0  # Clinical: null = no cancer = ISUP Grade 0
-return int(grade)
+    return 0  # Benign/no cancer = ISUP Grade 0
+grade_int = int(grade)
+return grade_int if 0 <= grade_int <= 5 else None
 ```
 
 ---
@@ -87,20 +94,22 @@ return int(grade)
 ```
 Python's `json.loads()` fails with "Extra data" error.
 
-**Impact**:
-- TCGA: 6/221 items (2.7%)
-- GTEx: 6/191 items (3.1%)
-- PANDA: 6/197 items (3.0%)
-- **Total: 18/609 items (3.0%) fail across ALL benchmarks**
+**Impact (from results files)**:
+- Hard failures (no prediction; max retries exceeded):
+  - TCGA: 6/221 items (2.7%)
+  - GTEx: 6/191 items (3.1%)
+  - PANDA: 6/197 items (3.0%)
+  - **Total: 18/609 items (3.0%)**
+- Frequent transient parse failures (retried successfully):
+  - `results/tcga-benchmark-20251227-084052.log`: 83 occurrences
+  - `results/gtex-benchmark-20251227-010151.log`: 58 occurrences
+  - `results/panda_benchmark.log`: 56 occurrences
+- **Cost tracking is undercounted** today: parse-failed calls do not accumulate `usage`, and the 18 hard failures show `cost_usd=0`, `total_tokens=0` in results.
 
-**Fix**: Extract first complete JSON object before parsing:
-```python
-def _extract_first_json_object(text: str) -> dict:
-    match = re.search(r'\{(?:[^{}]|\{[^{}]*\})*\}', text)
-    if not match:
-        raise ValueError("No JSON object found")
-    return json.loads(match.group())
-```
+**Fix (robust; avoid regex brace matching):**
+- Parse the first valid JSON object from `output_text` using `json.JSONDecoder().raw_decode()` (ignore trailing content).
+- Validate against `StepResponse`; if the first JSON object is not a valid `StepResponse`, scan for the next JSON object and retry.
+- (Optional but recommended) Accumulate `usage`/cost even when parsing fails, so retries reflect real spend.
 
 ---
 
@@ -110,7 +119,7 @@ def _extract_first_json_object(text: str) -> dict:
 
 **Location**: `src/giant/eval/answer_extraction.py:126-142`
 
-**Problem**: Uses `find("{")` and `rfind("}")` without proper nesting consideration. Breaks on text with multiple JSON objects.
+**Problem**: Uses `find("{")` + `rfind("}")` which can span multiple JSON objects. Prefer decoder-based parsing (`raw_decode`) or scan-and-validate approach.
 
 **Example failure**:
 ```
@@ -124,7 +133,7 @@ Would extract invalid content spanning both objects.
 
 **Location**: `src/giant/llm/anthropic_client.py:97`
 
-**Problem**: `json.JSONDecodeError` caught and suppressed with `pass`. Malformed action strings silently fail, producing confusing Pydantic errors.
+**Problem**: If Anthropic returns `tool_input["action"]` as a string, invalid JSON is caught and ignored. The subsequent pydantic error is still raised, but the root-cause (“action was a string but not valid JSON”) is not explicit.
 
 **Code**:
 ```python
@@ -149,11 +158,11 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 ## MEDIUM SEVERITY BUGS
 
-### B6: Off-by-One in Step Guard
+### B6: Off-by-One in Step Guard (RETRACTED)
 
 **Location**: `src/giant/agent/context.py:159`
 
-**Problem**: Step guard uses `>=` check before increment, creating subtle timing issue.
+**Result**: Reviewed `ContextManager.get_messages()` and corresponding unit tests (`tests/unit/agent/test_context.py`). The step guard is correct for preventing a user step beyond `max_steps`. No fix required.
 
 ---
 
@@ -209,13 +218,12 @@ Comment says `== step-1` but variable meaning is different. Cosmetic issue.
 
 ## ADDITIONAL FINDINGS
 
-### Cost Tracking Accuracy: VERIFIED
+### Cost Notes (Not Fully Verifiable From Saved Artifacts)
 
-The $73.38 PANDA cost is **accurate**:
-- Total tokens: 20,340,343
-- Token split: 84.8% input / 15.2% output
-- Recalculated: $73.3823 (perfect match)
-- **NOTE**: Image costs appear to NOT be added (possible OpenAI API behavior)
+The results files are internally consistent (sum of per-item `cost_usd` equals `total_cost_usd`), but they are **not a reliable measure of actual spend** because:
+- Parse-failed calls (B2) do not accumulate `usage` and are recorded as `cost_usd=0`, `total_tokens=0`.
+- Transient parse failures (see B2 log counts) also represent extra API calls that are not reflected in costs.
+- Prompt vs completion token split is not persisted in the saved artifacts, so external recomputation is limited.
 
 ### Metrics Calculation: CORRECT
 
@@ -247,27 +255,28 @@ Missing test cases identified:
 ## FIX PRIORITY
 
 ### Immediate (Before next benchmark run)
-1. **B1**: Fix `_extract_panda_label()` null handling
-2. **B2**: Add JSON extraction before `json.loads()`
+1. **B1**: Fix `_extract_panda_label()` null → 0 (do not treat missing key as benign)
+2. **B2**: Fix OpenAI `"Extra data"` parsing (decoder-based extraction + validate `StepResponse`)
 
 ### Short-term
-3. **B3**: Improve JSON extraction with proper brace counting
-4. **B4**: Add logging for Anthropic JSON parse failures
-5. Add missing test cases
+3. **B3**: Replace brace matching with decoder-based JSON extraction helper (shared)
+4. **B4**: Make Anthropic stringified-`action` decode errors explicit (raise/log root cause)
+5. Add missing unit tests (PANDA null + missing-key; OpenAI trailing text)
 
 ### Long-term
-6. Separate error counters for LLM vs validation errors
-7. Add defensive None checks for token counts
-8. Document edge cases
+6. **B7**: Clarify/adjust retry semantics (separate counters for LLM vs validation errors)
+7. **B5**: Add defensive guards for `usage.*_tokens is None`
+8. Document edge cases + invariants
 
 ---
 
 ## Sign-Off Checklist
 
-- [ ] **B1**: Fix `_extract_panda_label()` to map null -> 0
-- [ ] **B2**: Add JSON extraction robustness in `openai_client.py`
-- [ ] Add unit tests for PANDA null case
-- [ ] Add unit tests for JSON trailing text
+- [ ] **B1**: Fix `_extract_panda_label()` null → 0 (missing key remains failure)
+- [ ] **B2**: Fix OpenAI `"Extra data"` parsing (ignore trailing text; validate `StepResponse`)
+- [ ] Add unit tests for PANDA null + missing-key cases
+- [ ] Add unit tests for OpenAI trailing-text JSON
+- [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
 - [ ] Review and approve remaining medium/low fixes
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis
@@ -300,10 +309,9 @@ Missing test cases identified:
 - Found B6, B7, B9
 - Verified boundary conditions
 
-### Agent 7: Cost Tracking Audit
-- Verified $73.38 is accurate
-- Noted image costs not added (API behavior)
+### Agent 7: Cost Tracking Audit (UPDATED)
+- Results-file totals are internally consistent, but absolute spend is likely undercounted due to B2 (parse-failed calls not costed).
 
-### Agent 8: Metrics Audit
-- Confirmed balanced accuracy is correct
-- Explained 9.4% vs 14.6% discrepancy
+### Agent 8: Metrics Audit (UPDATED)
+- Balanced accuracy implementation is correct.
+- The previously cited “14.6% balanced accuracy” is actually the **raw accuracy among scored items** (21 correct / 144 labeled); it is not balanced accuracy.

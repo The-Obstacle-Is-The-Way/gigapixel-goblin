@@ -33,10 +33,10 @@ All bugs have been migrated to GitHub Issues for tracking:
 | **LOW** | 2 | Comments, validation |
 
 **Primary Impact**:
-- PANDA accuracy reported as 9.4% → should be ~24% (paper baseline: 23.2%)
-- 17 correct PANDA answers incorrectly discarded
-- 18/609 items (3.0%) fail across ALL benchmarks due to JSON parsing
-- $73.38 wasted on buggy PANDA run
+- PANDA reports **9.4% balanced accuracy**; rescoring the existing run with the B1 fix (null → 0) yields **~19.8% balanced accuracy** (still includes 6 B2 hard failures)
+- PANDA outputs `"isup_grade": null` in **115/197** items; current extractor turns many of these into out-of-range labels via integer fallback
+- OpenAI `"Extra data"` parsing causes **18/609 hard failures (3.0%)** across all benchmarks and triggers frequent retries
+- Reported run costs are a lower bound because parse-failed calls do not accumulate `usage` today
 
 **Status**: AWAITING SENIOR REVIEW before implementing fixes.
 

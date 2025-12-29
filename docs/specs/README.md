@@ -2,7 +2,7 @@
 
 All 15 specs have been completed and archived.
 
-**Location:** [docs/archive/specs/](../archive/specs/)
+**Location:** [docs/archive/specs/README.md](../archive/specs/README.md)
 
 ## Summary
 
