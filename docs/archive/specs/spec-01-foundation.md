@@ -7,21 +7,21 @@ This specification establishes the modern Python project structure, dependency m
 None.
 
 ## Acceptance Criteria
-- [ ] `pyproject.toml` is configured with `uv` as the package manager and includes all initial dependencies.
-- [ ] `uv.lock` is generated and committed for reproducible installs; CI uses `uv sync --locked`.
-- [ ] Project directory structure follows the `src` layout standard.
-- [ ] `Makefile` exists and successfully runs `install`, `test`, `lint`, `format`, `check`, `download-data`, `benchmark`, `clean` and `mutmut` targets.
-- [ ] `pytest` is configured with `pytest-sugar`, `pytest-cov`, `pytest-xdist`, `pytest-asyncio`, `pytest-randomly`, `pytest-watch`, and a dummy test passes.
-- [ ] `mypy` is configured in `pyproject.toml` with `strict = true` and passes on the skeleton code.
-- [ ] `ruff` is configured for both linting and formatting, replacing `black` and `isort`.
-- [ ] Pre-commit hooks are installed and pass locally.
-- [ ] Structured logging is implemented using `structlog`.
-- [ ] Settings management is implemented using `pydantic-settings` with `.env` support.
-- [ ] `.github/workflows/ci.yml` is created with matrix testing and cache.
-- [ ] `.github/workflows/codeql.yml` is created for CodeQL scanning.
-- [ ] `.github/workflows/release.yml` is created for tag-based releases (PyPI publishing via Trusted Publishing).
-- [ ] `.github/dependabot.yml` is created for dependency update PRs.
-- [ ] PR + issue templates are added under `.github/`.
+- [x] `pyproject.toml` is configured with `uv` as the package manager and includes all initial dependencies.
+- [x] `uv.lock` is generated and committed for reproducible installs; CI uses `uv sync --locked`.
+- [x] Project directory structure follows the `src` layout standard.
+- [x] `Makefile` exists and successfully runs `install`, `test`, `lint`, `format`, `check`, `download-data`, `benchmark`, `clean` and `mutmut` targets.
+- [x] `pytest` is configured with `pytest-sugar`, `pytest-cov`, `pytest-xdist`, `pytest-asyncio`, `pytest-randomly`, `pytest-watch`, and a dummy test passes.
+- [x] `mypy` is configured in `pyproject.toml` with `strict = true` and passes on the skeleton code.
+- [x] `ruff` is configured for both linting and formatting, replacing `black` and `isort`.
+- [x] Pre-commit hooks are installed and pass locally.
+- [x] Structured logging is implemented using `structlog`.
+- [x] Settings management is implemented using `pydantic-settings` with `.env` support.
+- [x] `.github/workflows/ci.yml` is created with matrix testing and cache.
+- [x] `.github/workflows/codeql.yml` is created for CodeQL scanning.
+- [x] ~~`.github/workflows/release.yml` is created for tag-based releases (PyPI publishing via Trusted Publishing).~~ **OUT OF SCOPE** - This is a research tool, not a maintained PyPI package.
+- [x] `.github/dependabot.yml` is created for dependency update PRs.
+- [x] PR + issue templates are added under `.github/`.
 
 ## Technical Design
 
