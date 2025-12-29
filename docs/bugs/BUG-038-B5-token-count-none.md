@@ -3,7 +3,7 @@
 **Status**: DEFENSIVE (not observed; not yet fixed)
 **Severity**: HIGH
 **Component**: `src/giant/llm/openai_client.py`, `src/giant/llm/anthropic_client.py`
-**Lines**: openai_client.py:278-280, anthropic_client.py:247-249
+**Lines**: openai_client.py:275-285, anthropic_client.py:246-256
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -22,7 +22,7 @@ This is defensive hardening: it has not been observed in saved benchmark runs, b
 
 ### OpenAI Client
 
-**File**: `src/giant/llm/openai_client.py:278-280`
+**File**: `src/giant/llm/openai_client.py:275-285`
 
 ```python
 # Calculate usage and cost
@@ -40,7 +40,7 @@ total_tokens = prompt_tokens + completion_tokens
 
 ### Anthropic Client
 
-**File**: `src/giant/llm/anthropic_client.py:247-249`
+**File**: `src/giant/llm/anthropic_client.py:246-256`
 
 ```python
 # Calculate usage and cost (defensive None check for SDK edge cases)
@@ -101,7 +101,7 @@ Both clients already check `if usage is None` and raise `LLMError`. The gap is t
 ### Option A: Fail Fast With Clear `LLMError` (Recommended)
 
 ```python
-# OpenAI client (openai_client.py:278-286)
+# OpenAI client (openai_client.py:275-285)
 usage = response.usage
 if usage is None:
     raise LLMError(
@@ -243,8 +243,8 @@ Add equivalent tests for Anthropic client with same pattern.
 
 | File | Lines | Change |
 |------|-------|--------|
-| `src/giant/llm/openai_client.py` | 278-280 | Add explicit guard for `None` token counts (Option A: raise clear `LLMError`) |
-| `src/giant/llm/anthropic_client.py` | 247-249 | Add explicit guard for `None` token counts (Option A: raise clear `LLMError`) |
+| `src/giant/llm/openai_client.py` | 275-285 | Add explicit guard for `None` token counts (Option A: raise clear `LLMError`) |
+| `src/giant/llm/anthropic_client.py` | 246-256 | Add explicit guard for `None` token counts (Option A: raise clear `LLMError`) |
 
 ---
 

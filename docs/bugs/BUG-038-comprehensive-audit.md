@@ -62,7 +62,7 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
 | **B3** | `src/giant/eval/answer_extraction.py:151-180` | HIGH | **FIXED** | [BUG-038-B3-json-extraction.md](BUG-038-B3-json-extraction.md) | Uses `json.JSONDecoder().raw_decode()` to extract the first complete JSON object (no naive brace matching) |
 | **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
-| **B5** | `src/giant/llm/openai_client.py:278-280`, `src/giant/llm/anthropic_client.py:247-249` | HIGH | DEFENSIVE | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
+| **B5** | `src/giant/llm/openai_client.py:275-285`, `src/giant/llm/anthropic_client.py:246-256` | HIGH | DEFENSIVE | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
 | **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
 | **B7** | `src/giant/agent/runner.py:385-452` | MEDIUM | CONFIRMED | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) | `_consecutive_errors` is not reset after a successful invalid-region recovery crop; can leak retries into subsequent steps |
 | **B8** | `src/giant/llm/converters.py:260-268` | MEDIUM | CONFIRMED | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
@@ -335,7 +335,7 @@ except json.JSONDecodeError:
 
 ### B5: Defensive Guard for None Token Counts
 
-**Location**: `src/giant/llm/openai_client.py:278-280` and `src/giant/llm/anthropic_client.py:247-249`
+**Location**: `src/giant/llm/openai_client.py:275-285` and `src/giant/llm/anthropic_client.py:246-256`
 
 **Problem**: Token counts from SDK could theoretically be `None`. Today this triggers a `TypeError` during `total_tokens` computation which then becomes a generic `LLMError` via the catch-all handler.
 ```python
