@@ -14,23 +14,34 @@ All bugs have been migrated to GitHub Issues for tracking:
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
-| **BUG-038** | **P1** | **PANDA answer extraction: `isup_grade: null` not mapped to Grade 0** | LOCAL |
+| **BUG-038** | **P0-P2** | **Comprehensive E2E Bug Audit (12 bugs found)** | LOCAL |
 | BUG-018 | P3 | Missing CONCH tool integration | [#33](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/33) |
 | BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
 | BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
 
 ## Local Audit Findings (Not Yet Filed)
 
-### E2E Benchmark Audit (2025-12-29)
+### Comprehensive E2E Bug Audit (2025-12-29)
 
-**BUG-038 (P1)**: PANDA answer extraction failures - 53/197 (26.9%) items failed to extract.
-- **Root cause**: `isup_grade: null` not mapped to ISUP Grade 0 (benign)
-- **Impact**: 17 correct answers discarded; balanced accuracy reported as 9.4% instead of ~24%
-- **Secondary issue**: 18/609 items across all benchmarks failed with "Extra data" JSON errors
-- **Lesson**: Always do dry runs (`--max-items=5`) before expensive benchmarks
-- **Cost wasted**: $73.38 on PANDA with extraction bug
+**BUG-038**: 8-agent swarm audit discovered **12 bugs** across the codebase:
 
-See [BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) for full analysis.
+| Severity | Count | Critical Bugs |
+|----------|-------|---------------|
+| **CRITICAL** | 2 | PANDA null handling, JSON "Extra data" errors |
+| **HIGH** | 3 | JSON extraction, Anthropic silent failure, token count crash |
+| **MEDIUM** | 5 | Step guard, retry counter, base64, recursion, action types |
+| **LOW** | 2 | Comments, validation |
+
+**Primary Impact**:
+- PANDA accuracy reported as 9.4% → should be ~24% (paper baseline: 23.2%)
+- 17 correct PANDA answers incorrectly discarded
+- 18/609 items (3.0%) fail across ALL benchmarks due to JSON parsing
+- $73.38 wasted on buggy PANDA run
+
+**Status**: AWAITING SENIOR REVIEW before implementing fixes.
+
+See [BUG-038-comprehensive-audit.md](./BUG-038-comprehensive-audit.md) for full analysis.
+See [BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) for original PANDA analysis.
 
 ## Archived (Fixed) Bugs
 
