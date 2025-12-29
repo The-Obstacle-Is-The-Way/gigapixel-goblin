@@ -33,7 +33,7 @@ def download_multipathqa_metadata(
     """Download MultiPathQA metadata CSV to the local `data/` directory."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    token: str | None = settings.HUGGINGFACE_TOKEN or None  # Treat empty string as None
+    token = settings.HUGGINGFACE_TOKEN or None  # Treat empty string as None
     if token is None:
         logger.debug(
             "HUGGINGFACE_TOKEN not set, using anonymous access. "
