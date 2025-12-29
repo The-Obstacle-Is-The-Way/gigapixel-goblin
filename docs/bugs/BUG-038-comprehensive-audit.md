@@ -107,7 +107,7 @@ except ValueError:
 **Location**: `src/giant/llm/openai_client.py:245`
 
 **Problem**: LLM sometimes outputs explanatory text after JSON object:
-```
+```text
 {"reasoning": "...", "action": {...}} I hope this helps explain my reasoning.
 ```
 Python's `json.loads()` fails with "Extra data" error.
@@ -139,7 +139,7 @@ Python's `json.loads()` fails with "Extra data" error.
 **Problem**: Uses `find("{")` + `rfind("}")` which can span multiple JSON objects. Prefer decoder-based parsing (`raw_decode`) or scan-and-validate approach.
 
 **Example failure**:
-```
+```text
 Here's my reasoning: {"step": 1} and action: {"action_type": "crop", "x": 100}
 ```
 Would extract invalid content spanning both objects.

@@ -77,12 +77,12 @@ def _extract_panda_label(text: str) -> int | None:
 
 6/197 PANDA items (3.0%) failed completely due to JSON parsing errors during agent execution:
 
-```
+```text
 Max retries (3) exceeded: Failed to parse JSON: Extra data: line 1 column 355 (char 354)
 ```
 
 **Root Cause:** The LLM sometimes outputs trailing text after the JSON object:
-```
+```text
 {"reasoning": "...", "action": {...}} I hope this helps explain my reasoning.
 ```
 
