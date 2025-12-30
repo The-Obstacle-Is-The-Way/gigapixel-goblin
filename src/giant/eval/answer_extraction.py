@@ -149,19 +149,32 @@ def extract_label(
 
 
 def _extract_json_object(text: str) -> str:
-    """Extract the outermost JSON object from text.
+    """Extract the first valid JSON object from text.
+
+    Uses json.JSONDecoder().raw_decode() to find the first complete
+    JSON object, ignoring any text before or after it.
 
     Args:
         text: Text potentially containing a JSON object.
 
     Returns:
-        The extracted JSON string.
+        The extracted JSON string (reserialized for validity).
 
     Raises:
-        ValueError: If no JSON object is found.
+        ValueError: If no valid JSON object is found.
     """
+    # Find first '{' to start scanning
     start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
+    if start == -1:
         raise ValueError("No JSON object found")
-    return text[start : end + 1]
+
+    # Use raw_decode to parse the first complete JSON object
+    decoder = json.JSONDecoder()
+    try:
+        obj, _ = decoder.raw_decode(text, idx=start)
+        if not isinstance(obj, dict):
+            raise ValueError("Extracted JSON is not an object")
+        # Reserialize to ensure valid JSON string
+        return json.dumps(obj)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"No valid JSON object found: {e}") from e

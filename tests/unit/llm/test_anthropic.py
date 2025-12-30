@@ -151,6 +151,46 @@ class TestParseToolUseToStepResponse:
         with pytest.raises(LLMParseError):
             _parse_tool_use_to_step_response(tool_input)
 
+    def test_valid_json_string_action(self) -> None:
+        """Valid JSON string action is parsed and converted."""
+        tool_input = {
+            "reasoning": "I see tissue",
+            "action": (
+                '{"action_type": "crop", "x": 100, "y": 200, "width": 50, "height": 50}'
+            ),
+        }
+        result = _parse_tool_use_to_step_response(tool_input)
+        assert result.action.action_type == "crop"
+        assert result.action.x == 100
+
+    def test_invalid_json_string_action_raises_clear_error(self) -> None:
+        """Invalid JSON string in action raises LLMParseError with clear message."""
+        # BUG-038-B4 regression test
+        tool_input = {
+            "reasoning": "I see tissue",
+            "action": '{action_type: "crop", x: 100}',  # Invalid: unquoted keys
+        }
+        with pytest.raises(LLMParseError) as exc_info:
+            _parse_tool_use_to_step_response(tool_input)
+
+        # Error should preserve the real root cause (JSONDecodeError).
+        assert "json" in str(exc_info.value).lower()
+        assert exc_info.value.raw_output is not None
+        assert tool_input["action"] in exc_info.value.raw_output
+
+    def test_non_json_string_action_raises_clear_error(self) -> None:
+        """Non-JSON string action raises LLMParseError."""
+        tool_input = {
+            "reasoning": "I see tissue",
+            "action": "crop at position 100, 200",  # Plain text, not JSON
+        }
+        with pytest.raises(LLMParseError) as exc_info:
+            _parse_tool_use_to_step_response(tool_input)
+
+        assert "json" in str(exc_info.value).lower()
+        assert exc_info.value.raw_output is not None
+        assert tool_input["action"] in exc_info.value.raw_output
+
 
 class TestAnthropicProviderInit:
     """Tests for AnthropicProvider initialization."""

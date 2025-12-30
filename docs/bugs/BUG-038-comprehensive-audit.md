@@ -1,11 +1,38 @@
 # BUG-038: Comprehensive E2E Bug Audit
 
-**Status**: CRITICAL BUGS FIXED (B1, B2) - Other bugs deferred
+**Status**: BUGS FIXED (B1, B2, B3, B4, B10) - Remaining bugs deferred
 **Severity**: MIXED (see table below)
 **Audit Date**: 2025-12-29
 **Fix Date**: 2025-12-29
 **Audited By**: 8 parallel swarm agents
 **Cost Impact**: Reported $73.38 spent on PANDA benchmark run (lower bound; see Cost Notes)
+
+---
+
+## Individual Bug Specifications
+
+Each bug has a dedicated spec document with implementation-ready details:
+
+| Bug | Severity | Spec Document |
+|-----|----------|---------------|
+| B1, B2 | CRITICAL | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) (**FIXED**) |
+| B3 | HIGH | [BUG-038-B3-json-extraction.md](BUG-038-B3-json-extraction.md) (**FIXED**) |
+| B4 | HIGH | [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md) (**FIXED**) |
+| B5 | HIGH | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) |
+| B7 | MEDIUM | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) |
+| B8 | MEDIUM | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) |
+| B9 | MEDIUM | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) |
+| B10 | MEDIUM | [BUG-038-B10-unknown-action-type.md](BUG-038-B10-unknown-action-type.md) (**FIXED**) |
+| B11 | LOW | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) |
+| B12 | LOW | [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md) |
+
+Each spec includes:
+- Current buggy code
+- Root cause analysis
+- Fix implementation (copy-paste ready)
+- Test cases
+- Verification steps
+- Sign-off checklist
 
 ---
 
@@ -22,39 +49,41 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **RETRACTED** | 1 | Not a bug after review |
 
 **Primary Findings (verified against current code + saved run artifacts):**
-- PANDA reports **9.4% balanced accuracy** largely because `"isup_grade": null` is not mapped to benign label 0; rescoring the existing run with only the B1 fix yields **~19.8% balanced accuracy** (still includes 6 hard failures from B2).
-- OpenAI `"Extra data"` parse failures block **18/609 items (3.0%)** across all benchmarks and trigger frequent retries (see log counts in B2), which also **undercounts spend** because parse-failed calls do not accumulate `usage`.
+- In the pre-fix benchmark artifacts, PANDA reports **9.4% balanced accuracy** largely because `"isup_grade": null` was not mapped to benign label 0; rescoring the existing run with only the B1 fix yields **~19.8% balanced accuracy** (that rescore still includes the 6 B2 hard failures).
+- In the pre-fix benchmark artifacts, OpenAI `"Extra data"` parse failures blocked **18/609 items (3.0%)** across all benchmarks and triggered frequent retries; this also **undercounted spend** because parse-failed calls did not accumulate `usage` (fixed by B2).
 
 ---
 
 ## Finding Summary Table
 
-| ID | Location | Severity | Status | Description |
-|----|----------|----------|--------|-------------|
-| **B1** | `src/giant/eval/answer_extraction.py:45-74` | CRITICAL | **FIXED** | PANDA `"isup_grade": null` maps to label 0 (benign); any JSON present but missing/invalid/out-of-range returns `None` without integer fallback |
-| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
-| **B3** | `src/giant/eval/answer_extraction.py:126-142` | HIGH | CONFIRMED | Naive JSON extraction via `find`/`rfind` (should use decoder-based parsing) |
-| **B4** | `src/giant/llm/anthropic_client.py:91-99` | HIGH | IMPROVEMENT | Invalid JSON in stringified `action` loses root cause (decode error swallowed; pydantic error is less specific) |
-| **B5** | `src/giant/llm/openai_client.py:270-272`, `src/giant/llm/anthropic_client.py:247-249` | HIGH | DEFENSIVE | Guard against `usage.*_tokens is None` (TypeError today) |
-| **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | Step guard is correct and unit-tested; no off-by-one bug found |
-| **B7** | `src/giant/agent/runner.py:270-437` | MEDIUM | REVIEW | Retry/error counter semantics are hard to reason about; may prematurely exhaust retries |
-| **B8** | `src/giant/llm/converters.py:260-268` | MEDIUM | CONFIRMED | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
-| **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | IMPROVEMENT | Recursive retry for invalid crops (bounded, but avoidable) |
-| **B10** | `src/giant/llm/openai_client.py:105-107` | MEDIUM | IMPROVEMENT | Unknown action types produce pydantic discriminator errors; can raise clearer `LLMParseError` |
-| **B11** | `src/giant/agent/context.py:268` | LOW | IMPROVEMENT | Misleading comment on user message index vs step number |
-| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | IMPROVEMENT | Consider `min_length=1` for `Message.content` to prevent empty API payloads |
+| ID | Location | Severity | Status | Spec Doc | Description |
+|----|----------|----------|--------|----------|-------------|
+| **B1** | `src/giant/eval/answer_extraction.py:45-74` | CRITICAL | **FIXED** | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) | PANDA `"isup_grade": null` maps to label 0 (benign); any JSON present but missing/invalid/out-of-range returns `None` without integer fallback |
+| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
+| **B3** | `src/giant/eval/answer_extraction.py:151-180` | HIGH | **FIXED** | [BUG-038-B3-json-extraction.md](BUG-038-B3-json-extraction.md) | Uses `json.JSONDecoder().raw_decode()` to extract the first complete JSON object (no naive brace matching) |
+| **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
+| **B5** | `src/giant/llm/openai_client.py:275-285`, `src/giant/llm/anthropic_client.py:246-256` | HIGH | DEFENSIVE | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
+| **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
+| **B7** | `src/giant/agent/runner.py:385-452` | MEDIUM | CONFIRMED | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) | `_consecutive_errors` is not reset after a successful invalid-region recovery crop; can leak retries into subsequent steps |
+| **B8** | `src/giant/llm/converters.py:260-268` | MEDIUM | CONFIRMED | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
+| **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | IMPROVEMENT | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
+| **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [BUG-038-B10-unknown-action-type.md](BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
+| **B11** | `src/giant/agent/context.py:268` | LOW | IMPROVEMENT | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
+| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | DEFENSIVE | [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
 
 ---
 
 ## CRITICAL BUGS
 
-### B1: PANDA `isup_grade: null` Not Mapped to Grade 0
+### B1: PANDA `isup_grade: null` Not Mapped to Grade 0 (FIXED)
 
-**Location**: `src/giant/eval/answer_extraction.py:41-48`
+**Location (fixed)**: `src/giant/eval/answer_extraction.py:45-148`
 
-**Problem**: When the model indicates benign/no cancer, PANDA predictions frequently include `{"isup_grade": null}`. Current extraction raises `TypeError` on `int(None)`, returns `None`, and then `extract_label()` falls back to naive integer parsing (often grabbing coordinate numbers), producing out-of-range or incorrect labels.
+**Status**: FIXED (2025-12-29)
 
-**Code**:
+**Problem (pre-fix)**: When the model indicates benign/no cancer, PANDA predictions frequently include `{"isup_grade": null}`. The pre-fix extractor raised a `TypeError` on `int(None)`, returned `None`, and then `extract_label()` fell back to naive integer parsing (often grabbing coordinate numbers), producing out-of-range or incorrect labels.
+
+**Pre-fix code (for reference)**:
 ```python
 def _extract_panda_label(text: str) -> int | None:
     try:
@@ -102,11 +131,13 @@ except ValueError:
 
 ---
 
-### B2: JSON "Extra Data" Error on Trailing LLM Text
+### B2: JSON "Extra Data" Error on Trailing LLM Text (FIXED)
 
 **Location**: `src/giant/llm/openai_client.py:245`
 
-**Problem**: LLM sometimes outputs explanatory text after JSON object:
+**Status**: FIXED (2025-12-29)
+
+**Problem (pre-fix)**: LLM sometimes outputs explanatory text after a JSON object:
 ```text
 {"reasoning": "...", "action": {...}} I hope this helps explain my reasoning.
 ```
@@ -134,42 +165,186 @@ Python's `json.loads()` fails with "Extra data" error.
 
 ### B3: Naive Brace-Matching JSON Extraction
 
-**Location**: `src/giant/eval/answer_extraction.py:126-142`
+**Location (fixed)**: `src/giant/eval/answer_extraction.py:151-180`
 
-**Problem**: Uses `find("{")` + `rfind("}")` which can span multiple JSON objects. Prefer decoder-based parsing (`raw_decode`) or scan-and-validate approach.
+**Status**: FIXED (2025-12-29; commit `ee897191`)
 
-**Example failure**:
+**Problem**: Uses `find("{")` + `rfind("}")` which can span multiple JSON objects, producing invalid JSON that causes `json.loads()` to fail.
+
+**Pre-fix code (for reference; commit `9317d6d4`)**:
+```python
+def _extract_json_object(text: str) -> str:
+    """Extract the outermost JSON object from text."""
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError("No JSON object found")
+    return text[start : end + 1]
+```
+
+**Failure Scenarios**:
+
+1. **Multiple JSON objects** (most common):
 ```text
 Here's my reasoning: {"step": 1} and action: {"action_type": "crop", "x": 100}
 ```
-Would extract invalid content spanning both objects.
+Current: Returns `{"step": 1} and action: {"action_type": "crop", "x": 100}` → invalid JSON
+Expected: Returns `{"step": 1}` (first valid object)
+
+2. **JSON with trailing text** (already handled by B2 in openai_client, but not here):
+```text
+{"isup_grade": 3} I hope this helps!
+```
+Current: Works (rfind finds the right `}`)
+Expected: Same (works)
+
+3. **Nested JSON** (edge case):
+```text
+{"outer": {"inner": 1}}
+```
+Current: Works (rfind finds the right `}`)
+Expected: Same (works)
+
+**Caller Analysis**: Only called from `_extract_panda_label()` at line 53.
+
+**Fix** (use `json.JSONDecoder().raw_decode()`):
+```python
+def _extract_json_object(text: str) -> str:
+    """Extract the first valid JSON object from text.
+
+    Uses json.JSONDecoder().raw_decode() to find the first complete
+    JSON object, ignoring any text before or after it.
+
+    Args:
+        text: Text potentially containing a JSON object.
+
+    Returns:
+        The extracted JSON string.
+
+    Raises:
+        ValueError: If no valid JSON object is found.
+    """
+    # Find first '{' to start scanning
+    start = text.find("{")
+    if start == -1:
+        raise ValueError("No JSON object found")
+
+    # Use raw_decode to parse the first complete JSON object
+    decoder = json.JSONDecoder()
+    try:
+        obj, end_idx = decoder.raw_decode(text, idx=start)
+        if not isinstance(obj, dict):
+            raise ValueError("Extracted JSON is not an object")
+        return json.dumps(obj)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"No valid JSON object found: {e}") from e
+```
+
+**Alternative Fix** (simpler, reserialize):
+```python
+def _extract_json_object(text: str) -> str:
+    """Extract the first valid JSON object from text."""
+    start = text.find("{")
+    if start == -1:
+        raise ValueError("No JSON object found")
+
+    decoder = json.JSONDecoder()
+    try:
+        obj, _ = decoder.raw_decode(text, idx=start)
+        if not isinstance(obj, dict):
+            raise ValueError("Extracted JSON is not an object")
+        return json.dumps(obj)  # Reserialize to ensure valid JSON string
+    except json.JSONDecodeError as e:
+        raise ValueError(f"No valid JSON object found: {e}") from e
+```
+
+**Test Cases** (add to `tests/unit/eval/test_answer_extraction.py`):
+```python
+class TestExtractJsonObject:
+    """Tests for _extract_json_object helper."""
+
+    def test_single_json_object(self) -> None:
+        """Single JSON object extracts correctly."""
+        text = '{"key": "value"}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"key": "value"}
+
+    def test_json_with_leading_text(self) -> None:
+        """JSON with leading text extracts correctly."""
+        text = 'Here is my response: {"key": "value"}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"key": "value"}
+
+    def test_json_with_trailing_text(self) -> None:
+        """JSON with trailing text extracts correctly."""
+        text = '{"key": "value"} I hope this helps!'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"key": "value"}
+
+    def test_multiple_json_objects_returns_first(self) -> None:
+        """Multiple JSON objects: returns first valid object."""
+        text = 'Reasoning: {"step": 1} Action: {"action_type": "crop"}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"step": 1}
+
+    def test_nested_json_object(self) -> None:
+        """Nested JSON object extracts correctly."""
+        text = '{"outer": {"inner": 1}}'
+        result = _extract_json_object(text)
+        assert json.loads(result) == {"outer": {"inner": 1}}
+
+    def test_no_json_raises_value_error(self) -> None:
+        """No JSON object raises ValueError."""
+        text = "No JSON here, just plain text"
+        with pytest.raises(ValueError, match="No JSON object found"):
+            _extract_json_object(text)
+
+    def test_empty_string_raises_value_error(self) -> None:
+        """Empty string raises ValueError."""
+        with pytest.raises(ValueError, match="No JSON object found"):
+            _extract_json_object("")
+
+    def test_json_array_raises_value_error(self) -> None:
+        """JSON array (not object) raises ValueError."""
+        text = '[1, 2, 3]'
+        with pytest.raises(ValueError, match="No JSON object found"):
+            _extract_json_object(text)
+```
+
+**Impact**: LOW (only affects PANDA extraction, and only when LLM outputs multiple JSON objects in the same response, which is rare but possible).
 
 ---
 
 ### B4: Silent JSON Parsing Failure in Anthropic Client
 
-**Location**: `src/giant/llm/anthropic_client.py:97`
+**Location (fixed)**: `src/giant/llm/anthropic_client.py:73-113`
 
-**Problem**: If Anthropic returns `tool_input["action"]` as a string, invalid JSON is caught and ignored. The subsequent pydantic error is still raised, but the root-cause (“action was a string but not valid JSON”) is not explicit.
+**Status**: FIXED (2025-12-29; commit `ee897191`)
 
-**Code**:
+**Problem (pre-fix)**: If Anthropic returns `tool_input["action"]` as a string, invalid JSON was caught and ignored. The subsequent pydantic error was still raised, but the root-cause (“action was a string but not valid JSON”) was not explicit.
+
+**Pre-fix code (for reference; commit `9317d6d4`)**:
 ```python
 except json.JSONDecodeError:
     pass  # Let pydantic handle the validation error
 ```
 
+**Spec doc**: [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md)
+
 ---
 
-### B5: Potential Crash on None Token Counts
+### B5: Defensive Guard for None Token Counts
 
-**Location**: `src/giant/llm/openai_client.py:270-272` and `anthropic_client.py:247-249`
+**Location**: `src/giant/llm/openai_client.py:275-285` and `src/giant/llm/anthropic_client.py:246-256`
 
-**Problem**: Token counts from SDK could theoretically be `None`:
+**Problem**: Token counts from SDK could theoretically be `None`. Today this triggers a `TypeError` during `total_tokens` computation which then becomes a generic `LLMError` via the catch-all handler.
 ```python
 prompt_tokens = usage.input_tokens
 completion_tokens = usage.output_tokens
 total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 ```
+
+**Spec doc**: [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md)
 
 ---
 
@@ -183,35 +358,45 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 ---
 
-### B7: Asymmetric Retry Counter Logic
+### B7: Retry Counter Semantics Leak After Recovery
 
-**Location**: `src/giant/agent/runner.py:274-431`
+**Location**: `src/giant/agent/runner.py:385-452`
 
-**Problem**: `_consecutive_errors` incremented in BOTH initial LLM call path AND retry error handling, causing compound counting.
+**Problem**: After a successful invalid-region recovery crop, `_consecutive_errors` is not reset to 0, so a recovered failure can leak into subsequent steps.
+
+**Spec doc**: [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md)
 
 ---
 
 ### B8: Empty Base64 Not Caught Early
 
-**Location**: `src/giant/llm/converters.py:260-268`
+**Location**: `src/giant/llm/converters.py:260-267`
 
 **Problem**: After None check, empty string `""` decodes successfully but produces zero bytes, potentially failing in `Image.open()`.
 
+**Spec doc**: [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md)
+
 ---
 
-### B9: Recursive Retry Handling
+### B9: Recursive Retry Handling (Refactor Note)
 
 **Location**: `src/giant/agent/runner.py:444-450`
 
 **Problem**: Uses recursion via `await self._handle_crop()`. Bounded by `max_retries=3` so safe, but not ideal.
 
+**Spec doc**: [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md)
+
 ---
 
-### B10: Unknown Action Types Pass Unchecked
+### B10: Unknown Action Type Error Clarity
 
-**Location**: `src/giant/llm/openai_client.py:105-107`
+**Location (fixed)**: `src/giant/llm/openai_client.py:72-117`
 
-**Problem**: Unknown action types passed through as-is without validation, producing confusing Pydantic errors instead of early LLMParseError.
+**Status**: FIXED (2025-12-29; commit `ee897191`)
+
+**Problem (pre-fix)**: Unknown `action_type` was rejected by pydantic, but the discriminator error is confusing; raise a clearer `LLMParseError`.
+
+**Spec doc**: [BUG-038-B10-unknown-action-type.md](BUG-038-B10-unknown-action-type.md)
 
 ---
 
@@ -221,15 +406,19 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 **Location**: `src/giant/agent/context.py:268`
 
-Comment says `== step-1` but variable meaning is different. Cosmetic issue.
+Comment says `== step-1` but “step” is ambiguous (LLM step numbering vs trajectory `Turn.step_index`). Cosmetic clarity issue.
+
+**Spec doc**: [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md)
 
 ---
 
-### B12: Empty Message.content Allowed
+### B12: Empty Message.content Allowed (Defensive)
 
 **Location**: `src/giant/llm/protocol.py:129-137`
 
-`Message` model allows `content=[]` which would cause API errors. No validation prevents this.
+`Message` model allows `content=[]` which can lead to provider API errors. No validation prevents this today.
+
+**Spec doc**: [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md)
 
 ---
 
@@ -258,32 +447,34 @@ The results files are internally consistent (sum of per-item `cost_usd` equals `
 
 ## TEST COVERAGE GAPS
 
-Missing test cases identified:
+Remaining test coverage gaps correspond to deferred specs:
 
-1. **PANDA null value**: `'{"isup_grade": null}'`
-2. **PANDA missing key**: `'{"reasoning": "test"}'`
-3. **Empty system messages**: System message with no text content
-4. **Unknown action types**: OpenAI returns `action_type="invalid"`
-5. **None token counts**: SDK returns None for usage fields
-6. **Empty Message.content**: Messages with `content=[]`
+1. **B5**: `usage.*_tokens is None` guard (OpenAI + Anthropic)
+2. **B7**: retry counter reset after successful invalid-region recovery
+3. **B8**: empty `image_base64=""` validation in `count_image_pixels_in_messages()`
+4. **B12**: prevent `Message(content=[])` via `min_length=1`
 
 ---
 
 ## FIX PRIORITY
 
-### Immediate (Before next benchmark run)
-1. **B1**: Fix `_extract_panda_label()` null → 0 (do not treat missing key as benign)
-2. **B2**: Fix OpenAI `"Extra data"` parsing (decoder-based extraction + validate `StepResponse`)
+### Completed
+1. **B1**: PANDA `isup_grade: null` → 0 (benign) ✅
+2. **B2**: OpenAI `"Extra data"` parsing (ignore trailing text) ✅
+3. **B3**: Replace brace matching with decoder-based JSON extraction ✅
+4. **B4**: Make Anthropic stringified-`action` decode errors explicit ✅
+5. **B10**: Unknown `action_type` clearer error ✅
+6. Added/updated unit tests for B1/B2/B3/B4/B10 ✅
 
-### Short-term
-3. **B3**: Replace brace matching with decoder-based JSON extraction helper (shared)
-4. **B4**: Make Anthropic stringified-`action` decode errors explicit (raise/log root cause)
-5. Add missing unit tests (PANDA null + missing-key; OpenAI trailing text)
+### Next (deferred; implement via spec docs)
+7. **B5**: Defensive guard for `usage.*_tokens is None`
+8. **B8**: Empty base64 early validation in `count_image_pixels_in_messages()`
+9. **B7**: Retry counter reset after successful recovery (clarify semantics)
+10. **B12**: `Message.content` `min_length=1`
 
-### Long-term
-6. **B7**: Clarify/adjust retry semantics (separate counters for LLM vs validation errors)
-7. **B5**: Add defensive guards for `usage.*_tokens is None`
-8. Document edge cases + invariants
+### Later (defensive / UX improvements)
+11. **B11**: Comment clarity in context manager
+12. **B9**: Iterative vs recursive retry refactor
 
 ---
 
@@ -291,10 +482,14 @@ Missing test cases identified:
 
 - [x] **B1**: Fix `_extract_panda_label()` null → 0 (missing key remains failure) ✅ FIXED 2025-12-29
 - [x] **B2**: Fix OpenAI `"Extra data"` parsing (ignore trailing text; validate `StepResponse`) ✅ FIXED 2025-12-29
-- [x] Add unit tests for PANDA null + missing-key cases ✅ 6 new tests added
-- [x] Add unit tests for OpenAI trailing-text JSON ✅ 3 new tests added
+- [x] **B3**: Replace brace matching with decoder-based JSON extraction ✅ FIXED 2025-12-29
+- [x] **B4**: Make Anthropic invalid JSON-string root cause explicit ✅ FIXED 2025-12-29
+- [x] **B10**: Raise clear `LLMParseError` for unknown `action_type` ✅ FIXED 2025-12-29
+- [x] Add unit tests for PANDA null + missing-key cases ✅ 6 tests added
+- [x] Add unit tests for OpenAI trailing-text JSON ✅ 3 tests added
+- [x] Add unit tests for B3/B4/B10 ✅ (12 + 3 + 7 tests)
 - [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
-- [ ] Review and approve remaining medium/low fixes (B3-B12 deferred)
+- [ ] Review and approve remaining medium/low fixes (B5, B7, B8, B9, B11, B12 deferred)
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis
 

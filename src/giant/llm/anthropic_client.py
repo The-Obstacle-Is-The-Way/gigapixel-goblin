@@ -86,16 +86,23 @@ def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse
         LLMParseError: If parsing fails.
     """
     try:
-        # Handle case where 'action' is returned as a JSON string instead of dict
-        # This can happen with complex nested schemas in tool use
+        # Handle case where 'action' is returned as a JSON string instead of dict.
+        # If the string is invalid JSON, raise an LLMParseError that preserves the
+        # real root cause (instead of swallowing JSONDecodeError).
         if isinstance(tool_input.get("action"), str):
+            action_str = tool_input["action"]
             try:
                 tool_input = {
                     **tool_input,
-                    "action": json.loads(tool_input["action"]),
+                    "action": json.loads(action_str),
                 }
-            except json.JSONDecodeError:
-                pass  # Let pydantic handle the validation error
+            except json.JSONDecodeError as e:
+                raise LLMParseError(
+                    "Anthropic tool_input.action was a string but was not "
+                    f"valid JSON: {e}",
+                    raw_output=str(tool_input),
+                    provider="anthropic",
+                ) from e
 
         return StepResponse.model_validate(tool_input)
     except ValidationError as e:
