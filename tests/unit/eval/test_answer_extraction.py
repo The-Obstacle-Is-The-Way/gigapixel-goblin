@@ -230,8 +230,8 @@ class TestExtractLabelEdgeCases:
 
     # BUG-039 C1: JSONDecodeError should fallback to integer extraction
     def test_panda_malformed_json_falls_back_to_integer(self) -> None:
-        """PANDA with no JSON at all should try integer extraction (C1 fix)."""
-        prediction = "The ISUP grade is 3 based on my analysis"
+        """Malformed JSON should fall back to integer extraction (C1 fix)."""
+        prediction = 'My answer is {"isup_grade": 3'  # missing closing brace
         result = extract_label(prediction, benchmark_name="panda", options=None)
         assert result.label == 3
 

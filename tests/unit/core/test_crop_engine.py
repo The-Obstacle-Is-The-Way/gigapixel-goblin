@@ -629,6 +629,29 @@ class TestCropEngineHugeRegionProtection:
         with pytest.raises(ValueError, match="Region too large"):
             engine.crop(region, target_size=1000)
 
+    def test_rejects_region_exceeding_default_pixel_limit(
+        self,
+        mock_wsi_reader: MagicMock,
+    ) -> None:
+        """Default guard should also limit total pixels for single-level slides."""
+        mock_wsi_reader.get_metadata.return_value = WSIMetadata(
+            path="/path/to/slide.svs",
+            width=100000,
+            height=80000,
+            level_count=1,
+            level_dimensions=((100000, 80000),),
+            level_downsamples=(1.0,),
+            vendor="aperio",
+            mpp_x=0.25,
+            mpp_y=0.25,
+        )
+        mock_wsi_reader.read_region.side_effect = _fake_read_region
+        engine = _NoEncodeCropEngine(reader=mock_wsi_reader)
+
+        region = Region(x=0, y=0, width=9000, height=9000)
+        with pytest.raises(ValueError, match="maximum pixels"):
+            engine.crop(region, target_size=1000)
+
     def test_accepts_region_within_default_limit(
         self,
         mock_wsi_reader: MagicMock,
@@ -867,7 +890,7 @@ class TestCropEngineProperties:
         engine = _NoEncodeCropEngine(reader=mock_reader, level_selector=mock_selector)
 
         region = Region(x=0, y=0, width=region_width, height=region_height)
-        result = engine.crop(region, target_size=target_size)
+        result = engine.crop(region, target_size=target_size, max_read_dimension=0)
 
         # Compare aspect ratios
         original_aspect = region_width / region_height

@@ -44,12 +44,21 @@ Note: One originally-reported medium finding (step guard) was retracted after re
 See [BUG-038-comprehensive-audit.md](../archive/bugs/BUG-038-comprehensive-audit.md) for full analysis (archived).
 See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) for original PANDA analysis.
 
+### Comprehensive Swarm Audit (2025-12-30)
+
+**BUG-039**: 8-agent swarm audit followed by senior review (Critical + High triage only).
+
+**Status**: COMPLETED & ARCHIVED — C1–C6 and H1–H12 were triaged; confirmed issues fixed; false positives retracted.
+
+See [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md).
+
 ## Archived (Fixed) Bugs
 
 See `../archive/bugs/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-039 | Comprehensive Swarm Audit | Critical + high issues fixed; false positives retracted |
 | BUG-038 | Comprehensive E2E Bug Audit | 11 fixes landed; 1 false-positive retracted (B6) |
 | BUG-037 | Data acquisition verification requires `pandas` | Fixed (use `giant check-data` CLI instead) |
 | BUG-036 | WSI README verification assumes flat TCGA layout | Fixed (recommend `giant check-data`, handles both layouts) |

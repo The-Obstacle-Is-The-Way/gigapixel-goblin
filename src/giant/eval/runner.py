@@ -22,7 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from giant.agent.runner import AgentConfig, GIANTAgent, RunResult
 from giant.data.schemas import BENCHMARK_TASKS, BenchmarkItem, BenchmarkResult
@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _MISSING_LABEL_SENTINEL = -1
+_PANDA_TRUTH_LABEL_MIN = 0
+_PANDA_TRUTH_LABEL_MAX = 5
 
 _SAFE_FILENAME_COMPONENT_RE = re.compile(r"[^A-Za-z0-9._-]+")
 
@@ -73,6 +75,15 @@ class EvaluationConfig(BaseModel):
     strict_font_check: bool = Field(default=False)
     save_trajectories: bool = True
     checkpoint_interval: int = Field(default=10, ge=1)
+
+    @model_validator(mode="after")
+    def _validate_budget_requires_single_worker(self) -> EvaluationConfig:
+        if self.budget_usd is not None and self.max_concurrent != 1:
+            raise ValueError(
+                "When budget_usd is set, max_concurrent must be 1 to avoid "
+                "unbounded budget overruns from concurrent in-flight items."
+            )
+        return self
 
 
 class EvaluationResults(BaseModel):
@@ -191,7 +202,8 @@ class BenchmarkRunner:
                 # Filter by benchmark name and validity
                 if row.get("benchmark_name") != benchmark_name:
                     continue
-                if row.get("is_valid", "True").lower() != "true":
+                is_valid = (row.get("is_valid") or "True").strip().lower()
+                if is_valid != "true":
                     continue
 
                 benchmark_id = (
@@ -347,6 +359,34 @@ class BenchmarkRunner:
             "Please respond with the option number (1-based index)."
         )
 
+    @staticmethod
+    def _validate_truth_label_int(
+        label: int,
+        *,
+        benchmark_name: str,
+        options: list[str] | None,
+    ) -> None:
+        benchmark_name_lower = benchmark_name.strip().lower()
+
+        if benchmark_name_lower == "panda":
+            if not _PANDA_TRUTH_LABEL_MIN <= label <= _PANDA_TRUTH_LABEL_MAX:
+                raise ValueError(
+                    "PANDA truth label must be ISUP grade "
+                    f"{_PANDA_TRUTH_LABEL_MIN}-{_PANDA_TRUTH_LABEL_MAX}, got {label}"
+                )
+            return
+
+        if options is not None and not 1 <= label <= len(options):
+            raise ValueError(f"Truth label {label} out of range 1..{len(options)}")
+
+        task_info = BENCHMARK_TASKS.get(benchmark_name_lower)
+        classes = task_info.get("classes") if task_info else None
+        if isinstance(classes, int) and not 1 <= label <= classes:
+            raise ValueError(
+                f"Truth label {label} out of range 1..{classes} for "
+                f"benchmark {benchmark_name_lower}"
+            )
+
     def _parse_truth_label(
         self,
         answer: str,
@@ -374,9 +414,17 @@ class BenchmarkRunner:
 
         # Try integer conversion first
         try:
-            return int(answer)
+            label = int(answer)
         except ValueError:
-            pass
+            label = None
+
+        if label is not None:
+            self._validate_truth_label_int(
+                label,
+                benchmark_name=benchmark_name,
+                options=options,
+            )
+            return label
 
         # GTEx: string label to index
         if options:
@@ -427,6 +475,8 @@ class BenchmarkRunner:
             run_id,
             benchmark_name,
             config=self.config.model_dump(),
+            model_name=self.llm_provider.get_model_name(),
+            provider_name=type(self.llm_provider).__name__,
         )
 
         # Filter out completed items

@@ -244,6 +244,13 @@ class OpenAIProvider:
                     provider="openai",
                     model=self.model,
                 )
+            if not output_text.strip():
+                raise LLMParseError(
+                    "Empty output text in response",
+                    raw_output=output_text,
+                    provider="openai",
+                    model=self.model,
+                )
 
             try:
                 # Parse JSON using raw_decode to handle trailing text (BUG-038 B2)
