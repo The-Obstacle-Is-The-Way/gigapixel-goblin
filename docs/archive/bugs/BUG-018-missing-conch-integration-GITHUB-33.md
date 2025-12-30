@@ -2,13 +2,17 @@
 
 ## Severity: P3 (Paper ablation feature)
 
-## Status: Open (Blocked on CONCH access)
+## Status: IMPLEMENTED (Requires CONCH weights / user-supplied scorer)
 
 ## Description
 
 The GIANT paper includes an ablation study (Section 6.2) where GIANT is augmented with access to the **CONCH** pathology foundation model for localized image–text retrieval. This expands the agent's action space from `{crop, answer}` to `{crop, answer, conch}`.
 
 This repository currently implements the baseline loop (crop/answer only), so we cannot reproduce the paper’s “+ CONCH” ablation (Table 3) without implementing this optional tool.
+
+**Update (2025-12-30):** The CONCH action path is now implemented end-to-end in
+code behind a feature flag. The remaining blocker is access to CONCH weights
+and providing a concrete `ConchScorer` implementation.
 
 ---
 
@@ -95,6 +99,10 @@ Create a minimal interface (exact implementation depends on CONCH artifacts/acce
 
 The agent should never depend on CONCH embedding shapes; it only needs the list of float scores aligned to the input hypotheses.
 
+**Implemented:** `src/giant/vision/conch.py` defines `ConchScorer` and a default
+`UnconfiguredConchScorer` that raises a clear error if CONCH is requested
+without configuration.
+
 ### 3. Agent Loop + Context
 
 In `src/giant/agent/runner.py`:
@@ -102,11 +110,18 @@ In `src/giant/agent/runner.py`:
 - when `action_type == "conch"`, call the tool with the *current* observation image/crop and hypotheses
 - append a textual observation containing the scores (e.g., top-k sorted) to the next-step user message so the LMM can use the signal
 
+**Implemented:** `AgentConfig(enable_conch, conch_scorer)` and `GIANTAgent` now
+handle `ConchAction` and record scores in the trajectory. The system prompt
+includes CONCH instructions when `enable_conch=True`.
+
 ### 4. Trajectory Recording (Optional but Recommended)
 
 The paper discusses “inspection of reasoning traces” in the CONCH ablation (Sec 6.2), so recording CONCH invocations improves debuggability.
 
 Minimal requirement: persist hypotheses + scores in the saved trajectory JSON for later analysis/visualization.
+
+**Implemented:** Scores are stored on each `Turn` as `conch_scores` aligned to
+`ConchAction.hypotheses`.
 
 ---
 
@@ -121,12 +136,12 @@ This means “paper-faithful” evaluation of the “+ CONCH” ablation will re
 
 ## Implementation Checklist (Engineering)
 
-- [ ] Add `ConchAction` to `src/giant/llm/protocol.py`
-- [ ] Update structured-output schemas in `src/giant/llm/schemas.py` and `src/giant/llm/openai_client.py`
-- [ ] Add `enable_conch` + related config to `AgentConfig` in `src/giant/agent/runner.py` (default disabled)
-- [ ] Implement `ConchTool` behind an optional dependency / feature flag
-- [ ] Feed CONCH scores into the next step context and persist in trajectories
-- [ ] Add unit tests for parsing + agent behavior; add integration test gated on model access
+- [x] Add `ConchAction` to `src/giant/llm/protocol.py`
+- [x] Update structured-output schemas in `src/giant/llm/schemas.py` and `src/giant/llm/openai_client.py`
+- [x] Add `enable_conch` + related config to `AgentConfig` in `src/giant/agent/runner.py` (default disabled)
+- [x] Implement `ConchScorer` interface behind a feature flag (requires external weights)
+- [x] Feed CONCH scores into the next step context and persist in trajectories
+- [x] Add unit tests for parsing + agent behavior; add integration test gated on model access (still needed once weights available)
 
 ---
 

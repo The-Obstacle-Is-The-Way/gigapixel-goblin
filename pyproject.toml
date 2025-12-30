@@ -48,6 +48,7 @@ dependencies = [
     # DevEx
     "rich>=14.2.0",
     "tqdm>=4.67.1",
+    "pydicom>=3.0.1",
 ]
 
 [dependency-groups]

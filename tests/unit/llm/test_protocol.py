@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from giant.llm.protocol import (
     BoundingBoxAction,
     CircuitBreakerOpenError,
+    ConchAction,
     FinalAnswerAction,
     LLMError,
     LLMParseError,
@@ -70,6 +71,23 @@ class TestFinalAnswerAction:
         assert action.action_type == "answer"
 
 
+class TestConchAction:
+    """Tests for ConchAction model."""
+
+    def test_valid_conch_action(self) -> None:
+        action = ConchAction(hypotheses=["benign", "malignant"])
+        assert action.action_type == "conch"
+        assert action.hypotheses == ["benign", "malignant"]
+
+    def test_empty_hypotheses_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            ConchAction(hypotheses=[])
+
+    def test_empty_hypothesis_string_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            ConchAction(hypotheses=[""])
+
+
 class TestStepResponse:
     """Tests for StepResponse model."""
 
@@ -125,6 +143,16 @@ class TestStepResponse:
         response = StepResponse.model_validate_json(json_str)
         assert isinstance(response.action, FinalAnswerAction)
         assert response.action.answer_text == "Result"
+
+    def test_json_deserialization_conch(self) -> None:
+        """Test JSON deserialization of conch action."""
+        json_str = (
+            '{"reasoning": "Test", "action": '
+            '{"action_type": "conch", "hypotheses": ["benign", "malignant"]}}'
+        )
+        response = StepResponse.model_validate_json(json_str)
+        assert isinstance(response.action, ConchAction)
+        assert response.action.hypotheses == ["benign", "malignant"]
 
 
 class TestTokenUsage:

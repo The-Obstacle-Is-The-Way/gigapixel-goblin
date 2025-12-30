@@ -2,7 +2,7 @@
 
 ## Severity: P3 (Paper faithfulness / reproducibility)
 
-## Status: Partially Resolved (Paper-derived prompts implemented; awaiting Supplementary Material for verification)
+## Status: RESOLVED IN CODE (Supports prompt overrides; Supplementary text still required for verbatim reproduction)
 
 ## Description
 
@@ -94,13 +94,22 @@ Code reference: `src/giant/prompts/templates.py`
 
 Note: Output formatting is enforced structurally by the provider integrations (OpenAI uses strict JSON-schema structured output; Anthropic uses forced tool use). This improves parsing reliability, but may differ from how the paper authors enforced formatting in their experiments.
 
+**Update (2025-12-30):** This repo now supports **provider-specific system
+prompt overrides** via `Settings` so the exact Supplementary Material prompts
+can be dropped in without code changes once obtained.
+
+Supported overrides (via `.env` or environment variables):
+- `GIANT_SYSTEM_PROMPT` / `GIANT_SYSTEM_PROMPT_PATH`
+- `GIANT_SYSTEM_PROMPT_OPENAI` / `GIANT_SYSTEM_PROMPT_OPENAI_PATH`
+- `GIANT_SYSTEM_PROMPT_ANTHROPIC` / `GIANT_SYSTEM_PROMPT_ANTHROPIC_PATH`
+
 ---
 
 ## Proposed Fix (SSOT / Reproducibility)
 
 1. Obtain the Supplementary Material prompt text(s) referenced by the paper (OpenAI + Anthropic variants, if different).
 2. Integrate the verbatim prompts into `src/giant/prompts/templates.py` (or a provider-specific prompt module).
-3. Add regression tests that lock the *paper-required invariants* (coordinate system, bbox format, crop limit, final-answer enforcement), and document any intentional divergence (e.g., structured-output enforcement).
+3. Set the appropriate `GIANT_SYSTEM_PROMPT*_PATH` override(s) and rerun the benchmark.
 4. Keep a clear provenance note (source + date) to prevent future drift.
 
 ---

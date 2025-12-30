@@ -42,6 +42,12 @@ _JPEG_QUALITY_MAX = 100
 # Can be overridden via max_read_dimension parameter in crop().
 _DEFAULT_MAX_READ_DIMENSION = 10000
 
+# Maximum pixel area for safety (prevents large allocations on single-level slides)
+# 40M px RGBA is ~160MB before overhead; still large but avoids the worst spikes.
+# This limit scales with max_read_dimension (and is disabled when max_read_dimension
+# is <= 0).
+_DEFAULT_MAX_READ_PIXELS = 40_000_000
+
 
 @dataclass(frozen=True)
 class CroppedImage:
@@ -172,6 +178,12 @@ class CropEngine:
             if max_read_dimension is None
             else max_read_dimension
         )
+        effective_max_pixels = (
+            0
+            if effective_max <= 0
+            else (effective_max * effective_max * _DEFAULT_MAX_READ_PIXELS)
+            // (_DEFAULT_MAX_READ_DIMENSION * _DEFAULT_MAX_READ_DIMENSION)
+        )
         max_dim = max(region_size_at_level)
         if effective_max > 0 and max_dim > effective_max:
             w, h = region_size_at_level
@@ -180,6 +192,15 @@ class CropEngine:
                 f"exceeds maximum dimension {effective_max}px. "
                 f"Use a smaller region or get_thumbnail() for full-slide overview."
             )
+        if effective_max_pixels > 0:
+            w, h = region_size_at_level
+            pixels = w * h
+            if pixels > effective_max_pixels:
+                raise ValueError(
+                    f"Region too large: {w}x{h} pixels at level {selected.level} "
+                    f"({pixels} pixels) exceeds maximum pixels {effective_max_pixels}. "
+                    "Use a smaller region or get_thumbnail() for full-slide overview."
+                )
 
         raw_image = self._reader.read_region(
             location=(region.x, region.y),

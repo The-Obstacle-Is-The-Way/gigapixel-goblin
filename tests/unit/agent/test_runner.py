@@ -5,6 +5,8 @@ Tests the GIANTAgent core loop with mocked LLM and WSI components.
 
 from __future__ import annotations
 
+import base64
+from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -19,6 +21,7 @@ from giant.agent.runner import (
 )
 from giant.llm.protocol import (
     BoundingBoxAction,
+    ConchAction,
     FinalAnswerAction,
     LLMError,
     LLMResponse,
@@ -103,6 +106,26 @@ def make_answer_response(answer: str, reasoning: str = "Final analysis") -> LLMR
         step_response=StepResponse(
             reasoning=reasoning,
             action=FinalAnswerAction(answer_text=answer),
+        ),
+        usage=TokenUsage(
+            prompt_tokens=100,
+            completion_tokens=50,
+            total_tokens=150,
+            cost_usd=0.001,
+        ),
+        model="mock-model",
+        latency_ms=100.0,
+    )
+
+
+def make_conch_response(
+    hypotheses: list[str],
+    reasoning: str = "Use CONCH to score hypotheses",
+) -> LLMResponse:
+    return LLMResponse(
+        step_response=StepResponse(
+            reasoning=reasoning,
+            action=ConchAction(hypotheses=hypotheses),
         ),
         usage=TokenUsage(
             prompt_tokens=100,
@@ -211,6 +234,58 @@ class TestGIANTAgentHappyPath:
         assert result.success is True
         assert result.answer == "Obviously benign"
         assert len(result.trajectory.turns) == 1
+
+    @pytest.mark.asyncio
+    async def test_crop_conch_answer(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        class _DummyConchScorer:
+            def __init__(self) -> None:
+                self.calls: list[tuple[list[str], tuple[int, int]]] = []
+
+            def score_hypotheses(
+                self, image: Image.Image, hypotheses: list[str]
+            ) -> list[float]:
+                self.calls.append((hypotheses, image.size))
+                return [0.2, 0.8]
+
+        scorer = _DummyConchScorer()
+
+        crop_image = Image.new("RGB", (8, 8), color="white")
+        buf = BytesIO()
+        crop_image.save(buf, format="JPEG")
+        crop_base64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        mock_crop_engine.crop.return_value.base64_content = crop_base64
+
+        mock_llm_provider.generate_response.side_effect = [
+            make_crop_response(1000, 2000, 500, 500, "Found region A"),
+            make_conch_response(["benign", "malignant"], "Score hypotheses"),
+            make_answer_response("Benign tissue", "Based on CONCH scoring"),
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(
+                        max_steps=5,
+                        enable_conch=True,
+                        conch_scorer=scorer,
+                    ),
+                )
+
+                result = await agent.run()
+
+        assert result.success is True
+        assert result.answer == "Benign tissue"
+        assert len(result.trajectory.turns) == 3
+        assert scorer.calls == [(["benign", "malignant"], (8, 8))]
+        assert result.trajectory.turns[1].conch_scores == [0.2, 0.8]
 
 
 class TestGIANTAgentLoopLimit:
@@ -540,10 +615,15 @@ class TestObservationSummary:
 
         async def capture_messages(messages):
             captured_messages.append(messages)
-            # Return answer on force prompt (contains "MUST now provide")
+            # Return answer on the force-answer prompt (not the regular final-step
+            # prompt).
             for msg in messages:
                 for content in msg.content:
-                    if content.text and "MUST now provide" in content.text:
+                    if (
+                        content.text
+                        and "You have reached the maximum number of navigation steps"
+                        in content.text
+                    ):
                         return make_answer_response("Final", "Forced")
             # Otherwise return crop
             return make_crop_response(1000, 2000, 500, 500, "Step reasoning")
@@ -568,7 +648,11 @@ class TestObservationSummary:
         force_text = ""
         for msg in force_messages:
             for content in msg.content:
-                if content.text and "MUST now provide" in content.text:
+                if (
+                    content.text
+                    and "You have reached the maximum number of navigation steps"
+                    in content.text
+                ):
                     force_text = content.text
                     break
 

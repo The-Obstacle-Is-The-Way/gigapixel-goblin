@@ -135,6 +135,40 @@ class WSIPathResolver:
             # Find any .dcm file in the directory
             dcm_files = sorted(dicom_dir.glob("*.dcm"))
             if dcm_files:
+                # Validate that the directory contains exactly one DICOM series.
+                # If multiple SeriesInstanceUID values are present, selecting an
+                # arbitrary file may load the wrong series.
+                from pydicom import dcmread  # noqa: PLC0415
+                from pydicom.errors import InvalidDicomError  # noqa: PLC0415
+
+                series_uid: str | None = None
+                for path in dcm_files:
+                    try:
+                        ds = dcmread(
+                            path,
+                            stop_before_pixels=True,
+                            specific_tags=["SeriesInstanceUID"],
+                        )
+                    except (InvalidDicomError, OSError, ValueError) as e:
+                        raise ValueError(
+                            f"Invalid DICOM file in directory {dicom_dir}: {path}"
+                        ) from e
+                    current_uid = getattr(ds, "SeriesInstanceUID", None)
+                    if not current_uid:
+                        raise ValueError(
+                            f"DICOM file missing SeriesInstanceUID: {path}"
+                        )
+                    current_uid_str = str(current_uid)
+                    if series_uid is None:
+                        series_uid = current_uid_str
+                    elif current_uid_str != series_uid:
+                        raise ValueError(
+                            f"Found multiple DICOM series in directory {dicom_dir} "
+                            "(SeriesInstanceUID "
+                            f"{series_uid!r} and {current_uid_str!r}). "
+                            "Split the directory by series before running."
+                        )
+
                 # Return the first .dcm file; OpenSlide will find siblings
                 return dcm_files[0]
 

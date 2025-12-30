@@ -76,6 +76,8 @@ class CheckpointState(BaseModel):
     completed_ids: set[str] = Field(default_factory=set)
     results: list[BenchmarkResult] = Field(default_factory=list)
     config: dict[str, Any] = Field(default_factory=dict)
+    model_name: str | None = None
+    provider_name: str | None = None
 
 
 class CheckpointManager:
@@ -148,6 +150,9 @@ class CheckpointManager:
         run_id: str,
         benchmark_name: str,
         config: dict[str, Any] | None = None,
+        *,
+        model_name: str | None = None,
+        provider_name: str | None = None,
     ) -> CheckpointState:
         """Load existing checkpoint or create a new one.
 
@@ -177,6 +182,28 @@ class CheckpointManager:
                     "Refusing to resume with different settings. "
                     "Use a new run_id or delete the checkpoint."
                 )
+
+            expected_model = existing.model_name
+            expected_provider = existing.provider_name
+            if model_name is not None:
+                if expected_model is not None and expected_model != model_name:
+                    raise ValueError(
+                        f"Checkpoint {run_id!r} model/provider mismatch: "
+                        f"expected model={expected_model!r}, got {model_name!r}."
+                    )
+                if expected_model is None:
+                    existing.model_name = model_name
+
+            if provider_name is not None:
+                if expected_provider is not None and expected_provider != provider_name:
+                    raise ValueError(
+                        f"Checkpoint {run_id!r} model/provider mismatch: "
+                        f"expected provider={expected_provider!r}, "
+                        f"got {provider_name!r}."
+                    )
+                if expected_provider is None:
+                    existing.provider_name = provider_name
+
             logger.info(
                 "Resuming from checkpoint: %d/%d items completed",
                 len(existing.completed_ids),
@@ -188,6 +215,8 @@ class CheckpointManager:
             run_id=run_id,
             benchmark_name=benchmark_name,
             config=config or {},
+            model_name=model_name,
+            provider_name=provider_name,
         )
 
     def save(self, state: CheckpointState) -> None:

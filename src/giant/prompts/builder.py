@@ -6,6 +6,7 @@ Implements Spec-07 Navigation Prompt Engineering.
 
 from giant.llm.protocol import Message, MessageContent
 from giant.prompts.templates import (
+    CONCH_ACTION_PROMPT,
     FINAL_STEP_PROMPT,
     INITIAL_USER_PROMPT,
     SUBSEQUENT_USER_PROMPT,
@@ -32,18 +33,24 @@ class PromptBuilder:
         )
     """
 
-    def build_system_message(self) -> Message:
+    def build_system_message(
+        self, *, system_prompt: str | None = None, enable_conch: bool = False
+    ) -> Message:
         """Build the system message with navigation instructions.
 
         Returns:
             Message with role='system' containing the GIANT system prompt.
         """
+        prompt = system_prompt or SYSTEM_PROMPT
+        if enable_conch:
+            prompt = f"{prompt}\n\n{CONCH_ACTION_PROMPT}"
+
         return Message(
             role="system",
             content=[
                 MessageContent(
                     type="text",
-                    text=SYSTEM_PROMPT,
+                    text=prompt,
                 )
             ],
         )

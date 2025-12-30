@@ -27,12 +27,14 @@ from pydantic import BaseModel, Field
 
 from giant.agent.context import ContextManager
 from giant.agent.trajectory import Trajectory
+from giant.config import settings
 from giant.core.crop_engine import CropEngine
 from giant.geometry.overlay import AxisGuideGenerator, OverlayService, OverlayStyle
 from giant.geometry.primitives import Region, Size
 from giant.geometry.validators import GeometryValidator, ValidationError
 from giant.llm.protocol import (
     BoundingBoxAction,
+    ConchAction,
     FinalAnswerAction,
     LLMError,
     LLMParseError,
@@ -41,6 +43,11 @@ from giant.llm.protocol import (
     Message,
     MessageContent,
     StepResponse,
+)
+from giant.vision.conch import (
+    ConchScorer,
+    ConchUnavailableError,
+    UnconfiguredConchScorer,
 )
 from giant.wsi.reader import WSIReader
 
@@ -108,6 +115,13 @@ class RunResult(BaseModel):
     error_message: str | None = Field(default=None, description="Error description")
 
 
+@dataclass(frozen=True)
+class _StepDecision:
+    run_result: RunResult | None = None
+    forced_summary: str | None = None
+    break_to_force_answer: bool = False
+
+
 # =============================================================================
 # Agent Configuration
 # =============================================================================
@@ -124,6 +138,9 @@ class AgentConfig:
         thumbnail_size: Size for initial thumbnail generation.
         force_answer_retries: Retries for forcing answer at max steps.
         strict_font_check: If True, fail if axis label fonts are missing.
+        enable_conch: If True, allow the model to invoke CONCH.
+        conch_scorer: Optional scorer implementation for CONCH.
+        system_prompt: Optional system prompt override (reproducibility).
     """
 
     max_steps: int = 20  # T=20 per GIANT paper (accuracy improves up to 20 iterations)
@@ -132,6 +149,9 @@ class AgentConfig:
     thumbnail_size: int = 1024
     force_answer_retries: int = 3
     strict_font_check: bool = False
+    enable_conch: bool = False
+    conch_scorer: ConchScorer | None = None
+    system_prompt: str | None = None
 
 
 # =============================================================================
@@ -176,6 +196,7 @@ class GIANTAgent:
     _total_tokens: int = field(init=False, default=0, repr=False)
     _total_cost: float = field(init=False, default=0.0, repr=False)
     _consecutive_errors: int = field(init=False, default=0, repr=False)
+    _conch_scorer: ConchScorer = field(init=False, repr=False)
 
     async def run(self) -> RunResult:
         """Execute the full navigation loop.
@@ -205,6 +226,7 @@ class GIANTAgent:
         self._total_tokens = 0
         self._total_cost = 0.0
         self._consecutive_errors = 0
+        self._conch_scorer = self.config.conch_scorer or UnconfiguredConchScorer()
 
         try:
             with WSIReader(wsi_path_str) as reader:
@@ -216,10 +238,17 @@ class GIANTAgent:
                 self._slide_bounds = Size(width=metadata.width, height=metadata.height)
 
                 # Initialize context manager
+                provider_name = self._infer_provider_name()
+                system_prompt = (
+                    self.config.system_prompt
+                    or settings.get_giant_system_prompt(provider=provider_name)
+                )
                 self._context = ContextManager(
                     wsi_path=wsi_path_str,
                     question=self.question,
                     max_steps=self.config.max_steps,
+                    system_prompt=system_prompt,
+                    enable_conch=self.config.enable_conch,
                 )
 
                 # Step 0: Generate thumbnail with axis guides
@@ -250,6 +279,33 @@ class GIANTAgent:
                 error_message=f"Agent failed: {e}",
             )
 
+    def _infer_provider_name(self) -> str | None:
+        name = type(self.llm_provider).__name__.lower()
+        if "openai" in name:
+            return "openai"
+        if "anthropic" in name:
+            return "anthropic"
+        return None
+
+    async def _call_llm_step(
+        self, messages: list[Message]
+    ) -> tuple[LLMResponse | None, str | None]:
+        try:
+            response = await self.llm_provider.generate_response(messages)
+            self._accumulate_usage(response)
+        except (LLMError, LLMParseError) as e:
+            logger.warning("LLM call failed: %s", e)
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= self.config.max_retries:
+                return (
+                    None,
+                    f"Max retries ({self.config.max_retries}) exceeded: {e}",
+                )
+            return None, None
+
+        self._consecutive_errors = 0
+        return response, None
+
     async def _navigation_loop(self) -> RunResult:
         """Execute the main navigation loop.
 
@@ -257,74 +313,128 @@ class GIANTAgent:
             RunResult from completed navigation.
         """
         forced_summary: str | None = None
+        final_result: RunResult | None = None
 
         while self._context.current_step <= self.config.max_steps:
             # Check budget constraint
             if self._is_budget_exceeded():
-                return await self._handle_budget_exceeded()
+                break
 
             # Get messages and make LLM call
             messages = self._context.get_messages(self._thumbnail_base64)
 
-            try:
-                response = await self.llm_provider.generate_response(messages)
-                self._accumulate_usage(response)
-            except (LLMError, LLMParseError) as e:
-                logger.warning("LLM call failed: %s", e)
-                self._consecutive_errors += 1
-                if self._consecutive_errors >= self.config.max_retries:
-                    return self._build_error_result(
-                        f"Max retries ({self.config.max_retries}) exceeded: {e}"
-                    )
+            response, fatal_error = await self._call_llm_step(messages)
+            if fatal_error is not None:
+                final_result = self._build_error_result(fatal_error)
+                break
+            if response is None:
                 continue
 
-            # Reset error counter on success
-            self._consecutive_errors = 0
-            step_response = response.step_response
-            action = step_response.action
-
-            # Handle action
-            if isinstance(action, FinalAnswerAction):
-                # Early termination with answer (accepted, but out-of-contract)
-                logger.warning(
-                    "Model returned answer at step %d/%d",
-                    self._context.current_step,
-                    self.config.max_steps,
-                )
-                return self._handle_answer(step_response)
-
-            if isinstance(action, BoundingBoxAction):
-                # Check if we are at the final step.
-                # If so, do NOT handle crop, but force answer immediately.
-                if self._context.is_final_step:
-                    logger.warning(
-                        "Model returned crop at final step %d, forcing answer.",
-                        self._context.current_step,
-                    )
-                    base_summary = self._build_observation_summary()
-                    note = (
-                        "\n(Note: You attempted to crop on the final step, but "
-                        "the step limit has been reached. You must answer now "
-                        "based on previous observations.)"
-                    )
-                    forced_summary = base_summary + note
-                    break
-
-                # Attempt to execute crop
-                result = await self._handle_crop(step_response, action, messages)
-                if result is not None:
-                    # Crop failed after retries, return error result
-                    return result
-                # Otherwise continue to next step
-
-            # Check if we've reached max steps and need to force answer
-            if self._context.is_final_step:
+            decision = await self._handle_step_action(response.step_response, messages)
+            if decision.forced_summary is not None:
+                forced_summary = decision.forced_summary
+            if decision.run_result is not None:
+                final_result = decision.run_result
+                break
+            if decision.break_to_force_answer:
                 break
 
         # Force finalization (step limit reached or loop ended).
+        if final_result is not None:
+            return final_result
         if self._is_budget_exceeded():
             return await self._handle_budget_exceeded()
         return await self._force_final_answer(observation_summary=forced_summary)
+
+    async def _handle_step_action(
+        self, step_response: StepResponse, messages: list[Message]
+    ) -> _StepDecision:
+        action = step_response.action
+
+        if isinstance(action, FinalAnswerAction):
+            logger.warning(
+                "Model returned answer at step %d/%d",
+                self._context.current_step,
+                self.config.max_steps,
+            )
+            return _StepDecision(run_result=self._handle_answer(step_response))
+
+        if isinstance(action, BoundingBoxAction):
+            return await self._handle_crop_action(step_response, action, messages)
+
+        if isinstance(action, ConchAction):
+            return await self._handle_conch_action(step_response, action)
+
+        if self._context.is_final_step:
+            return _StepDecision(break_to_force_answer=True)
+
+        return _StepDecision()
+
+    def _build_forced_summary_for_final_step(self, attempted_action: str) -> str:
+        base_summary = self._build_observation_summary()
+        note = (
+            "\n(Note: You attempted to "
+            f"{attempted_action} on the final step, but the step limit has been "
+            "reached. You must answer now based on previous observations.)"
+        )
+        return base_summary + note
+
+    async def _handle_crop_action(
+        self,
+        step_response: StepResponse,
+        action: BoundingBoxAction,
+        messages: list[Message],
+    ) -> _StepDecision:
+        if self._context.is_final_step:
+            logger.warning(
+                "Model returned crop at final step %d, forcing answer.",
+                self._context.current_step,
+            )
+            forced_summary = self._build_forced_summary_for_final_step("crop")
+            return _StepDecision(
+                forced_summary=forced_summary,
+                break_to_force_answer=True,
+            )
+
+        result = await self._handle_crop(step_response, action, messages)
+        if result is not None:
+            return _StepDecision(run_result=result)
+        return _StepDecision()
+
+    async def _handle_conch_action(
+        self,
+        step_response: StepResponse,
+        action: ConchAction,
+    ) -> _StepDecision:
+        if self._context.is_final_step:
+            logger.warning(
+                "Model returned conch at final step %d, forcing answer.",
+                self._context.current_step,
+            )
+            forced_summary = self._build_forced_summary_for_final_step("invoke CONCH")
+            return _StepDecision(
+                forced_summary=forced_summary,
+                break_to_force_answer=True,
+            )
+
+        if not self.config.enable_conch:
+            logger.warning(
+                "Model requested CONCH but enable_conch is False (step %d).",
+                self._context.current_step,
+            )
+            self._consecutive_errors += 1
+            if self._consecutive_errors >= self.config.max_retries:
+                return _StepDecision(
+                    run_result=self._build_error_result(
+                        "Model requested CONCH but tool is disabled"
+                    )
+                )
+            return _StepDecision()
+
+        result = await self._handle_conch(step_response, action)
+        if result is not None:
+            return _StepDecision(run_result=result)
+        return _StepDecision()
 
     async def _handle_crop(
         self,
@@ -378,6 +488,58 @@ class GIANTAgent:
             region.y,
             region.width,
             region.height,
+        )
+
+        return None
+
+    async def _handle_conch(
+        self,
+        step_response: StepResponse,
+        action: ConchAction,
+    ) -> RunResult | None:
+        """Handle a CONCH action by scoring hypotheses against current view."""
+        observation_image = self._thumbnail_base64
+        observation_region = None
+        if self._context.trajectory.turns:
+            last_turn = self._context.trajectory.turns[-1]
+            observation_image = last_turn.image_base64
+            observation_region = last_turn.region
+
+        from PIL import Image  # noqa: PLC0415
+
+        try:
+            image_bytes = base64.b64decode(observation_image)
+            pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        except Exception as e:
+            return self._build_error_result(f"Failed to decode observation image: {e}")
+
+        try:
+            scores = self._conch_scorer.score_hypotheses(
+                pil_image,
+                list(action.hypotheses),
+            )
+        except ConchUnavailableError as e:
+            return self._build_error_result(str(e))
+        except Exception as e:
+            return self._build_error_result(f"CONCH scoring failed: {e}")
+
+        if len(scores) != len(action.hypotheses):
+            return self._build_error_result(
+                "CONCH scorer returned a score list of unexpected length: "
+                f"{len(scores)} != {len(action.hypotheses)}"
+            )
+
+        self._context.add_turn(
+            image_base64=observation_image,
+            response=step_response,
+            region=observation_region,
+            conch_scores=[float(s) for s in scores],
+        )
+
+        logger.info(
+            "Step %d: CONCH scored %d hypotheses",
+            self._context.current_step - 1,
+            len(action.hypotheses),
         )
 
         return None

@@ -40,6 +40,12 @@ ACTIONS:
 2. answer(text) - Provide your final answer to the question.
 """
 
+# Optional tool (paper ablation): CONCH image-text retrieval/scoring
+CONCH_ACTION_PROMPT = """3. conch(hypotheses) - Score a set of textual hypotheses against the CURRENT view.
+   - hypotheses: A short list of candidate diagnoses/labels you want to score.
+   - The system will return similarity scores you can use in subsequent reasoning.
+"""
+
 # 2025 Pathology VLM best-practice enhancements (not explicit in the GIANT paper).
 SYSTEM_PROMPT_2025_ENHANCEMENTS = """PROCESS (HIERARCHICAL ANALYSIS):
 1. OBSERVATION: Scan the image for pathological features.
