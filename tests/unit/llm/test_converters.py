@@ -357,3 +357,29 @@ class TestCountImagePixelsInMessages:
         ]
         with pytest.raises(ValueError, match="Invalid base64"):
             count_image_pixels_in_messages(messages)
+
+    def test_empty_string_base64_raises_clear_error(self) -> None:
+        """Empty string base64 should raise ValueError with clear message."""
+        messages = [
+            Message(
+                role="user",
+                content=[
+                    MessageContent(type="image", image_base64=""),  # Empty string
+                ],
+            )
+        ]
+        with pytest.raises(ValueError, match="empty"):
+            count_image_pixels_in_messages(messages)
+
+    def test_none_base64_raises_clear_error(self) -> None:
+        """None base64 should raise ValueError."""
+        messages = [
+            Message(
+                role="user",
+                content=[
+                    MessageContent(type="image", image_base64=None),
+                ],
+            )
+        ]
+        with pytest.raises(ValueError, match="requires"):
+            count_image_pixels_in_messages(messages)

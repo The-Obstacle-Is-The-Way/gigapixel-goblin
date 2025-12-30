@@ -282,6 +282,15 @@ class OpenAIProvider:
                 )
             prompt_tokens = usage.input_tokens
             completion_tokens = usage.output_tokens
+
+            if prompt_tokens is None or completion_tokens is None:
+                raise LLMError(
+                    "API response has None token counts "
+                    f"(input={prompt_tokens}, output={completion_tokens})",
+                    provider="openai",
+                    model=self.model,
+                )
+
             total_tokens = prompt_tokens + completion_tokens
 
             # Calculate cost (text + images)

@@ -380,3 +380,90 @@ class TestAnthropicProviderCircuitBreaker:
                 await provider.generate_response(sample_messages)
 
             assert provider._circuit_breaker.is_open
+
+
+class TestAnthropicTokenCounting:
+    """Tests for token count edge cases."""
+
+    @pytest.fixture
+    def provider(self, test_settings) -> AnthropicProvider:
+        """Create provider for testing."""
+        return AnthropicProvider(settings=test_settings)
+
+    @pytest.mark.asyncio
+    async def test_none_input_tokens_raises_clear_llm_error(
+        self, provider: AnthropicProvider, sample_messages
+    ) -> None:
+        """None input_tokens should raise clear LLMError (BUG-038-B5)."""
+        mock_tool_block = MagicMock()
+        mock_tool_block.type = "tool_use"
+        mock_tool_block.name = "submit_step"
+        mock_tool_block.input = {
+            "reasoning": "test",
+            "action": {"action_type": "answer", "answer_text": "ok"},
+        }
+        mock_response = MagicMock()
+        mock_response.content = [mock_tool_block]
+        mock_response.usage = MagicMock()
+        mock_response.usage.input_tokens = None  # Edge case
+        mock_response.usage.output_tokens = 50
+
+        with patch.object(
+            provider._client.messages, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            with pytest.raises(LLMError, match="None token counts"):
+                await provider.generate_response(sample_messages)
+
+    @pytest.mark.asyncio
+    async def test_none_output_tokens_raises_clear_llm_error(
+        self, provider: AnthropicProvider, sample_messages
+    ) -> None:
+        """None output_tokens should raise clear LLMError (BUG-038-B5)."""
+        mock_tool_block = MagicMock()
+        mock_tool_block.type = "tool_use"
+        mock_tool_block.name = "submit_step"
+        mock_tool_block.input = {
+            "reasoning": "test",
+            "action": {"action_type": "answer", "answer_text": "ok"},
+        }
+        mock_response = MagicMock()
+        mock_response.content = [mock_tool_block]
+        mock_response.usage = MagicMock()
+        mock_response.usage.input_tokens = 100
+        mock_response.usage.output_tokens = None  # Edge case
+
+        with patch.object(
+            provider._client.messages, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            with pytest.raises(LLMError, match="None token counts"):
+                await provider.generate_response(sample_messages)
+
+    @pytest.mark.asyncio
+    async def test_both_tokens_none_raises_clear_llm_error(
+        self, provider: AnthropicProvider, sample_messages
+    ) -> None:
+        """Both tokens None should raise clear LLMError (BUG-038-B5)."""
+        mock_tool_block = MagicMock()
+        mock_tool_block.type = "tool_use"
+        mock_tool_block.name = "submit_step"
+        mock_tool_block.input = {
+            "reasoning": "test",
+            "action": {"action_type": "answer", "answer_text": "ok"},
+        }
+        mock_response = MagicMock()
+        mock_response.content = [mock_tool_block]
+        mock_response.usage = MagicMock()
+        mock_response.usage.input_tokens = None
+        mock_response.usage.output_tokens = None
+
+        with patch.object(
+            provider._client.messages, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            with pytest.raises(LLMError, match="None token counts"):
+                await provider.generate_response(sample_messages)
