@@ -356,6 +356,52 @@ class TestGIANTAgentErrorRecovery:
         assert result.answer == "Recovered"
 
     @pytest.mark.asyncio
+    async def test_invalid_coordinates_recovery_resets_error_counter(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        """Recovered invalid coords should reset error counter (BUG-038-B7).
+
+        Scenario:
+        1) Step 1 LLM call returns invalid crop -> triggers _handle_invalid_region
+        2) Retry LLM call returns valid crop -> crop succeeds
+        3) Next step has 2 transient LLM errors, then succeeds with an answer
+
+        Expected: With max_retries=3, the run should still succeed. The recovered
+        invalid crop should not "carry" one retry into the next step.
+        """
+        invalid_crop = make_crop_response(99000, 74000, 5000, 5000)
+        valid_crop = make_crop_response(1000, 1000, 500, 500)
+        answer = make_answer_response("Recovered", "After transient errors")
+
+        mock_llm_provider.generate_response.side_effect = [
+            invalid_crop,
+            valid_crop,
+            LLMError("API error", provider="mock"),
+            LLMError("API error", provider="mock"),
+            answer,
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch(
+                "giant.agent.runner.CropEngine",
+                return_value=mock_crop_engine,
+            ):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(max_steps=5, max_retries=3),
+                )
+                result = await agent.run()
+
+        assert result.success is True
+        assert result.answer == "Recovered"
+        assert mock_llm_provider.generate_response.call_count == 5
+
+    @pytest.mark.asyncio
     async def test_max_retries_exceeded(
         self,
         mock_wsi_reader: MagicMock,

@@ -439,15 +439,21 @@ class GIANTAgent:
         new_action = response.step_response.action
 
         if isinstance(new_action, FinalAnswerAction):
+            # Success: answer ends the run, reset error counter
+            self._consecutive_errors = 0
             return self._handle_answer(response.step_response)
 
         if isinstance(new_action, BoundingBoxAction):
             # Recursively try the new crop (will increment errors if still invalid)
-            return await self._handle_crop(
+            result = await self._handle_crop(
                 response.step_response,
                 new_action,
                 messages,  # Use original messages
             )
+            if result is None:
+                # Success: crop recovered and recorded, reset error counter
+                self._consecutive_errors = 0
+            return result
 
         return None
 
