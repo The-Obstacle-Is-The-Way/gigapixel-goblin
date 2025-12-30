@@ -15,14 +15,14 @@ Each bug has a dedicated spec document with implementation-ready details:
 
 | Bug | Severity | Spec Document |
 |-----|----------|---------------|
-| B1, B2 | CRITICAL | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) (**FIXED**) |
-| B3 | HIGH | [BUG-038-B3-json-extraction.md](BUG-038-B3-json-extraction.md) (**FIXED**) |
-| B4 | HIGH | [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md) (**FIXED**) |
+| B1, B2 | CRITICAL | [archive/BUG-038-panda-answer-extraction.md](archive/BUG-038-panda-answer-extraction.md) (**FIXED** ✅ ARCHIVED) |
+| B3 | HIGH | [archive/BUG-038-B3-json-extraction.md](archive/BUG-038-B3-json-extraction.md) (**FIXED** ✅ ARCHIVED) |
+| B4 | HIGH | [archive/BUG-038-B4-anthropic-json-parsing.md](archive/BUG-038-B4-anthropic-json-parsing.md) (**FIXED** ✅ ARCHIVED) |
 | B5 | HIGH | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) |
 | B7 | MEDIUM | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) |
 | B8 | MEDIUM | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) |
 | B9 | MEDIUM | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) |
-| B10 | MEDIUM | [BUG-038-B10-unknown-action-type.md](BUG-038-B10-unknown-action-type.md) (**FIXED**) |
+| B10 | MEDIUM | [archive/BUG-038-B10-unknown-action-type.md](archive/BUG-038-B10-unknown-action-type.md) (**FIXED** ✅ ARCHIVED) |
 | B11 | LOW | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) |
 | B12 | LOW | [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md) |
 
