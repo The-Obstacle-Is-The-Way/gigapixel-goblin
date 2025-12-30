@@ -39,9 +39,9 @@ Note: One originally-reported medium finding (step guard) was retracted after re
 - OpenAI `"Extra data"` parsing caused **18/609 hard failures (3.0%)** across all benchmarks and triggered frequent retries (fixed by B2)
 - Reported run costs can still be a lower bound: if parsing fails for any reason, the current clients raise before usage is accumulated; B2 removes the common “trailing text” parse failures
 
-**Status**: COMPLETED — 11 bug fixes landed (B1–B5, B7–B12) and 1 false-positive retracted (B6).
+**Status**: COMPLETED & ARCHIVED — 11 bug fixes landed (B1–B5, B7–B12) and 1 false-positive retracted (B6).
 
-See [BUG-038-comprehensive-audit.md](./BUG-038-comprehensive-audit.md) for full analysis.
+See [BUG-038-comprehensive-audit.md](../archive/bugs/BUG-038-comprehensive-audit.md) for full analysis (archived).
 See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) for original PANDA analysis.
 
 ## Archived (Fixed) Bugs

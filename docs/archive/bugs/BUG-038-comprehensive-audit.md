@@ -15,16 +15,16 @@ Each bug has a dedicated spec document with implementation-ready details:
 
 | Bug | Severity | Spec Document |
 |-----|----------|---------------|
-| B1, B2 | CRITICAL | [../archive/bugs/BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) (**FIXED** ✅ ARCHIVED) |
-| B3 | HIGH | [../archive/bugs/BUG-038-B3-json-extraction.md](../archive/bugs/BUG-038-B3-json-extraction.md) (**FIXED** ✅ ARCHIVED) |
-| B4 | HIGH | [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md) (**FIXED** ✅ ARCHIVED) |
-| B5 | HIGH | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) (**FIXED** ✅ ARCHIVED) |
-| B7 | MEDIUM | [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md) (**FIXED** ✅ ARCHIVED) |
-| B8 | MEDIUM | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) (**FIXED** ✅ ARCHIVED) |
-| B9 | MEDIUM | [../archive/bugs/BUG-038-B9-recursive-retry.md](../archive/bugs/BUG-038-B9-recursive-retry.md) (**FIXED** ✅ ARCHIVED) |
-| B10 | MEDIUM | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) (**FIXED** ✅ ARCHIVED) |
-| B11 | LOW | [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md) (**FIXED** ✅ ARCHIVED) |
-| B12 | LOW | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) (**FIXED** ✅ ARCHIVED) |
+| B1, B2 | CRITICAL | [./BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) (**FIXED** ✅ ARCHIVED) |
+| B3 | HIGH | [./BUG-038-B3-json-extraction.md](./BUG-038-B3-json-extraction.md) (**FIXED** ✅ ARCHIVED) |
+| B4 | HIGH | [./BUG-038-B4-anthropic-json-parsing.md](./BUG-038-B4-anthropic-json-parsing.md) (**FIXED** ✅ ARCHIVED) |
+| B5 | HIGH | [./BUG-038-B5-token-count-none.md](./BUG-038-B5-token-count-none.md) (**FIXED** ✅ ARCHIVED) |
+| B7 | MEDIUM | [./BUG-038-B7-retry-counter-logic.md](./BUG-038-B7-retry-counter-logic.md) (**FIXED** ✅ ARCHIVED) |
+| B8 | MEDIUM | [./BUG-038-B8-empty-base64.md](./BUG-038-B8-empty-base64.md) (**FIXED** ✅ ARCHIVED) |
+| B9 | MEDIUM | [./BUG-038-B9-recursive-retry.md](./BUG-038-B9-recursive-retry.md) (**FIXED** ✅ ARCHIVED) |
+| B10 | MEDIUM | [./BUG-038-B10-unknown-action-type.md](./BUG-038-B10-unknown-action-type.md) (**FIXED** ✅ ARCHIVED) |
+| B11 | LOW | [./BUG-038-B11-comment-fix.md](./BUG-038-B11-comment-fix.md) (**FIXED** ✅ ARCHIVED) |
+| B12 | LOW | [./BUG-038-B12-empty-message-content.md](./BUG-038-B12-empty-message-content.md) (**FIXED** ✅ ARCHIVED) |
 
 Each spec includes:
 - Current buggy code
@@ -58,18 +58,18 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 
 | ID | Location | Severity | Status | Spec Doc | Description |
 |----|----------|----------|--------|----------|-------------|
-| **B1** | `src/giant/eval/answer_extraction.py:45-74` | CRITICAL | **FIXED** | [../archive/bugs/BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) | PANDA `"isup_grade": null` maps to label 0 (benign); any JSON present but missing/invalid/out-of-range returns `None` without integer fallback |
-| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | [../archive/bugs/BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
-| **B3** | `src/giant/eval/answer_extraction.py:151-180` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B3-json-extraction.md](../archive/bugs/BUG-038-B3-json-extraction.md) | Uses `json.JSONDecoder().raw_decode()` to extract the first complete JSON object (no naive brace matching) |
-| **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
-| **B5** | `src/giant/llm/openai_client.py:275-295`, `src/giant/llm/anthropic_client.py:246-266` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
+| **B1** | `src/giant/eval/answer_extraction.py:45-74` | CRITICAL | **FIXED** | [./BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) | PANDA `"isup_grade": null` maps to label 0 (benign); any JSON present but missing/invalid/out-of-range returns `None` without integer fallback |
+| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | [./BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
+| **B3** | `src/giant/eval/answer_extraction.py:151-180` | HIGH | **FIXED** | [./BUG-038-B3-json-extraction.md](./BUG-038-B3-json-extraction.md) | Uses `json.JSONDecoder().raw_decode()` to extract the first complete JSON object (no naive brace matching) |
+| **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [./BUG-038-B4-anthropic-json-parsing.md](./BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
+| **B5** | `src/giant/llm/openai_client.py:275-295`, `src/giant/llm/anthropic_client.py:246-266` | HIGH | **FIXED** | [./BUG-038-B5-token-count-none.md](./BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
 | **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
-| **B7** | `src/giant/agent/runner.py:439-456` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md) | Resets `_consecutive_errors` after successful invalid-region recovery (crop or answer); regression test added |
-| **B8** | `src/giant/llm/converters.py:260-269` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
-| **B9** | `src/giant/agent/runner.py:385-502` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B9-recursive-retry.md](../archive/bugs/BUG-038-B9-recursive-retry.md) | Refactored recursive invalid-region retry to iterative loop for cleaner control flow |
-| **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
-| **B11** | `src/giant/agent/context.py:268` | LOW | **FIXED** | [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
-| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
+| **B7** | `src/giant/agent/runner.py:439-456` | MEDIUM | **FIXED** | [./BUG-038-B7-retry-counter-logic.md](./BUG-038-B7-retry-counter-logic.md) | Resets `_consecutive_errors` after successful invalid-region recovery (crop or answer); regression test added |
+| **B8** | `src/giant/llm/converters.py:260-269` | MEDIUM | **FIXED** | [./BUG-038-B8-empty-base64.md](./BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
+| **B9** | `src/giant/agent/runner.py:385-502` | MEDIUM | **FIXED** | [./BUG-038-B9-recursive-retry.md](./BUG-038-B9-recursive-retry.md) | Refactored recursive invalid-region retry to iterative loop for cleaner control flow |
+| **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [./BUG-038-B10-unknown-action-type.md](./BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
+| **B11** | `src/giant/agent/context.py:268` | LOW | **FIXED** | [./BUG-038-B11-comment-fix.md](./BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
+| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [./BUG-038-B12-empty-message-content.md](./BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
 
 ---
 
@@ -329,7 +329,7 @@ except json.JSONDecodeError:
     pass  # Let pydantic handle the validation error
 ```
 
-**Spec doc**: [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md)
+**Spec doc**: [./BUG-038-B4-anthropic-json-parsing.md](./BUG-038-B4-anthropic-json-parsing.md)
 
 ---
 
@@ -346,7 +346,7 @@ completion_tokens = usage.output_tokens
 total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 ```
 
-**Spec doc**: [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md)
+**Spec doc**: [./BUG-038-B5-token-count-none.md](./BUG-038-B5-token-count-none.md)
 
 ---
 
@@ -384,7 +384,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 **Fix**: Reset `_consecutive_errors` to 0 after a successful recovery crop or answer, and add a regression test.
 
-**Spec doc**: [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md)
+**Spec doc**: [./BUG-038-B7-retry-counter-logic.md](./BUG-038-B7-retry-counter-logic.md)
 
 ---
 
@@ -396,7 +396,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 **Problem (pre-fix)**: After None check, empty string `""` decoded successfully but produced zero bytes, failing later in `Image.open()`.
 
-**Spec doc**: [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md)
+**Spec doc**: [./BUG-038-B8-empty-base64.md](./BUG-038-B8-empty-base64.md)
 
 ---
 
@@ -415,7 +415,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 4. Continues loop on validation/execution failure
 5. Returns on success (crop or answer) or max retries
 
-**Spec doc**: [../archive/bugs/BUG-038-B9-recursive-retry.md](../archive/bugs/BUG-038-B9-recursive-retry.md)
+**Spec doc**: [./BUG-038-B9-recursive-retry.md](./BUG-038-B9-recursive-retry.md)
 
 ---
 
@@ -427,7 +427,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 **Problem (pre-fix)**: Unknown `action_type` was rejected by pydantic, but the discriminator error is confusing; raise a clearer `LLMParseError`.
 
-**Spec doc**: [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md)
+**Spec doc**: [./BUG-038-B10-unknown-action-type.md](./BUG-038-B10-unknown-action-type.md)
 
 ---
 
@@ -441,7 +441,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 Pre-fix, an inline comment implied `user_msg_index == step - 1` without clarifying which “step” was meant (LLM step numbering vs trajectory indexing). Cosmetic clarity issue only.
 
-**Spec doc**: [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md)
+**Spec doc**: [./BUG-038-B11-comment-fix.md](./BUG-038-B11-comment-fix.md)
 
 ---
 
@@ -453,7 +453,7 @@ Pre-fix, the `Message` model allowed `content=[]` which can lead to provider API
 
 **Status**: FIXED (2025-12-29; commit `3185b036`)
 
-**Spec doc**: [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md)
+**Spec doc**: [./BUG-038-B12-empty-message-content.md](./BUG-038-B12-empty-message-content.md)
 
 ---
 
