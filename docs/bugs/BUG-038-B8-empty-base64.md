@@ -1,6 +1,6 @@
 # BUG-038-B8: Empty Base64 Not Caught Early
 
-**Status**: CONFIRMED (not yet fixed)
+**Status**: FIXED
 **Severity**: MEDIUM
 **Component**: `src/giant/llm/converters.py`
 **Lines**: 247-269

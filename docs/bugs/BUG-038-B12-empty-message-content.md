@@ -1,6 +1,6 @@
 # BUG-038-B12: Empty Message.content Allowed
 
-**Status**: DEFENSIVE (validation enhancement; not observed)
+**Status**: FIXED
 **Severity**: LOW
 **Component**: `src/giant/llm/protocol.py`
 **Lines**: 129-137

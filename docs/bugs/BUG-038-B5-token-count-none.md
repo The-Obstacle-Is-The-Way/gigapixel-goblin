@@ -1,6 +1,6 @@
 # BUG-038-B5: None Token Counts Cause Confusing LLMError
 
-**Status**: DEFENSIVE (not observed; not yet fixed)
+**Status**: FIXED
 **Severity**: HIGH
 **Component**: `src/giant/llm/openai_client.py`, `src/giant/llm/anthropic_client.py`
 **Lines**: openai_client.py:275-285, anthropic_client.py:246-256
