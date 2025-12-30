@@ -388,74 +388,120 @@ class GIANTAgent:
         messages: list[Message],
         error_detail: str,
     ) -> RunResult | None:
-        """Handle invalid crop coordinates with retry.
+        """Handle invalid crop coordinates with iterative retry.
+
+        Uses an iterative loop instead of recursion to handle retries.
+        Each iteration asks the LLM for corrected coordinates, validates
+        them, and either succeeds, continues retrying, or fails.
 
         Args:
             action: The invalid bounding box action.
-            messages: Current message history.
+            messages: Current message history (not mutated).
             error_detail: Description of the validation failure.
 
         Returns:
-            RunResult if max retries exceeded, None to continue.
+            RunResult if max retries exceeded or answer given, None on success.
         """
-        self._consecutive_errors += 1
+        current_action = action
+        current_error = error_detail
 
-        if self._consecutive_errors >= self.config.max_retries:
-            return self._build_error_result(
-                f"Max retries ({self.config.max_retries}) on invalid coordinates"
-            )
-
-        # Build error feedback message
-        feedback = ERROR_FEEDBACK_TEMPLATE.format(
-            x=action.x,
-            y=action.y,
-            width=action.width,
-            height=action.height,
-            max_width=self._slide_bounds.width,
-            max_height=self._slide_bounds.height,
-            issues=error_detail,
-        )
-
-        # Add error feedback to messages and retry
-        error_message = Message(
-            role="user",
-            content=[MessageContent(type="text", text=feedback)],
-        )
-        messages_with_error = [*messages, error_message]
-
-        try:
-            response = await self.llm_provider.generate_response(messages_with_error)
-            self._accumulate_usage(response)
-        except (LLMError, LLMParseError) as e:
-            logger.warning("Retry LLM call failed: %s", e)
+        while True:
             self._consecutive_errors += 1
+
             if self._consecutive_errors >= self.config.max_retries:
                 return self._build_error_result(
-                    f"Max retries ({self.config.max_retries}) exceeded: {e}"
+                    f"Max retries ({self.config.max_retries}) on invalid coordinates"
                 )
-            return None
 
-        # Process retry response
-        new_action = response.step_response.action
-
-        if isinstance(new_action, FinalAnswerAction):
-            # Success: answer ends the run, reset error counter
-            self._consecutive_errors = 0
-            return self._handle_answer(response.step_response)
-
-        if isinstance(new_action, BoundingBoxAction):
-            # Recursively try the new crop (will increment errors if still invalid)
-            result = await self._handle_crop(
-                response.step_response,
-                new_action,
-                messages,  # Use original messages
+            # Build error feedback message
+            feedback = ERROR_FEEDBACK_TEMPLATE.format(
+                x=current_action.x,
+                y=current_action.y,
+                width=current_action.width,
+                height=current_action.height,
+                max_width=self._slide_bounds.width,
+                max_height=self._slide_bounds.height,
+                issues=current_error,
             )
-            if result is None:
-                # Success: crop recovered and recorded, reset error counter
-                self._consecutive_errors = 0
-            return result
 
-        return None
+            # Add error feedback to original messages (not accumulating)
+            error_message = Message(
+                role="user",
+                content=[MessageContent(type="text", text=feedback)],
+            )
+            messages_with_error = [*messages, error_message]
+
+            try:
+                response = await self.llm_provider.generate_response(
+                    messages_with_error
+                )
+                self._accumulate_usage(response)
+            except (LLMError, LLMParseError) as e:
+                logger.warning("Retry LLM call failed: %s", e)
+                self._consecutive_errors += 1
+                if self._consecutive_errors >= self.config.max_retries:
+                    return self._build_error_result(
+                        f"Max retries ({self.config.max_retries}) exceeded: {e}"
+                    )
+                return None
+
+            new_action = response.step_response.action
+
+            if isinstance(new_action, FinalAnswerAction):
+                # Success: answer ends the run, reset error counter
+                self._consecutive_errors = 0
+                return self._handle_answer(response.step_response)
+
+            if isinstance(new_action, BoundingBoxAction):
+                # Validate the new crop coordinates
+                region = Region(
+                    x=new_action.x,
+                    y=new_action.y,
+                    width=new_action.width,
+                    height=new_action.height,
+                )
+
+                try:
+                    self._validator.validate(region, self._slide_bounds, strict=True)
+                except ValidationError as e:
+                    # Invalid coordinates again, continue retry loop
+                    logger.warning("Retry crop still invalid: %s", e)
+                    current_action = new_action
+                    current_error = str(e)
+                    continue
+
+                # Execute the crop
+                target_size = self.llm_provider.get_target_size()
+                try:
+                    cropped = self._crop_engine.crop(region, target_size=target_size)
+                except ValueError as e:
+                    # Crop execution failed, continue retry loop
+                    logger.warning("Retry crop execution failed: %s", e)
+                    current_action = new_action
+                    current_error = str(e)
+                    continue
+
+                # Success! Record turn and reset error counter
+                self._context.add_turn(
+                    image_base64=cropped.base64_content,
+                    response=response.step_response,
+                    region=region,
+                )
+
+                logger.info(
+                    "Step %d: Cropped region (%d, %d, %d, %d) after retry",
+                    self._context.current_step - 1,
+                    region.x,
+                    region.y,
+                    region.width,
+                    region.height,
+                )
+
+                self._consecutive_errors = 0
+                return None
+
+            # Unexpected action type - treat as no-op
+            return None
 
     def _handle_answer(self, step_response: StepResponse) -> RunResult:
         """Handle a final answer action.

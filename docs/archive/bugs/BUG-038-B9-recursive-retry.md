@@ -1,6 +1,6 @@
 # BUG-038-B9: Recursive Retry Handling
 
-**Status**: IMPROVEMENT (refactor; not a functional bug)
+**Status**: FIXED (refactor implemented)
 **Severity**: MEDIUM
 **Component**: `src/giant/agent/runner.py`
 **Lines**: 446-456
@@ -130,10 +130,10 @@ uv run pytest tests/unit/agent/test_runner.py -v
 
 ## Sign-Off Checklist
 
-- [ ] Decision made: refactor to iterative or keep recursive
-- [ ] If refactoring: tests written for retry behavior
-- [ ] If refactoring: iterative implementation completed
-- [ ] All test cases pass
-- [ ] Full test suite passes (`uv run pytest tests/unit`)
-- [ ] Type check passes (`uv run mypy src/giant`)
-- [ ] Lint passes (`uv run ruff check .`)
+- [x] Decision made: refactor to iterative or keep recursive
+- [x] If refactoring: tests written for retry behavior (existing tests cover behavior)
+- [x] If refactoring: iterative implementation completed
+- [x] All test cases pass
+- [x] Full test suite passes (`uv run pytest tests/unit`) — 826 passed
+- [x] Type check passes (`uv run mypy src/giant`)
+- [x] Lint passes (`uv run ruff check .`)

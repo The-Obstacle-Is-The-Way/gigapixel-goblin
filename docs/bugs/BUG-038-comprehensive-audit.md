@@ -1,6 +1,6 @@
 # BUG-038: Comprehensive E2E Bug Audit
 
-**Status**: COMPLETED - BUGS FIXED (B1, B2, B3, B4, B5, B7, B8, B10, B11, B12) - B9 Skipped (Optional Refactor)
+**Status**: COMPLETED - ALL BUGS FIXED (B1, B2, B3, B4, B5, B7, B8, B9, B10, B11, B12)
 **Severity**: MIXED (see table below)
 **Audit Date**: 2025-12-29
 **Fix Date**: 2025-12-29
@@ -21,7 +21,7 @@ Each bug has a dedicated spec document with implementation-ready details:
 | B5 | HIGH | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) (**FIXED** ✅ ARCHIVED) |
 | B7 | MEDIUM | [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md) (**FIXED** ✅ ARCHIVED) |
 | B8 | MEDIUM | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) (**FIXED** ✅ ARCHIVED) |
-| B9 | MEDIUM | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) |
+| B9 | MEDIUM | [../archive/bugs/BUG-038-B9-recursive-retry.md](../archive/bugs/BUG-038-B9-recursive-retry.md) (**FIXED** ✅ ARCHIVED) |
 | B10 | MEDIUM | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) (**FIXED** ✅ ARCHIVED) |
 | B11 | LOW | [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md) (**FIXED** ✅ ARCHIVED) |
 | B12 | LOW | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) (**FIXED** ✅ ARCHIVED) |
@@ -66,7 +66,7 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
 | **B7** | `src/giant/agent/runner.py:439-456` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md) | Resets `_consecutive_errors` after successful invalid-region recovery (crop or answer); regression test added |
 | **B8** | `src/giant/llm/converters.py:260-269` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
-| **B9** | `src/giant/agent/runner.py:446-456` | MEDIUM | SKIPPED | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
+| **B9** | `src/giant/agent/runner.py:385-502` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B9-recursive-retry.md](../archive/bugs/BUG-038-B9-recursive-retry.md) | Refactored recursive invalid-region retry to iterative loop for cleaner control flow |
 | **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
 | **B11** | `src/giant/agent/context.py:268` | LOW | **FIXED** | [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
 | **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
@@ -400,13 +400,22 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 ---
 
-### B9: Recursive Retry Handling (Refactor Note)
+### B9: Recursive Retry Handling (FIXED)
 
-**Location**: `src/giant/agent/runner.py:446-456`
+**Location (fixed)**: `src/giant/agent/runner.py:385-502`
 
-**Problem**: Uses recursion via `await self._handle_crop()`. Bounded by `max_retries=3` so safe, but not ideal.
+**Status**: FIXED (2025-12-30)
 
-**Spec doc**: [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md)
+**Problem (pre-fix)**: Used recursion via `await self._handle_crop()` within `_handle_invalid_region()`. While bounded by `max_retries=3`, recursion is harder to trace and debug than iteration.
+
+**Fix**: Refactored `_handle_invalid_region()` to use an iterative `while True` loop that:
+1. Increments error counter and checks max retries
+2. Asks LLM for corrected coordinates
+3. Validates and executes crop inline (no recursion)
+4. Continues loop on validation/execution failure
+5. Returns on success (crop or answer) or max retries
+
+**Spec doc**: [../archive/bugs/BUG-038-B9-recursive-retry.md](../archive/bugs/BUG-038-B9-recursive-retry.md)
 
 ---
 
@@ -492,12 +501,10 @@ Remaining test coverage gaps correspond to deferred fixes:
 8. **B12**: `Message.content` `min_length=1` ✅
 9. Added/updated unit tests for fixed bugs ✅
 
-### Next (deferred; implement via spec docs)
-10. **B7**: Retry counter reset after successful recovery (clarify semantics)
-
-### Later (defensive / UX improvements)
-11. **B11**: Comment clarity in context manager
-12. **B9**: Iterative vs recursive retry refactor
+### All Code Fixes Complete
+10. **B7**: Retry counter reset ✅
+11. **B11**: Comment clarity ✅
+12. **B9**: Iterative retry refactor ✅
 
 ---
 
@@ -517,7 +524,7 @@ Remaining test coverage gaps correspond to deferred fixes:
 - [x] **B12**: Prevent `Message(content=[])` via `min_length=1` ✅ FIXED 2025-12-29
 - [x] **B7**: Retry counter reset logic fixed and tested ✅ FIXED 2025-12-29
 - [x] **B11**: Comment updated for clarity ✅ FIXED 2025-12-29
-- [x] **B9**: Decision to skip refactor documented ✅ SKIPPED 2025-12-29
+- [x] **B9**: Refactored recursive retry to iterative loop ✅ FIXED 2025-12-30
 - [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis
