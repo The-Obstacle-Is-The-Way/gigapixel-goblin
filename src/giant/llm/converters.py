@@ -259,10 +259,14 @@ def count_image_pixels_in_messages(messages: list[Message]) -> int:
                 continue
             if content.image_base64 is None:
                 raise ValueError("Image content requires 'image_base64' field")
+            if content.image_base64 == "":
+                raise ValueError("Image content has empty 'image_base64' field")
             try:
                 image_bytes = base64.b64decode(content.image_base64, validate=True)
             except binascii.Error as e:
                 raise ValueError("Invalid base64 image data") from e
+            if not image_bytes:
+                raise ValueError("Image base64 decoded to empty bytes")
             with Image.open(BytesIO(image_bytes)) as image:
                 width, height = image.size
             total_pixels += width * height
