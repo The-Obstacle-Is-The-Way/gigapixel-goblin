@@ -1,6 +1,6 @@
 # BUG-038: Comprehensive E2E Bug Audit
 
-**Status**: BUGS FIXED (B1, B2, B3, B4, B5, B8, B10, B12) - Remaining bugs (B7, B9, B11) deferred
+**Status**: COMPLETED - BUGS FIXED (B1, B2, B3, B4, B5, B7, B8, B10, B11, B12) - B9 Skipped (Optional Refactor)
 **Severity**: MIXED (see table below)
 **Audit Date**: 2025-12-29
 **Fix Date**: 2025-12-29
@@ -64,11 +64,11 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
 | **B5** | `src/giant/llm/openai_client.py:275-295`, `src/giant/llm/anthropic_client.py:246-266` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
 | **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
-| **B7** | `src/giant/agent/runner.py:385-452` | MEDIUM | CONFIRMED | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) | `_consecutive_errors` is not reset after a successful invalid-region recovery crop; can leak retries into subsequent steps |
+| **B7** | `src/giant/agent/runner.py:385-452` | MEDIUM | **FIXED** | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) | `_consecutive_errors` is not reset after a successful invalid-region recovery crop; can leak retries into subsequent steps |
 | **B8** | `src/giant/llm/converters.py:260-269` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
-| **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | IMPROVEMENT | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
+| **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | SKIPPED | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
 | **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
-| **B11** | `src/giant/agent/context.py:268` | LOW | IMPROVEMENT | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
+| **B11** | `src/giant/agent/context.py:268` | LOW | **FIXED** | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
 | **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
 
 ---
@@ -495,8 +495,10 @@ Remaining test coverage gaps correspond to deferred fixes:
 - [x] Add unit tests for B5/B8/B12 ✅ (6 + 2 + 1 tests)
 - [x] **B8**: Empty base64 early validation ✅ FIXED 2025-12-29
 - [x] **B12**: Prevent `Message(content=[])` via `min_length=1` ✅ FIXED 2025-12-29
+- [x] **B7**: Retry counter reset logic fixed and tested ✅ FIXED 2025-12-29
+- [x] **B11**: Comment updated for clarity ✅ FIXED 2025-12-29
+- [x] **B9**: Decision to skip refactor documented ✅ SKIPPED 2025-12-29
 - [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
-- [ ] Review and approve remaining medium/low fixes (B7, B9, B11 deferred)
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis
 
