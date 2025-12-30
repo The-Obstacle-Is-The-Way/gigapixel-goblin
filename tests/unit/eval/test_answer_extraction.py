@@ -228,6 +228,42 @@ class TestExtractLabelEdgeCases:
         result = extract_label(prediction, benchmark_name="panda", options=None)
         assert result.label == 2
 
+    # BUG-039 C1: JSONDecodeError should fallback to integer extraction
+    def test_panda_malformed_json_falls_back_to_integer(self) -> None:
+        """PANDA with no JSON at all should try integer extraction (C1 fix)."""
+        prediction = "The ISUP grade is 3 based on my analysis"
+        result = extract_label(prediction, benchmark_name="panda", options=None)
+        assert result.label == 3
+
+    # BUG-039 C4: Empty options should not match everything
+    def test_empty_option_does_not_match_everything(self) -> None:
+        """Empty option text should be skipped, not match everything (C4 fix)."""
+        options = ["", "Lung", "Breast"]  # First option is empty
+        prediction = "The tissue is clearly Breast cancer"
+        result = extract_label(prediction, benchmark_name="tcga", options=options)
+        assert result.label == 3  # Should match "Breast" (option 3), not "" (option 1)
+
+    def test_whitespace_only_option_does_not_match(self) -> None:
+        """Whitespace-only option should be skipped (C4 fix)."""
+        options = ["   ", "Heart", "Lung"]  # First option is whitespace
+        prediction = "This is definitely Heart tissue"
+        result = extract_label(prediction, benchmark_name="gtex", options=options)
+        assert result.label == 2  # Should match "Heart", not whitespace
+
+    # BUG-039 C5: Case-insensitive benchmark name
+    def test_benchmark_name_case_insensitive_panda(self) -> None:
+        """Benchmark name should be case-insensitive (C5 fix)."""
+        prediction = '{"isup_grade": 4}'
+        # Test with uppercase
+        result = extract_label(prediction, benchmark_name="PANDA", options=None)
+        assert result.label == 4
+
+    def test_benchmark_name_case_insensitive_mixed(self) -> None:
+        """Benchmark name with mixed case should work (C5 fix)."""
+        prediction = '{"isup_grade": 2}'
+        result = extract_label(prediction, benchmark_name="PaNdA", options=None)
+        assert result.label == 2
+
 
 class TestExtractJsonObject:
     """Tests for _extract_json_object helper."""

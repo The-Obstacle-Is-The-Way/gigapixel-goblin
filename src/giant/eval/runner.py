@@ -542,15 +542,20 @@ class BenchmarkRunner:
         stop_event: asyncio.Event,
         budget_state: dict[str, float],
     ) -> None:
-        """Worker that processes items and updates checkpoints."""
+        """Worker that processes items and updates checkpoints.
+
+        Uses atomic budget check under lock to prevent race conditions (C3 fix).
+        """
         while True:
             item = await work_queue.get()
             try:
                 if item is None:
                     return
 
-                if stop_event.is_set():
-                    continue
+                # C3 fix: Check stop_event under lock for atomic budget enforcement
+                async with checkpoint_lock:
+                    if stop_event.is_set():
+                        continue
 
                 result = await self._run_single_item(item)
 

@@ -89,6 +89,9 @@ def _extract_from_options(text: str, options: list[str]) -> int | None:
         enumerate(options, start=1), key=lambda x: len(x[1]), reverse=True
     )
     for i, opt in sorted_options:
+        # C4 fix: Skip empty/whitespace options (empty string matches everything)
+        if not opt.strip():
+            continue
         if opt.lower() in lowered:
             return i
 
@@ -125,14 +128,16 @@ def extract_label(
     text = prediction.strip()
     label: int | None = None
 
+    # Normalize benchmark name for case-insensitive matching (C5 fix)
+    benchmark_name_lower = benchmark_name.lower()
+
     # Special handling for PANDA: extract JSON isup_grade
-    if benchmark_name == "panda":
+    if benchmark_name_lower == "panda":
         try:
             label = _extract_panda_label(text)
             return ExtractedAnswer(label=label, raw=text)
-        except json.JSONDecodeError:
-            return ExtractedAnswer(label=None, raw=text)
-        except ValueError:
+        except (json.JSONDecodeError, ValueError):
+            # C1 fix: Fall through to integer extraction instead of returning None
             label = None
 
     # If options exist, try letter (A-D), 1..N integer, or option text match
