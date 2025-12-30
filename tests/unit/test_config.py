@@ -1,5 +1,7 @@
 """Tests for giant.config module."""
 
+from pathlib import Path
+
 import pytest
 
 from giant.config import ConfigError, Settings
@@ -99,6 +101,25 @@ class TestSettings:
         """Test that settings can be created with custom values."""
         assert test_settings.OPENAI_API_KEY == "test-openai-key"
         assert test_settings.LOG_LEVEL == "DEBUG"
+
+    def test_get_giant_system_prompt_prefers_provider_specific(self) -> None:
+        settings = Settings(
+            GIANT_SYSTEM_PROMPT="global",
+            GIANT_SYSTEM_PROMPT_OPENAI="openai",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        assert settings.get_giant_system_prompt(provider="openai") == "openai"
+        assert settings.get_giant_system_prompt(provider="anthropic") == "global"
+
+    def test_get_giant_system_prompt_reads_from_path(self, tmp_path: Path) -> None:
+        prompt_path = tmp_path / "prompt.txt"
+        prompt_path.write_text("from file", encoding="utf-8")
+
+        settings = Settings(
+            GIANT_SYSTEM_PROMPT_PATH=str(prompt_path),
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        assert settings.get_giant_system_prompt(provider=None) == "from file"
 
 
 class TestConfigError:

@@ -4,6 +4,7 @@ All configuration is strongly typed and supports environment variables
 and .env files.
 """
 
+from pathlib import Path
 from typing import TypeGuard
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -90,6 +91,17 @@ class Settings(BaseSettings):
     # Budget Guardrails
     DEFAULT_BUDGET_USD: float = 0.0  # 0 = no budget limit
 
+    # Prompt overrides (paper reproducibility / experimentation)
+    # If set, these override the default system prompt in
+    # `src/giant/prompts/templates.py`.
+    # Use *_PATH for long prompts to avoid multi-line env vars.
+    GIANT_SYSTEM_PROMPT: str | None = None
+    GIANT_SYSTEM_PROMPT_PATH: str | None = None
+    GIANT_SYSTEM_PROMPT_OPENAI: str | None = None
+    GIANT_SYSTEM_PROMPT_OPENAI_PATH: str | None = None
+    GIANT_SYSTEM_PROMPT_ANTHROPIC: str | None = None
+    GIANT_SYSTEM_PROMPT_ANTHROPIC_PATH: str | None = None
+
     @staticmethod
     def _is_configured_secret(value: str | None) -> TypeGuard[str]:
         if value is None:
@@ -168,6 +180,49 @@ class Settings(BaseSettings):
         if not self._is_configured_secret(self.HUGGINGFACE_TOKEN):
             raise ConfigError("HuggingFace token", "HUGGINGFACE_TOKEN")
         return self.HUGGINGFACE_TOKEN
+
+    @staticmethod
+    def _read_prompt_file(path_str: str) -> str:
+        try:
+            return Path(path_str).expanduser().read_text(encoding="utf-8")
+        except OSError as e:
+            raise ValueError(
+                f"Failed to read prompt file: {path_str!r}. "
+                "Ensure the path exists and is readable."
+            ) from e
+
+    def get_giant_system_prompt(self, *, provider: str | None) -> str | None:
+        """Return an optional system prompt override for GIANT.
+
+        Precedence (highest to lowest):
+        1) Provider-specific *_PATH
+        2) Provider-specific text value
+        3) Global *_PATH
+        4) Global text value
+        """
+        provider_norm = provider.strip().lower() if provider else None
+
+        candidates: list[tuple[str | None, str | None]] = []
+        if provider_norm == "openai":
+            candidates.append(
+                (self.GIANT_SYSTEM_PROMPT_OPENAI_PATH, self.GIANT_SYSTEM_PROMPT_OPENAI)
+            )
+        elif provider_norm == "anthropic":
+            candidates.append(
+                (
+                    self.GIANT_SYSTEM_PROMPT_ANTHROPIC_PATH,
+                    self.GIANT_SYSTEM_PROMPT_ANTHROPIC,
+                )
+            )
+
+        candidates.append((self.GIANT_SYSTEM_PROMPT_PATH, self.GIANT_SYSTEM_PROMPT))
+
+        for path_str, prompt in candidates:
+            if path_str:
+                return self._read_prompt_file(path_str)
+            if prompt:
+                return prompt
+        return None
 
 
 # Singleton instance for import convenience

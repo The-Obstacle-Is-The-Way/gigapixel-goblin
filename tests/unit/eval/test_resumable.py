@@ -171,6 +171,43 @@ class TestCheckpointManager:
                 config={"max_steps": 10},
             )
 
+    def test_load_or_create_existing_model_mismatch_raises(
+        self, checkpoint_manager: CheckpointManager
+    ) -> None:
+        state = CheckpointState(
+            run_id="mismatch-model",
+            benchmark_name="tcga",
+            model_name="gpt-5.2",
+            provider_name="OpenAIProvider",
+        )
+        checkpoint_manager.save(state)
+
+        with pytest.raises(ValueError, match="model/provider mismatch"):
+            checkpoint_manager.load_or_create(
+                "mismatch-model",
+                "tcga",
+                model_name="claude-sonnet-4-5-20250929",
+                provider_name="AnthropicProvider",
+            )
+
+    def test_load_or_create_sets_missing_model_metadata(
+        self, checkpoint_manager: CheckpointManager
+    ) -> None:
+        state = CheckpointState(
+            run_id="missing-model-metadata",
+            benchmark_name="tcga",
+        )
+        checkpoint_manager.save(state)
+
+        loaded = checkpoint_manager.load_or_create(
+            "missing-model-metadata",
+            "tcga",
+            model_name="gpt-5.2",
+            provider_name="OpenAIProvider",
+        )
+        assert loaded.model_name == "gpt-5.2"
+        assert loaded.provider_name == "OpenAIProvider"
+
     def test_load_or_create_allows_added_default_like_keys(
         self, checkpoint_manager: CheckpointManager
     ) -> None:

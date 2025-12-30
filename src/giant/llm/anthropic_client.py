@@ -241,7 +241,16 @@ class AnthropicProvider:
                     model=self.model,
                 )
 
-            step_response = _parse_tool_use_to_step_response(tool_use_block.input)
+            tool_input = tool_use_block.input
+            if not isinstance(tool_input, dict):
+                raise LLMParseError(
+                    "submit_step tool input missing or not an object",
+                    raw_output=str(tool_input),
+                    provider="anthropic",
+                    model=self.model,
+                )
+
+            step_response = _parse_tool_use_to_step_response(tool_input)
 
             # Calculate usage and cost (defensive None check for SDK edge cases)
             usage = response.usage

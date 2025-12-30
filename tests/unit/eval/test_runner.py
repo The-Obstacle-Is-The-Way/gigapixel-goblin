@@ -98,6 +98,12 @@ def csv_path(tmp_path: Path) -> Path:
     return csv_file
 
 
+class TestEvaluationConfigValidation:
+    def test_budget_requires_single_worker(self) -> None:
+        with pytest.raises(ValueError, match="budget_usd"):
+            EvaluationConfig(max_concurrent=2, budget_usd=1.0)
+
+
 class TestResolveWsiPath:
     def test_rejects_absolute_path(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="absolute paths are not allowed"):
@@ -135,10 +141,87 @@ class TestResolveWsiPath:
         resolved = runner._resolve_wsi_path("slide.svs", "tcga", file_id=file_id)
         assert resolved == downloaded
 
+    def test_resolves_dicom_directory_single_series(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        """DICOM directory resolution should require a single SeriesInstanceUID."""
+        from pydicom.dataset import Dataset, FileMetaDataset
+        from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+        dicom_dir = runner.wsi_root / "gtex" / "GTEX-TEST"
+        dicom_dir.mkdir(parents=True, exist_ok=True)
+
+        series_uid = generate_uid()
+
+        def write_dicom(path: Path) -> None:
+            file_meta = FileMetaDataset()
+            file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+            file_meta.MediaStorageSOPClassUID = generate_uid()
+            file_meta.MediaStorageSOPInstanceUID = generate_uid()
+            file_meta.ImplementationClassUID = generate_uid()
+
+            ds = Dataset()
+            ds.file_meta = file_meta
+            ds.SeriesInstanceUID = series_uid
+            ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+            ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+            ds.save_as(path, enforce_file_format=True)
+
+        write_dicom(dicom_dir / "a.dcm")
+        write_dicom(dicom_dir / "b.dcm")
+
+        resolved = runner._resolve_wsi_path("GTEX-TEST.tiff", "gtex")
+        assert resolved.parent == dicom_dir
+        assert resolved.suffix == ".dcm"
+
+    def test_resolves_dicom_directory_multiple_series_raises(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        from pydicom.dataset import Dataset, FileMetaDataset
+        from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+        dicom_dir = runner.wsi_root / "gtex" / "GTEX-MULTI"
+        dicom_dir.mkdir(parents=True, exist_ok=True)
+
+        def write_dicom(path: Path, *, series_uid: str) -> None:
+            file_meta = FileMetaDataset()
+            file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+            file_meta.MediaStorageSOPClassUID = generate_uid()
+            file_meta.MediaStorageSOPInstanceUID = generate_uid()
+            file_meta.ImplementationClassUID = generate_uid()
+
+            ds = Dataset()
+            ds.file_meta = file_meta
+            ds.SeriesInstanceUID = series_uid
+            ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+            ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+            ds.save_as(path, enforce_file_format=True)
+
+        write_dicom(dicom_dir / "a.dcm", series_uid=generate_uid())
+        write_dicom(dicom_dir / "b.dcm", series_uid=generate_uid())
+
+        with pytest.raises(ValueError, match="multiple DICOM series"):
+            runner._resolve_wsi_path("GTEX-MULTI.tiff", "gtex")
+
 
 class TestTruthLabelParsing:
     def test_parses_integer_label(self, runner: BenchmarkRunner) -> None:
         assert runner._parse_truth_label(" 2 ", "tcga", None) == 2
+
+    def test_rejects_zero_label_with_options(self, runner: BenchmarkRunner) -> None:
+        """Truth labels for multiple-choice tasks are 1-based."""
+        with pytest.raises(ValueError, match="out of range"):
+            runner._parse_truth_label("0", "tcga", ["A", "B"])
+
+    def test_rejects_out_of_range_label_with_options(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        with pytest.raises(ValueError, match="out of range"):
+            runner._parse_truth_label("3", "tcga", ["A", "B"])
+
+    def test_rejects_out_of_range_panda_grade(self, runner: BenchmarkRunner) -> None:
+        with pytest.raises(ValueError, match="ISUP"):
+            runner._parse_truth_label("6", "panda", None)
 
     def test_parses_string_label_case_insensitive(
         self, runner: BenchmarkRunner
@@ -258,6 +341,42 @@ class TestLoadBenchmarkItems:
         assert items[1].truth_label == 1  # "Lung" matches first option
         assert "1. Lung" in items[1].prompt  # {options} was substituted
         assert items[1].file_id == "uuid-2"
+
+    def test_is_valid_with_trailing_whitespace_is_respected(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "valid-whitespace.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "benchmark_id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga",
+                    "benchmark_id": "TCGA-WS",
+                    "image_path": "slide.svs",
+                    "prompt": "Q?",
+                    "options": json.dumps(["A", "B"]),
+                    "answer": "1",
+                    "is_valid": "True ",
+                }
+            )
+
+        runner.wsi_root.mkdir(parents=True, exist_ok=True)
+        (runner.wsi_root / "slide.svs").write_text("slide")
+
+        items = runner.load_benchmark_items(csv_file, "tcga")
+        assert [i.benchmark_id for i in items] == ["TCGA-WS"]
 
     def test_parses_python_literal_options(
         self, runner: BenchmarkRunner, tmp_path: Path
@@ -487,6 +606,66 @@ class TestLoadBenchmarkItems:
 
         items = runner.load_benchmark_items(csv_file, "tcga", skip_missing_wsis=True)
         assert [i.benchmark_id for i in items] == ["HAS-WSI"]
+
+    def test_empty_options_list_is_treated_as_no_options(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "empty-options.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "benchmark_id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga",
+                    "benchmark_id": "EMPTY-OPTIONS",
+                    "image_path": "slide.svs",
+                    "prompt": "Q?",
+                    "options": "[]",
+                    "answer": "1",
+                    "is_valid": "True",
+                }
+            )
+
+        runner.wsi_root.mkdir(parents=True)
+        (runner.wsi_root / "slide.svs").write_text("slide")
+
+        items = runner.load_benchmark_items(csv_file, "tcga")
+        assert len(items) == 1
+        assert items[0].options is None
+
+    def test_raises_on_missing_required_csv_columns(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "missing-cols.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_id",
+                    "prompt",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_id": "MISSING-COLS",
+                    "prompt": "Q?",
+                }
+            )
+
+        with pytest.raises(ValueError, match=r"Missing required CSV columns"):
+            runner.load_benchmark_items(csv_file, "tcga")
 
 
 class TestValidateRunId:

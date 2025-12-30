@@ -215,6 +215,8 @@ def size_at_level(
     Returns:
         (width, height) in the target level's pixels.
 
+        Each dimension is clamped to a minimum of 1px to avoid zero-sized reads.
+
     Raises:
         ValueError: If downsample is not positive.
     """

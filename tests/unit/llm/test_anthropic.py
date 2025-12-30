@@ -311,6 +311,30 @@ class TestAnthropicProviderGenerate:
             assert "No submit_step tool use" in str(exc_info.value)
 
     @pytest.mark.asyncio
+    async def test_parse_error_on_none_tool_input(
+        self, test_settings: Settings, sample_messages: list[Message]
+    ) -> None:
+        """Tool input must be a dict; None should raise a clear LLMParseError."""
+        provider = AnthropicProvider(settings=test_settings)
+
+        mock_tool_block = MagicMock()
+        mock_tool_block.type = "tool_use"
+        mock_tool_block.name = "submit_step"
+        mock_tool_block.input = None
+
+        mock_response = MagicMock()
+        mock_response.content = [mock_tool_block]
+        mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
+
+        with patch.object(
+            provider._client.messages, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            with pytest.raises(LLMParseError, match="tool input"):
+                await provider.generate_response(sample_messages)
+
+    @pytest.mark.asyncio
     async def test_api_called_with_tool_choice(
         self, test_settings: Settings, sample_messages: list[Message]
     ) -> None:

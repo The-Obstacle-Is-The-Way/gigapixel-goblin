@@ -38,6 +38,13 @@ class Turn(BaseModel):
         default=None,
         description="Region that was cropped (None for thumbnail)",
     )
+    conch_scores: list[float] | None = Field(
+        default=None,
+        description=(
+            "CONCH similarity scores aligned to ConchAction.hypotheses "
+            "(paper ablation feature)."
+        ),
+    )
 
 
 class Trajectory(BaseModel):

@@ -5,7 +5,12 @@ TDD tests for ContextManager following Spec-08.
 
 from giant.agent.context import ContextManager
 from giant.geometry.primitives import Region
-from giant.llm.protocol import BoundingBoxAction, FinalAnswerAction, StepResponse
+from giant.llm.protocol import (
+    BoundingBoxAction,
+    ConchAction,
+    FinalAnswerAction,
+    StepResponse,
+)
 
 
 class TestContextManagerInit:
@@ -217,6 +222,59 @@ class TestContextManagerGetMessages:
             "assistant",
             "user",
         ]
+
+    def test_get_messages_includes_conch_scores_for_next_step(self) -> None:
+        ctx = ContextManager(
+            wsi_path="/slide.svs",
+            question="Q?",
+            max_steps=5,
+        )
+        response = StepResponse(
+            reasoning="Score hypotheses with CONCH",
+            action=ConchAction(hypotheses=["benign", "malignant"]),
+        )
+        ctx.add_turn(
+            image_base64="img==",
+            response=response,
+            conch_scores=[0.2, 0.8],
+        )
+
+        messages = ctx.get_messages(thumbnail_base64="thumb==")
+
+        assert [m.role for m in messages] == [
+            "system",
+            "user",
+            "assistant",
+            "user",
+        ]
+        user_msg = messages[-1]
+        text_content = next(c for c in user_msg.content if c.type == "text")
+        assert "CONCH" in (text_content.text or "")
+        assert "malignant" in (text_content.text or "")
+
+    def test_system_prompt_override_is_used(self) -> None:
+        ctx = ContextManager(
+            wsi_path="/slide.svs",
+            question="Q?",
+            max_steps=5,
+            system_prompt="CUSTOM SYSTEM PROMPT",
+        )
+        messages = ctx.get_messages(thumbnail_base64="thumb==")
+        system_msg = messages[0]
+        text_content = next(c for c in system_msg.content if c.type == "text")
+        assert "CUSTOM SYSTEM PROMPT" in (text_content.text or "")
+
+    def test_enable_conch_adds_conch_to_system_prompt(self) -> None:
+        ctx = ContextManager(
+            wsi_path="/slide.svs",
+            question="Q?",
+            max_steps=5,
+            enable_conch=True,
+        )
+        messages = ctx.get_messages(thumbnail_base64="thumb==")
+        system_msg = messages[0]
+        text_content = next(c for c in system_msg.content if c.type == "text")
+        assert "conch" in (text_content.text or "").lower()
 
 
 class TestContextManagerImagePruning:

@@ -82,7 +82,11 @@ class TestBuildJsonSchema:
 
         # Verify action_type discriminator
         assert "action_type" in action_schema["properties"]
-        assert action_schema["properties"]["action_type"]["enum"] == ["crop", "answer"]
+        assert action_schema["properties"]["action_type"]["enum"] == [
+            "crop",
+            "answer",
+            "conch",
+        ]
 
         # Verify all fields are present (flattened union)
         props = action_schema["properties"]
@@ -91,6 +95,7 @@ class TestBuildJsonSchema:
         assert "width" in props
         assert "height" in props
         assert "answer_text" in props
+        assert "hypotheses" in props
 
 
 class TestNormalizeOpenAIResponse:
@@ -399,6 +404,29 @@ class TestOpenAIProviderGenerate:
                 await provider.generate_response(sample_messages)
 
             assert "No output text" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_parse_error_on_empty_output_text(
+        self,
+        test_settings: Settings,
+        sample_messages: list[Message],
+    ) -> None:
+        """Empty output text should raise a clear LLMParseError."""
+        provider = OpenAIProvider(settings=test_settings)
+
+        mock_response = MagicMock()
+        mock_response.output_text = "   "
+        mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
+
+        with patch.object(
+            provider._client.responses, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.return_value = mock_response
+
+            with pytest.raises(LLMParseError) as exc_info:
+                await provider.generate_response(sample_messages)
+
+            assert "Empty output text" in str(exc_info.value)
 
     @pytest.mark.asyncio
     async def test_cost_calculation_includes_images(
