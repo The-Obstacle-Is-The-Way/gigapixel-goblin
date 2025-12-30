@@ -265,7 +265,8 @@ class ContextManager:
         indices_to_prune = set(crop_user_message_indices[: -self.max_history_images])
 
         pruned_messages: list[Message] = []
-        user_msg_index = 0  # 0-based index among user messages (== step-1)
+        # 0-based index among user messages (0 = thumbnail prompt; 1+ = crop prompts)
+        user_msg_index = 0
 
         for i, msg in enumerate(messages):
             if msg.role != "user":
