@@ -82,8 +82,8 @@ class TestExtractLabelPanda:
         result = extract_label(prediction, benchmark_name="panda", options=None)
         assert result.label is None
 
-    def test_panda_invalid_json_no_fallback(self) -> None:
-        """Invalid JSON with braces matches now thanks to robust extraction."""
+    def test_panda_trailing_brace_ignored(self) -> None:
+        """Trailing brace after valid JSON is ignored by raw_decode (BUG-038-B3)."""
         prediction = '{"isup_grade": 2}}'
         result = extract_label(prediction, benchmark_name="panda", options=None)
         assert result.label == 2
