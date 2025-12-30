@@ -113,6 +113,7 @@ while True:
             f"Max retries ({self.config.max_retries}) on invalid coordinates"
         )
 
+    # Build error feedback message
     feedback = ERROR_FEEDBACK_TEMPLATE.format(
         x=current_action.x,
         y=current_action.y,
@@ -122,27 +123,67 @@ while True:
         max_height=self._slide_bounds.height,
         issues=current_error,
     )
-
     error_message = Message(
         role="user",
         content=[MessageContent(type="text", text=feedback)],
     )
     messages_with_error = [*messages, error_message]
 
-    response = await self.llm_provider.generate_response(messages_with_error)
-    self._accumulate_usage(response)
+    # LLM call with exception handling
+    try:
+        response = await self.llm_provider.generate_response(messages_with_error)
+        self._accumulate_usage(response)
+    except (LLMError, LLMParseError) as e:
+        logger.warning("Retry LLM call failed: %s", e)
+        self._consecutive_errors += 1
+        if self._consecutive_errors >= self.config.max_retries:
+            return self._build_error_result(
+                f"Max retries ({self.config.max_retries}) exceeded: {e}"
+            )
+        return None
 
     new_action = response.step_response.action
+
     if isinstance(new_action, FinalAnswerAction):
         self._consecutive_errors = 0
         return self._handle_answer(response.step_response)
 
     if isinstance(new_action, BoundingBoxAction):
-        # Validate + crop; continue loop on failures.
-        ...
+        # Validate the new crop coordinates
+        region = Region(
+            x=new_action.x, y=new_action.y,
+            width=new_action.width, height=new_action.height,
+        )
+        try:
+            self._validator.validate(region, self._slide_bounds, strict=True)
+        except ValidationError as e:
+            # Invalid coordinates again - CONTINUE retry loop
+            logger.warning("Retry crop still invalid: %s", e)
+            current_action = new_action
+            current_error = str(e)
+            continue
+
+        # Execute the crop
+        target_size = self.llm_provider.get_target_size()
+        try:
+            cropped = self._crop_engine.crop(region, target_size=target_size)
+        except ValueError as e:
+            # Crop execution failed - CONTINUE retry loop
+            logger.warning("Retry crop execution failed: %s", e)
+            current_action = new_action
+            current_error = str(e)
+            continue
+
+        # SUCCESS: Record turn and reset error counter
+        self._context.add_turn(
+            image_base64=cropped.base64_content,
+            response=response.step_response,
+            region=region,
+        )
         self._consecutive_errors = 0
         return None
 
+    # Unexpected action type - treat as no-op
     return None
 ```
 
@@ -166,11 +207,11 @@ uv run pytest tests/unit/agent/test_runner.py -v
 
 ---
 
-## Files to Modify
+## Files Modified
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/giant/agent/runner.py` | 385-502 | Convert recursive retry to iterative loop |
+| File                           | Lines   | Change                                    |
+|--------------------------------|---------|-------------------------------------------|
+| `src/giant/agent/runner.py`    | 385-504 | Convert recursive retry to iterative loop |
 
 ---
 
