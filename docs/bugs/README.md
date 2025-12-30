@@ -14,9 +14,7 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
-| BUG-018 | P3 | Missing CONCH tool integration | [#33](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/33) |
-| BUG-020 | P3 | Official system prompts not incorporated | [#34](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/34) |
-| BUG-030 | P2 | Implementation audit findings | [#35](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues/35) |
+| (none) | - | - | - |
 
 ## Local Audit Findings (Not Yet Filed)
 
@@ -74,6 +72,7 @@ See `../archive/bugs/` for historical bugs that have been resolved:
 | BUG-033 | `make benchmark` uses wrong CLI args | Fixed (Makefile uses `$(DATASET)` + fail-fast validation) |
 | BUG-032 | Placeholder API keys treated as configured | Fixed (reject obvious placeholder secrets early) |
 | BUG-031 | Answer extraction fails with multiple integers | Fixed (select first in-range option index) |
+| BUG-030 | Implementation audit findings | Closed (triage complete; GitHub issue #35 closed) |
 | BUG-029 | Low TCGA benchmark accuracy (investigation) | Fixed (AgentConfig T=20 default aligned to paper) |
 | BUG-028 | Options not displayed in prompts (slidebench, expert_vqa) | Fixed (options appended when `{options}` missing) |
 | BUG-027 | CSV options parsed as single-element list | Fixed (Python literal parsing + fail-loud validation) |
@@ -83,6 +82,8 @@ See `../archive/bugs/` for historical bugs that have been resolved:
 | BUG-022 | MultiPathQA acquisition UX gaps | Fixed (`giant check-data` command added) |
 | BUG-019 | Axis guide font fallback degrades legibility | Fixed (Strict font check added to overlay config) |
 | BUG-021 | Prompt template edge case (max_steps=1) | Not reproducible (PromptBuilder uses final-step prompt) |
+| BUG-020 | Official system prompts not incorporated | Resolved in code (supports `GIANT_SYSTEM_PROMPT*` overrides) |
+| BUG-018 | Missing CONCH tool integration | Implemented (optional `conch` action; user-supplied scorer required) |
 | BUG-017 | TCGA downloader path traversal | Path validation added |
 | BUG-016 | Agent crop on max_steps=1 | Step guard added |
 | BUG-015 | Visualizer missing images/overlays | Trajectory metadata + HTML/CSS updates |
@@ -167,9 +168,9 @@ See `../archive/bugs/` for historical bugs that have been resolved:
 - 6 new bug reports filed (BUG-018 to BUG-023).
 - 3 bugs fixed immediately (BUG-019, BUG-022, BUG-023).
 - 1 bug invalid (BUG-021).
-- 2 reproducibility gaps remain open (BUG-018, BUG-020):
-  - BUG-018: CONCH tool ablation requires gated CONCH access to reproduce Table 3
-  - BUG-020: Paper’s OpenAI/Anthropic system prompts are in Supplementary Material (not available here)
+- 2 reproducibility gaps were addressed in code (BUG-018, BUG-020):
+  - BUG-018: CONCH tool path implemented behind a feature flag; still requires gated weights / user-supplied scorer
+  - BUG-020: Provider-specific system prompt overrides supported; still requires Supplementary Material text for verbatim reproduction
 
 ### Spec-08.5 LLM Integration Checkpoint (2025-12-18)
 

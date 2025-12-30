@@ -103,10 +103,18 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
             "action_type": "answer",
             "answer_text": action.get("answer_text"),
         }
+    elif action_type == "conch":
+        normalized_action = {
+            "action_type": "conch",
+            "hypotheses": action.get("hypotheses"),
+        }
     else:
         # Raise clear error instead of confusing pydantic discriminator error
         raise LLMParseError(
-            f"Unknown action_type '{action_type}'. Expected 'crop' or 'answer'.",
+            (
+                f"Unknown action_type '{action_type}'. Expected "
+                "'crop', 'answer', or 'conch'."
+            ),
             raw_output=str(action),
             provider="openai",
         )

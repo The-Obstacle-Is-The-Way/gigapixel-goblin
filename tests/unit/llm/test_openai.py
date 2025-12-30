@@ -82,7 +82,11 @@ class TestBuildJsonSchema:
 
         # Verify action_type discriminator
         assert "action_type" in action_schema["properties"]
-        assert action_schema["properties"]["action_type"]["enum"] == ["crop", "answer"]
+        assert action_schema["properties"]["action_type"]["enum"] == [
+            "crop",
+            "answer",
+            "conch",
+        ]
 
         # Verify all fields are present (flattened union)
         props = action_schema["properties"]
@@ -91,6 +95,7 @@ class TestBuildJsonSchema:
         assert "width" in props
         assert "height" in props
         assert "answer_text" in props
+        assert "hypotheses" in props
 
 
 class TestNormalizeOpenAIResponse:

@@ -53,6 +53,20 @@ def step_response_json_schema() -> dict[str, Any]:
                         },
                         "required": ["action_type", "answer_text"],
                     },
+                    {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "action_type": {"type": "string", "enum": ["conch"]},
+                            "hypotheses": {
+                                "type": "array",
+                                "minItems": 1,
+                                "items": {"type": "string", "minLength": 1},
+                                "description": "Text hypotheses to score with CONCH",
+                            },
+                        },
+                        "required": ["action_type", "hypotheses"],
+                    },
                 ],
             },
         },
@@ -68,9 +82,10 @@ def step_response_json_schema_openai() -> dict[str, Any]:
     discriminator indicates which fields are meaningful.
 
     Schema design:
-    - `action_type`: "crop" or "answer" (discriminator)
+    - `action_type`: "crop", "answer", or "conch" (discriminator)
     - For "crop": x, y, width, height are populated; answer_text is null
     - For "answer": answer_text is populated; x, y, width, height are null
+    - For "conch": hypotheses is populated; all other action fields are null
     """
     return {
         "type": "object",
@@ -87,8 +102,11 @@ def step_response_json_schema_openai() -> dict[str, Any]:
                 "properties": {
                     "action_type": {
                         "type": "string",
-                        "enum": ["crop", "answer"],
-                        "description": "crop=zoom region, answer=final response",
+                        "enum": ["crop", "answer", "conch"],
+                        "description": (
+                            "crop=zoom region, answer=final response, "
+                            "conch=score hypotheses"
+                        ),
                     },
                     "x": {
                         "type": ["integer", "null"],
@@ -110,8 +128,23 @@ def step_response_json_schema_openai() -> dict[str, Any]:
                         "type": ["string", "null"],
                         "description": "Final answer (answer only, null for crop)",
                     },
+                    "hypotheses": {
+                        "type": ["array", "null"],
+                        "description": (
+                            "Text hypotheses to score (conch only, null otherwise)"
+                        ),
+                        "items": {"type": "string", "minLength": 1},
+                    },
                 },
-                "required": ["action_type", "x", "y", "width", "height", "answer_text"],
+                "required": [
+                    "action_type",
+                    "x",
+                    "y",
+                    "width",
+                    "height",
+                    "answer_text",
+                    "hypotheses",
+                ],
             },
         },
         "required": ["reasoning", "action"],

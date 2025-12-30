@@ -17,6 +17,7 @@ from giant.agent.trajectory import Trajectory, Turn
 from giant.geometry.primitives import Region
 from giant.llm.protocol import (
     BoundingBoxAction,
+    ConchAction,
     FinalAnswerAction,
     Message,
     MessageContent,
@@ -48,6 +49,8 @@ class ContextManager:
     question: str
     max_steps: int
     max_history_images: int | None = None
+    system_prompt: str | None = None
+    enable_conch: bool = False
 
     trajectory: Trajectory = field(init=False)
     _prompt_builder: PromptBuilder = field(init=False, repr=False)
@@ -83,6 +86,7 @@ class ContextManager:
         image_base64: str,
         response: StepResponse,
         region: Region | None = None,
+        conch_scores: list[float] | None = None,
     ) -> None:
         """Add a navigation turn to the trajectory.
 
@@ -96,6 +100,7 @@ class ContextManager:
             image_base64=image_base64,
             response=response,
             region=region,
+            conch_scores=conch_scores,
         )
         self.trajectory.turns.append(turn)
 
@@ -127,7 +132,12 @@ class ContextManager:
         messages: list[Message] = []
 
         # 1. System message
-        messages.append(self._prompt_builder.build_system_message())
+        messages.append(
+            self._prompt_builder.build_system_message(
+                system_prompt=self.system_prompt,
+                enable_conch=self.enable_conch,
+            )
+        )
 
         # 2. Initial user message with question and thumbnail
         messages.append(
@@ -168,6 +178,17 @@ class ContextManager:
                         step=step,
                     )
                 )
+                continue
+
+            # CONCH: append a user message with CONCH scores and current view.
+            if isinstance(action, ConchAction):
+                step += 1
+                messages.append(
+                    self._build_user_message_for_conch_turn(
+                        turn=turn,
+                        step=step,
+                    )
+                )
 
         # Apply image pruning if configured
         if self.max_history_images is not None:
@@ -192,6 +213,8 @@ class ContextManager:
                     f"crop(x={action.x}, y={action.y}, "
                     f"width={action.width}, height={action.height})"
                 )
+            elif action.action_type == "conch":
+                action_text = f"conch(hypotheses={list(action.hypotheses)!r})"
             else:
                 action_text = f'answer("{action.answer_text}")'
         else:
@@ -227,6 +250,37 @@ class ContextManager:
             context_images=[turn.image_base64],
             last_region=last_region,
         )
+
+    def _build_user_message_for_conch_turn(self, turn: Turn, step: int) -> Message:
+        action = turn.response.action
+        assert isinstance(action, ConchAction)
+
+        conch_scores = turn.conch_scores
+        if conch_scores is None or len(conch_scores) != len(action.hypotheses):
+            conch_summary = "CONCH scores unavailable."
+        else:
+            lines = ["CONCH similarity scores (higher = more similar):"]
+            for hypothesis, score in zip(action.hypotheses, conch_scores, strict=True):
+                lines.append(f"- {hypothesis}: {score:.4f}")
+            conch_summary = "\n".join(lines)
+
+        last_region = None
+        if turn.region is not None:
+            r = turn.region
+            last_region = f"({r.x}, {r.y}, {r.width}, {r.height})"
+
+        msg = self._prompt_builder.build_user_message(
+            question=self.question,
+            step=step,
+            max_steps=self.max_steps,
+            context_images=[turn.image_base64],
+            last_region=last_region,
+        )
+
+        text_content = next((c for c in msg.content if c.type == "text"), None)
+        if text_content is not None and text_content.text is not None:
+            text_content.text = f"{conch_summary}\n\n{text_content.text}"
+        return msg
 
     def _apply_image_pruning(
         self,

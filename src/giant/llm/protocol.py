@@ -51,9 +51,27 @@ class FinalAnswerAction(BaseModel):
     answer_text: str = Field(..., min_length=1, description="The final answer")
 
 
+HypothesisText = Annotated[str, Field(min_length=1)]
+
+
+class ConchAction(BaseModel):
+    """Action to score hypotheses using CONCH (paper ablation feature).
+
+    The agent supplies the *current* observation image (thumbnail or crop) along
+    with a list of textual hypotheses to CONCH and receives similarity scores.
+    """
+
+    action_type: Literal["conch"] = "conch"
+    hypotheses: list[HypothesisText] = Field(
+        ...,
+        min_length=1,
+        description="Textual hypotheses to score against the current image",
+    )
+
+
 # Discriminated union for action types
 Action = Annotated[
-    BoundingBoxAction | FinalAnswerAction,
+    BoundingBoxAction | FinalAnswerAction | ConchAction,
     Field(discriminator="action_type"),
 ]
 
