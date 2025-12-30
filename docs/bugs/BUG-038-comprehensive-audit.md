@@ -15,16 +15,16 @@ Each bug has a dedicated spec document with implementation-ready details:
 
 | Bug | Severity | Spec Document |
 |-----|----------|---------------|
-| B1, B2 | CRITICAL | [archive/BUG-038-panda-answer-extraction.md](archive/BUG-038-panda-answer-extraction.md) (**FIXED** ✅ ARCHIVED) |
-| B3 | HIGH | [archive/BUG-038-B3-json-extraction.md](archive/BUG-038-B3-json-extraction.md) (**FIXED** ✅ ARCHIVED) |
-| B4 | HIGH | [archive/BUG-038-B4-anthropic-json-parsing.md](archive/BUG-038-B4-anthropic-json-parsing.md) (**FIXED** ✅ ARCHIVED) |
-| B5 | HIGH | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) |
+| B1, B2 | CRITICAL | [../archive/bugs/BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) (**FIXED** ✅ ARCHIVED) |
+| B3 | HIGH | [../archive/bugs/BUG-038-B3-json-extraction.md](../archive/bugs/BUG-038-B3-json-extraction.md) (**FIXED** ✅ ARCHIVED) |
+| B4 | HIGH | [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md) (**FIXED** ✅ ARCHIVED) |
+| B5 | HIGH | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) (**FIXED** ✅ ARCHIVED) |
 | B7 | MEDIUM | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) |
-| B8 | MEDIUM | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) |
+| B8 | MEDIUM | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) (**FIXED** ✅ ARCHIVED) |
 | B9 | MEDIUM | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) |
-| B10 | MEDIUM | [archive/BUG-038-B10-unknown-action-type.md](archive/BUG-038-B10-unknown-action-type.md) (**FIXED** ✅ ARCHIVED) |
+| B10 | MEDIUM | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) (**FIXED** ✅ ARCHIVED) |
 | B11 | LOW | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) |
-| B12 | LOW | [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md) |
+| B12 | LOW | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) (**FIXED** ✅ ARCHIVED) |
 
 Each spec includes:
 - Current buggy code
@@ -58,18 +58,18 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 
 | ID | Location | Severity | Status | Spec Doc | Description |
 |----|----------|----------|--------|----------|-------------|
-| **B1** | `src/giant/eval/answer_extraction.py:45-74` | CRITICAL | **FIXED** | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) | PANDA `"isup_grade": null` maps to label 0 (benign); any JSON present but missing/invalid/out-of-range returns `None` without integer fallback |
-| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
-| **B3** | `src/giant/eval/answer_extraction.py:151-180` | HIGH | **FIXED** | [BUG-038-B3-json-extraction.md](BUG-038-B3-json-extraction.md) | Uses `json.JSONDecoder().raw_decode()` to extract the first complete JSON object (no naive brace matching) |
-| **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
-| **B5** | `src/giant/llm/openai_client.py:275-285`, `src/giant/llm/anthropic_client.py:246-256` | HIGH | **FIXED** | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
+| **B1** | `src/giant/eval/answer_extraction.py:45-74` | CRITICAL | **FIXED** | [../archive/bugs/BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) | PANDA `"isup_grade": null` maps to label 0 (benign); any JSON present but missing/invalid/out-of-range returns `None` without integer fallback |
+| **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | [../archive/bugs/BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
+| **B3** | `src/giant/eval/answer_extraction.py:151-180` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B3-json-extraction.md](../archive/bugs/BUG-038-B3-json-extraction.md) | Uses `json.JSONDecoder().raw_decode()` to extract the first complete JSON object (no naive brace matching) |
+| **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
+| **B5** | `src/giant/llm/openai_client.py:275-295`, `src/giant/llm/anthropic_client.py:246-266` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
 | **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
 | **B7** | `src/giant/agent/runner.py:385-452` | MEDIUM | CONFIRMED | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) | `_consecutive_errors` is not reset after a successful invalid-region recovery crop; can leak retries into subsequent steps |
-| **B8** | `src/giant/llm/converters.py:260-268` | MEDIUM | **FIXED** | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
+| **B8** | `src/giant/llm/converters.py:260-269` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
 | **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | IMPROVEMENT | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
-| **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [BUG-038-B10-unknown-action-type.md](BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
+| **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
 | **B11** | `src/giant/agent/context.py:268` | LOW | IMPROVEMENT | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
-| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
+| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
 
 ---
 
@@ -329,22 +329,24 @@ except json.JSONDecodeError:
     pass  # Let pydantic handle the validation error
 ```
 
-**Spec doc**: [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md)
+**Spec doc**: [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md)
 
 ---
 
 ### B5: Defensive Guard for None Token Counts
 
-**Location**: `src/giant/llm/openai_client.py:275-285` and `src/giant/llm/anthropic_client.py:246-256`
+**Location (fixed)**: `src/giant/llm/openai_client.py:275-295` and `src/giant/llm/anthropic_client.py:246-266`
 
-**Problem**: Token counts from SDK could theoretically be `None`. Today this triggers a `TypeError` during `total_tokens` computation which then becomes a generic `LLMError` via the catch-all handler.
+**Status**: FIXED (2025-12-29; commit `f1741576`)
+
+**Problem (pre-fix)**: Token counts from SDK could theoretically be `None`. This triggered a `TypeError` during `total_tokens` computation which then became a generic `LLMError` via the catch-all handler.
 ```python
 prompt_tokens = usage.input_tokens
 completion_tokens = usage.output_tokens
 total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 ```
 
-**Spec doc**: [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md)
+**Spec doc**: [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md)
 
 ---
 
@@ -370,11 +372,13 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 ### B8: Empty Base64 Not Caught Early
 
-**Location**: `src/giant/llm/converters.py:260-267`
+**Location (fixed)**: `src/giant/llm/converters.py:260-269`
 
-**Problem**: After None check, empty string `""` decodes successfully but produces zero bytes, potentially failing in `Image.open()`.
+**Status**: FIXED (2025-12-29; commit `85d9e074`)
 
-**Spec doc**: [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md)
+**Problem (pre-fix)**: After None check, empty string `""` decoded successfully but produced zero bytes, failing later in `Image.open()`.
+
+**Spec doc**: [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md)
 
 ---
 
@@ -396,7 +400,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 **Problem (pre-fix)**: Unknown `action_type` was rejected by pydantic, but the discriminator error is confusing; raise a clearer `LLMParseError`.
 
-**Spec doc**: [BUG-038-B10-unknown-action-type.md](BUG-038-B10-unknown-action-type.md)
+**Spec doc**: [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md)
 
 ---
 
@@ -414,11 +418,13 @@ Comment says `== step-1` but “step” is ambiguous (LLM step numbering vs traj
 
 ### B12: Empty Message.content Allowed (Defensive)
 
-**Location**: `src/giant/llm/protocol.py:129-137`
+**Location (fixed)**: `src/giant/llm/protocol.py:129-137`
 
-`Message` model allows `content=[]` which can lead to provider API errors. No validation prevents this today.
+Pre-fix, the `Message` model allowed `content=[]` which can lead to provider API errors. This is now prevented via `min_length=1`.
 
-**Spec doc**: [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md)
+**Status**: FIXED (2025-12-29; commit `3185b036`)
+
+**Spec doc**: [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md)
 
 ---
 
@@ -447,12 +453,9 @@ The results files are internally consistent (sum of per-item `cost_usd` equals `
 
 ## TEST COVERAGE GAPS
 
-Remaining test coverage gaps correspond to deferred specs:
+Remaining test coverage gaps correspond to deferred fixes:
 
-1. **B5**: `usage.*_tokens is None` guard (OpenAI + Anthropic)
-2. **B7**: retry counter reset after successful invalid-region recovery
-3. **B8**: empty `image_base64=""` validation in `count_image_pixels_in_messages()`
-4. **B12**: prevent `Message(content=[])` via `min_length=1`
+1. **B7**: retry counter reset after successful invalid-region recovery
 
 ---
 
@@ -464,13 +467,13 @@ Remaining test coverage gaps correspond to deferred specs:
 3. **B3**: Replace brace matching with decoder-based JSON extraction ✅
 4. **B4**: Make Anthropic stringified-`action` decode errors explicit ✅
 5. **B10**: Unknown `action_type` clearer error ✅
-6. Added/updated unit tests for B1/B2/B3/B4/B10 ✅
+6. **B5**: Defensive guard for `usage.*_tokens is None` ✅
+7. **B8**: Empty base64 early validation in `count_image_pixels_in_messages()` ✅
+8. **B12**: `Message.content` `min_length=1` ✅
+9. Added/updated unit tests for fixed bugs ✅
 
 ### Next (deferred; implement via spec docs)
-7. **B5**: Defensive guard for `usage.*_tokens is None`
-8. **B8**: Empty base64 early validation in `count_image_pixels_in_messages()`
-9. **B7**: Retry counter reset after successful recovery (clarify semantics)
-10. **B12**: `Message.content` `min_length=1`
+10. **B7**: Retry counter reset after successful recovery (clarify semantics)
 
 ### Later (defensive / UX improvements)
 11. **B11**: Comment clarity in context manager
@@ -484,12 +487,16 @@ Remaining test coverage gaps correspond to deferred specs:
 - [x] **B2**: Fix OpenAI `"Extra data"` parsing (ignore trailing text; validate `StepResponse`) ✅ FIXED 2025-12-29
 - [x] **B3**: Replace brace matching with decoder-based JSON extraction ✅ FIXED 2025-12-29
 - [x] **B4**: Make Anthropic invalid JSON-string root cause explicit ✅ FIXED 2025-12-29
+- [x] **B5**: Guard against `usage.*_tokens is None` ✅ FIXED 2025-12-29
 - [x] **B10**: Raise clear `LLMParseError` for unknown `action_type` ✅ FIXED 2025-12-29
 - [x] Add unit tests for PANDA null + missing-key cases ✅ 6 tests added
 - [x] Add unit tests for OpenAI trailing-text JSON ✅ 3 tests added
 - [x] Add unit tests for B3/B4/B10 ✅ (12 + 3 + 7 tests)
+- [x] Add unit tests for B5/B8/B12 ✅ (6 + 2 + 1 tests)
+- [x] **B8**: Empty base64 early validation ✅ FIXED 2025-12-29
+- [x] **B12**: Prevent `Message(content=[])` via `min_length=1` ✅ FIXED 2025-12-29
 - [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
-- [ ] Review and approve remaining medium/low fixes (B5, B7, B8, B9, B11, B12 deferred)
+- [ ] Review and approve remaining medium/low fixes (B7, B9, B11 deferred)
 - [ ] Re-run PANDA benchmark with fix (optional, ~$73)
 - [ ] Update benchmark-results.md with corrected analysis
 

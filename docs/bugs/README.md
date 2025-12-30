@@ -4,11 +4,11 @@
 
 This directory tracks bugs discovered during integration checkpoint audits.
 
-**Archive**: Fixed bugs are moved to `archive/` to keep the active list clean.
+**Archive**: Fixed bugs are moved to `../archive/bugs/` to keep the active list clean.
 
 ## Active Bugs
 
-All bugs have been migrated to GitHub Issues for tracking:
+Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed):
 
 - [GitHub Issues](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues)
 
@@ -43,11 +43,11 @@ Note: One originally-reported medium finding (step guard) was retracted after re
 **Status**: BUGS FIXED (B1, B2, B3, B4, B5, B8, B10, B12). Remaining bugs (B7, B9, B11) deferred.
 
 See [BUG-038-comprehensive-audit.md](./BUG-038-comprehensive-audit.md) for full analysis.
-See [BUG-038-panda-answer-extraction.md](./BUG-038-panda-answer-extraction.md) for original PANDA analysis.
+See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) for original PANDA analysis.
 
 ## Archived (Fixed) Bugs
 
-See `archive/` for historical bugs that have been resolved:
+See `../archive/bugs/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
