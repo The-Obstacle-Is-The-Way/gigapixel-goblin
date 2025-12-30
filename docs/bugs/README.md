@@ -48,16 +48,16 @@ See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-ex
 
 **BUG-039**: 8-agent swarm audit followed by senior review.
 
-| Severity | Total | Fixed | Retracted | Backlog |
-|----------|-------|-------|-----------|---------|
+| Severity | Total | Fixed | Retracted | Not A Bug |
+|----------|-------|-------|-----------|-----------|
 | Critical | 6 | 5 | 1 | 0 |
 | High | 12 | 7 | 5 | 0 |
-| Medium | 22 | 0 | 0 | 22 |
-| Low | 12 | 0 | 0 | 12 |
+| Medium | 22 | 2 | 0 | 20 |
+| Low | 12 | 1 | 0 | 11 |
 
 **Status**:
 - Critical + High: COMPLETED & ARCHIVED — See [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md)
-- Medium + Low: BACKLOG — See [BUG-039-backlog.md](./BUG-039-backlog.md) (unvalidated leads for future maintenance)
+- Medium + Low: VALIDATED & CLOSED — See [BUG-039-backlog.md](./BUG-039-backlog.md) (verdicts + evidence)
 
 ## Archived (Fixed) Bugs
 

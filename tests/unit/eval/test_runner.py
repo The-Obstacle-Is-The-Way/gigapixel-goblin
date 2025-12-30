@@ -607,6 +607,66 @@ class TestLoadBenchmarkItems:
         items = runner.load_benchmark_items(csv_file, "tcga", skip_missing_wsis=True)
         assert [i.benchmark_id for i in items] == ["HAS-WSI"]
 
+    def test_empty_options_list_is_treated_as_no_options(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "empty-options.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_name",
+                    "benchmark_id",
+                    "image_path",
+                    "prompt",
+                    "options",
+                    "answer",
+                    "is_valid",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_name": "tcga",
+                    "benchmark_id": "EMPTY-OPTIONS",
+                    "image_path": "slide.svs",
+                    "prompt": "Q?",
+                    "options": "[]",
+                    "answer": "1",
+                    "is_valid": "True",
+                }
+            )
+
+        runner.wsi_root.mkdir(parents=True)
+        (runner.wsi_root / "slide.svs").write_text("slide")
+
+        items = runner.load_benchmark_items(csv_file, "tcga")
+        assert len(items) == 1
+        assert items[0].options is None
+
+    def test_raises_on_missing_required_csv_columns(
+        self, runner: BenchmarkRunner, tmp_path: Path
+    ) -> None:
+        csv_file = tmp_path / "missing-cols.csv"
+        with csv_file.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "benchmark_id",
+                    "prompt",
+                ],
+            )
+            writer.writeheader()
+            writer.writerow(
+                {
+                    "benchmark_id": "MISSING-COLS",
+                    "prompt": "Q?",
+                }
+            )
+
+        with pytest.raises(ValueError, match=r"Missing required CSV columns"):
+            runner.load_benchmark_items(csv_file, "tcga")
+
 
 class TestValidateRunId:
     def test_rejects_absolute_path_run_id(self, runner: BenchmarkRunner) -> None:

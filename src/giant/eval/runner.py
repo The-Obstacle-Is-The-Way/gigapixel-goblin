@@ -161,6 +161,17 @@ class BenchmarkRunner:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._checkpoint_manager = CheckpointManager(self.output_dir / "checkpoints")
 
+    @staticmethod
+    def _validate_csv_schema(reader: csv.DictReader[str], csv_path: Path) -> None:
+        required_columns = {"benchmark_name", "image_path", "answer"}
+        fieldnames = set(reader.fieldnames or [])
+        missing_columns = sorted(required_columns - fieldnames)
+        if missing_columns:
+            raise ValueError(
+                "Missing required CSV columns: "
+                f"{', '.join(missing_columns)} (file={csv_path})"
+            )
+
     def load_benchmark_items(
         self,
         csv_path: Path | str,
@@ -195,8 +206,9 @@ class BenchmarkRunner:
         items = []
         missing_wsis = 0
 
-        with csv_path.open(newline="", encoding="utf-8") as f:
+        with csv_path.open(newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
+            self._validate_csv_schema(reader, csv_path)
 
             for row in reader:
                 # Filter by benchmark name and validity
@@ -235,6 +247,8 @@ class BenchmarkRunner:
                 options_str = (row.get("options", "") or "").strip()
                 if options_str:
                     options = self._parse_options(options_str)
+                    if not options:
+                        options = None
 
                 # Build prompt (substitute {options} if present, otherwise append)
                 prompt = row.get("prompt", row.get("question", ""))
