@@ -53,9 +53,9 @@ See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-ex
 | Medium | 22 | 2 | 0 | 20 |
 | Low | 12 | 1 | 0 | 11 |
 
-**Status**:
-- Critical + High: COMPLETED & ARCHIVED — See [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md)
-- Medium + Low: VALIDATED & CLOSED — See [BUG-039-backlog.md](./BUG-039-backlog.md) (verdicts + evidence)
+**Status**: COMPLETED & ARCHIVED
+- Critical + High: See [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md)
+- Medium + Low: See [BUG-039-backlog.md](../archive/bugs/BUG-039-backlog.md) (all validated, 3 fixed, 31 not bugs)
 
 ## Archived (Fixed) Bugs
 
