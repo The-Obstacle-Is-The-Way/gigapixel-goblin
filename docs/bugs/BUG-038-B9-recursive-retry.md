@@ -3,7 +3,7 @@
 **Status**: IMPROVEMENT (refactor; not a functional bug)
 **Severity**: MEDIUM
 **Component**: `src/giant/agent/runner.py`
-**Lines**: 444-450
+**Lines**: 446-456
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -12,28 +12,34 @@
 
 ## Summary
 
-The `_handle_invalid_region()` method uses recursion via `await self._handle_crop()` when the model returns a new crop action. While bounded by `max_retries=3`, recursion is generally harder to reason about than iterative approaches.
+The `_handle_invalid_region()` method uses recursion via `await self._handle_crop()` when the model returns a new crop action. While bounded by `max_retries` (default: 3), recursion is generally harder to reason about than iterative approaches.
 
 ---
 
 ## Current Code
 
-**File**: `src/giant/agent/runner.py:438-451`
+**File**: `src/giant/agent/runner.py:438-456`
 
 ```python
 # Process retry response
 new_action = response.step_response.action
 
 if isinstance(new_action, FinalAnswerAction):
+    # Success: answer ends the run, reset error counter
+    self._consecutive_errors = 0
     return self._handle_answer(response.step_response)
 
 if isinstance(new_action, BoundingBoxAction):
     # Recursively try the new crop (will increment errors if still invalid)
-    return await self._handle_crop(
+    result = await self._handle_crop(
         response.step_response,
         new_action,
         messages,  # Use original messages
     )
+    if result is None:
+        # Success: crop recovered and recorded, reset error counter
+        self._consecutive_errors = 0
+    return result
 
 return None
 ```
@@ -52,7 +58,7 @@ return None
 
 ### Why This Works (Currently)
 
-- **Bounded**: `_consecutive_errors` prevents infinite recursion (max 3 retries)
+- **Bounded**: recursion depth is bounded by `max_retries` via `_consecutive_errors`
 - **Functional**: Behavior is correct
 
 ### Why It's Not Ideal
@@ -95,6 +101,7 @@ No new tests are required for correctness today (the current behavior is already
 If you refactor, ensure these existing tests still pass:
 
 - `tests/unit/agent/test_runner.py::TestGIANTAgentErrorRecovery::test_invalid_coordinates_then_valid`
+- `tests/unit/agent/test_runner.py::TestGIANTAgentErrorRecovery::test_invalid_coordinates_recovery_resets_error_counter`
 - `tests/unit/agent/test_runner.py::TestGIANTAgentErrorRecovery::test_max_retries_exceeded`
 
 Run:
@@ -109,7 +116,7 @@ uv run pytest tests/unit/agent/test_runner.py -v
 
 | File | Lines | Change |
 |------|-------|--------|
-| `src/giant/agent/runner.py` | 385-451 | Convert to iterative loop (optional) |
+| `src/giant/agent/runner.py` | 385-458 | Convert to iterative loop (optional) |
 
 ---
 

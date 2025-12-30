@@ -19,11 +19,11 @@ Each bug has a dedicated spec document with implementation-ready details:
 | B3 | HIGH | [../archive/bugs/BUG-038-B3-json-extraction.md](../archive/bugs/BUG-038-B3-json-extraction.md) (**FIXED** ✅ ARCHIVED) |
 | B4 | HIGH | [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md) (**FIXED** ✅ ARCHIVED) |
 | B5 | HIGH | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) (**FIXED** ✅ ARCHIVED) |
-| B7 | MEDIUM | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) |
+| B7 | MEDIUM | [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md) (**FIXED** ✅ ARCHIVED) |
 | B8 | MEDIUM | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) (**FIXED** ✅ ARCHIVED) |
 | B9 | MEDIUM | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) |
 | B10 | MEDIUM | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) (**FIXED** ✅ ARCHIVED) |
-| B11 | LOW | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) |
+| B11 | LOW | [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md) (**FIXED** ✅ ARCHIVED) |
 | B12 | LOW | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) (**FIXED** ✅ ARCHIVED) |
 
 Each spec includes:
@@ -64,11 +64,11 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B4-anthropic-json-parsing.md](../archive/bugs/BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
 | **B5** | `src/giant/llm/openai_client.py:275-295`, `src/giant/llm/anthropic_client.py:246-266` | HIGH | **FIXED** | [../archive/bugs/BUG-038-B5-token-count-none.md](../archive/bugs/BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
 | **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
-| **B7** | `src/giant/agent/runner.py:385-452` | MEDIUM | **FIXED** | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) | `_consecutive_errors` is not reset after a successful invalid-region recovery crop; can leak retries into subsequent steps |
+| **B7** | `src/giant/agent/runner.py:439-456` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md) | Resets `_consecutive_errors` after successful invalid-region recovery (crop or answer); regression test added |
 | **B8** | `src/giant/llm/converters.py:260-269` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B8-empty-base64.md](../archive/bugs/BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
-| **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | SKIPPED | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
+| **B9** | `src/giant/agent/runner.py:446-456` | MEDIUM | SKIPPED | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
 | **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [../archive/bugs/BUG-038-B10-unknown-action-type.md](../archive/bugs/BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
-| **B11** | `src/giant/agent/context.py:268` | LOW | **FIXED** | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
+| **B11** | `src/giant/agent/context.py:268` | LOW | **FIXED** | [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
 | **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [../archive/bugs/BUG-038-B12-empty-message-content.md](../archive/bugs/BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
 
 ---
@@ -356,17 +356,35 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 **Location**: `src/giant/agent/context.py:159`
 
-**Result**: Reviewed `ContextManager.get_messages()` and corresponding unit tests (`tests/unit/agent/test_context.py`). The step guard is correct for preventing a user step beyond `max_steps`. No fix required.
+**Result**: Not a bug. The guard is correct and prevents the context builder from emitting a user message for a step beyond `max_steps`.
+
+**Why the current code is correct**:
+
+- `ContextManager.get_messages()` iterates over *completed turns* and builds the prompt for the *next* LLM call.
+- After adding the assistant message for the current step, it must decide whether it is allowed to append the next-step user message (with the crop image).
+- The correct condition is `if step >= self.max_steps: break`, because when `step == max_steps` you have already consumed the final allowed step and must not construct a step `max_steps + 1` user prompt.
+
+**Evidence**:
+
+- Code: `src/giant/agent/context.py:159` uses `>=` (prevent step `max_steps + 1`).
+- `PromptBuilder` explicitly rejects `step > max_steps` (`src/giant/prompts/builder.py:82-83`), and this guard prevents hitting that path.
+- Unit tests cover prompt structure and step accounting, including final-step semantics:
+  - `tests/unit/agent/test_context.py`
+  - `tests/unit/agent/test_runner.py::TestGIANTAgentLoopLimit::test_crop_at_max_steps_ignored`
 
 ---
 
 ### B7: Retry Counter Semantics Leak After Recovery
 
-**Location**: `src/giant/agent/runner.py:385-452`
+**Location (fixed)**: `src/giant/agent/runner.py:439-456`
 
-**Problem**: After a successful invalid-region recovery crop, `_consecutive_errors` is not reset to 0, so a recovered failure can leak into subsequent steps.
+**Status**: FIXED (2025-12-29; commit `f9465368`)
 
-**Spec doc**: [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md)
+**Problem (pre-fix)**: After a successful invalid-region recovery crop, `_consecutive_errors` was not reset to 0, so a recovered failure could leak into subsequent steps.
+
+**Fix**: Reset `_consecutive_errors` to 0 after a successful recovery crop or answer, and add a regression test.
+
+**Spec doc**: [../archive/bugs/BUG-038-B7-retry-counter-logic.md](../archive/bugs/BUG-038-B7-retry-counter-logic.md)
 
 ---
 
@@ -384,7 +402,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 ### B9: Recursive Retry Handling (Refactor Note)
 
-**Location**: `src/giant/agent/runner.py:444-450`
+**Location**: `src/giant/agent/runner.py:446-456`
 
 **Problem**: Uses recursion via `await self._handle_crop()`. Bounded by `max_retries=3` so safe, but not ideal.
 
@@ -408,11 +426,13 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 ### B11: Misleading Comment on Step Index
 
-**Location**: `src/giant/agent/context.py:268`
+**Location (fixed)**: `src/giant/agent/context.py:268`
 
-Comment says `== step-1` but “step” is ambiguous (LLM step numbering vs trajectory `Turn.step_index`). Cosmetic clarity issue.
+**Status**: FIXED (2025-12-29; commit `b5a57f59`)
 
-**Spec doc**: [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md)
+Pre-fix, an inline comment implied `user_msg_index == step - 1` without clarifying which “step” was meant (LLM step numbering vs trajectory indexing). Cosmetic clarity issue only.
+
+**Spec doc**: [../archive/bugs/BUG-038-B11-comment-fix.md](../archive/bugs/BUG-038-B11-comment-fix.md)
 
 ---
 
