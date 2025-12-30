@@ -3,7 +3,9 @@
 **Status**: FIXED (refactor implemented)
 **Severity**: MEDIUM
 **Component**: `src/giant/agent/runner.py`
-**Lines**: 446-456
+**Fixed In**: `72df1b3` (fix: BUG-038-B9 refactor recursive retry to iterative loop)
+**Buggy Commit**: `18ca397` (pre-refactor; recursive retry)
+**Lines (pre-fix)**: 446-456
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -12,13 +14,13 @@
 
 ## Summary
 
-The `_handle_invalid_region()` method uses recursion via `await self._handle_crop()` when the model returns a new crop action. While bounded by `max_retries` (default: 3), recursion is generally harder to reason about than iterative approaches.
+The `_handle_invalid_region()` method used recursion via `await self._handle_crop()` when the model returned a new crop action. While bounded by `max_retries` (default: 3), recursion is generally harder to reason about than iterative approaches.
 
 ---
 
-## Current Code
+## Original Code (pre-fix)
 
-**File**: `src/giant/agent/runner.py:438-456`
+**File (pre-fix)**: `src/giant/agent/runner.py:438-456` (commit `18ca397`)
 
 ```python
 # Process retry response
@@ -80,17 +82,17 @@ return None
 ### Risk Level
 
 - **LOW**: No functional bugs, just code quality
-- **Improvement**: Convert to iterative approach
+- **Improvement**: Convert to iterative approach (now implemented)
 
 ---
 
 ## Fix Implementation
 
-This is an optional refactor only.
+Implemented in `72df1b3` by refactoring `_handle_invalid_region()` to an iterative loop that:
 
-- The current recursion is bounded by `max_retries` (default: 3) and is therefore safe in practice.
-- Refactoring `_handle_invalid_region()` into an iterative loop is reasonable if/when retry semantics grow more complex.
-- If you refactor, avoid duplicating `_handle_crop()` logic; preserve current behavior exactly.
+- Builds error feedback, calls the LLM for corrected coordinates, and validates/crops within the loop.
+- Uses `continue` on repeated invalid coordinates / crop failures, and exits on success or max retries.
+- Preserves the existing behavior of *not* accumulating error-feedback messages into the persistent context history.
 
 ---
 
@@ -98,7 +100,7 @@ This is an optional refactor only.
 
 No new tests are required for correctness today (the current behavior is already covered by existing runner tests).
 
-If you refactor, ensure these existing tests still pass:
+Verified these existing tests still pass:
 
 - `tests/unit/agent/test_runner.py::TestGIANTAgentErrorRecovery::test_invalid_coordinates_then_valid`
 - `tests/unit/agent/test_runner.py::TestGIANTAgentErrorRecovery::test_invalid_coordinates_recovery_resets_error_counter`
@@ -116,7 +118,7 @@ uv run pytest tests/unit/agent/test_runner.py -v
 
 | File | Lines | Change |
 |------|-------|--------|
-| `src/giant/agent/runner.py` | 385-458 | Convert to iterative loop (optional) |
+| `src/giant/agent/runner.py` | 385-502 | Convert recursive retry to iterative loop |
 
 ---
 

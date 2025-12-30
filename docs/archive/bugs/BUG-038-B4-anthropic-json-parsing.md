@@ -3,8 +3,8 @@
 **Status**: FIXED (2025-12-29)
 **Severity**: HIGH
 **Component**: `src/giant/llm/anthropic_client.py`
-**Fixed In**: `ee897191` (refactor: enhance JSON extraction and error handling)
-**Buggy Commit**: `9317d6d4` (pre-fix)
+**Fixed In**: `733bda5a` (fix: BUG-038 B3, B4, B10 - JSON parsing robustness)
+**Buggy Commit**: `e7172a32` (pre-fix on main)
 **Current Lines (fixed)**: 73-113
 **Buggy Lines (pre-fix)**: 73-106 (swallowed `JSONDecodeError` at 97-98)
 **Discovered**: 2025-12-29
@@ -17,13 +17,13 @@
 
 When Anthropic returns `tool_input["action"]` as a JSON string instead of a parsed dict, the original implementation swallowed `JSONDecodeError` and let pydantic fail later with a confusing message that didn't indicate the root cause (malformed JSON string).
 
-This is fixed in `ee897191` by raising `LLMParseError` immediately with the underlying `JSONDecodeError` details.
+This is fixed in `733bda5a` by raising `LLMParseError` immediately with the underlying `JSONDecodeError` details.
 
 ---
 
 ## Original Buggy Code (pre-fix)
 
-**File (pre-fix)**: `src/giant/llm/anthropic_client.py:73-106` (commit `9317d6d4`)
+**File (pre-fix)**: `src/giant/llm/anthropic_client.py:73-106` (commit `e7172a32`)
 
 ```python
 def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse:
@@ -66,7 +66,7 @@ def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse
 
 ## Current Fixed Code
 
-**File (current)**: `src/giant/llm/anthropic_client.py:73-113` (commit `ee897191`)
+**File (current)**: `src/giant/llm/anthropic_client.py:73-113` (commit `733bda5a`)
 
 ```python
 def _parse_tool_use_to_step_response(tool_input: dict[str, Any]) -> StepResponse:
@@ -232,7 +232,7 @@ except json.JSONDecodeError as e:
 
 **File**: `tests/unit/llm/test_anthropic.py`
 
-Regression tests are implemented in the existing `TestParseToolUseToStepResponse` class (added in `ee897191`).
+Regression tests are implemented in the existing `TestParseToolUseToStepResponse` class (added in `733bda5a`).
 
 ```python
     def test_valid_json_string_action(self) -> None:
@@ -282,13 +282,13 @@ Regression tests are implemented in the existing `TestParseToolUseToStepResponse
 
 ```bash
 uv run pytest tests/unit/llm/test_anthropic.py::TestParseToolUseToStepResponse::test_invalid_json_string_action_raises_clear_error -v
-# Expected: PASS (fixed in ee897191)
+# Expected: PASS (fixed in 733bda5a)
 ```
 
 ### 2. (Optional) Reproduce the Original Behavior (pre-fix commit)
 
 ```bash
-git switch --detach 9317d6d4
+git switch --detach e7172a32
 uv run python - <<'PY'
 from giant.llm.anthropic_client import _parse_tool_use_to_step_response
 

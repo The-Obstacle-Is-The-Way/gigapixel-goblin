@@ -3,8 +3,8 @@
 **Status**: FIXED (2025-12-29)
 **Severity**: MEDIUM
 **Component**: `src/giant/llm/openai_client.py`
-**Fixed In**: `ee897191` (refactor: enhance JSON extraction and error handling)
-**Buggy Commit**: `9317d6d4` (pre-fix)
+**Fixed In**: `733bda5a` (fix: BUG-038 B3, B4, B10 - JSON parsing robustness)
+**Buggy Commit**: `e7172a32` (pre-fix on main)
 **Current Lines (fixed)**: 72-117 (`_normalize_openai_response`)
 **Buggy Lines (pre-fix)**: 72-112 (`_normalize_openai_response`)
 **Discovered**: 2025-12-29
@@ -19,13 +19,13 @@ When OpenAI returns an unknown `action_type` (not `"crop"` or `"answer"`), the o
 
 This is correct behavior (the response is invalid), but the resulting pydantic discriminator error is confusing for users debugging LLM outputs. This spec is about raising a clearer `LLMParseError` that explicitly says “unknown action_type”.
 
-This is fixed in `ee897191` by raising `LLMParseError` directly in `_normalize_openai_response()`.
+This is fixed in `733bda5a` by raising `LLMParseError` directly in `_normalize_openai_response()`.
 
 ---
 
 ## Original Code (pre-fix)
 
-**File (pre-fix)**: `src/giant/llm/openai_client.py:72-112` (commit `9317d6d4`)
+**File (pre-fix)**: `src/giant/llm/openai_client.py:72-112` (commit `e7172a32`)
 
 ```python
 def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
@@ -75,7 +75,7 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
 
 ## Current Fixed Code
 
-**File (current)**: `src/giant/llm/openai_client.py:72-117` (commit `ee897191`)
+**File (current)**: `src/giant/llm/openai_client.py:72-117` (commit `733bda5a`)
 
 ```python
 def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
@@ -339,7 +339,7 @@ class TestNormalizeOpenAIResponse:
 
 | File | Lines | Change |
 |------|-------|--------|
-| `src/giant/llm/openai_client.py` | 72-117 | Raise `LLMParseError` for unknown action types (implemented in `ee897191`) |
+| `src/giant/llm/openai_client.py` | 72-117 | Raise `LLMParseError` for unknown action types (implemented in `733bda5a`) |
 
 ---
 
@@ -349,13 +349,13 @@ class TestNormalizeOpenAIResponse:
 
 ```bash
 uv run pytest tests/unit/llm/test_openai.py::TestNormalizeOpenAIResponse::test_unknown_action_type_raises_clear_error -v
-# Expected: PASS (fixed in ee897191)
+# Expected: PASS (fixed in 733bda5a)
 ```
 
 ### 2. (Optional) Reproduce the Original Behavior (pre-fix commit)
 
 ```bash
-git switch --detach 9317d6d4
+git switch --detach e7172a32
 uv run python - <<'PY'
 from giant.llm.openai_client import _normalize_openai_response
 

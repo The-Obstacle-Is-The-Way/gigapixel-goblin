@@ -3,8 +3,8 @@
 **Status**: FIXED (2025-12-29)
 **Severity**: HIGH
 **Component**: `src/giant/eval/answer_extraction.py`
-**Fixed In**: `ee897191` (refactor: enhance JSON extraction and error handling)
-**Buggy Commit**: `9317d6d4` (pre-fix)
+**Fixed In**: `733bda5a` (fix: BUG-038 B3, B4, B10 - JSON parsing robustness)
+**Buggy Commit**: `e7172a32` (pre-fix on main)
 **Current Lines (fixed)**: 151-180
 **Buggy Lines (pre-fix)**: 151-167
 **Discovered**: 2025-12-29
@@ -17,13 +17,13 @@
 
 The original `_extract_json_object()` implementation used naive brace-matching (`find("{")` + `rfind("}")`) to extract JSON from text. This could span multiple JSON objects when the LLM output contained more than one JSON structure, producing invalid JSON that fails to parse.
 
-This is fixed in `ee897191` by using `json.JSONDecoder().raw_decode()` to parse the first complete JSON object.
+This is fixed in `733bda5a` by using `json.JSONDecoder().raw_decode()` to parse the first complete JSON object.
 
 ---
 
 ## Original Buggy Code (pre-fix)
 
-**File (pre-fix)**: `src/giant/eval/answer_extraction.py:151-167` (commit `9317d6d4`)
+**File (pre-fix)**: `src/giant/eval/answer_extraction.py:151-167` (commit `e7172a32`)
 
 ```python
 def _extract_json_object(text: str) -> str:
@@ -49,7 +49,7 @@ def _extract_json_object(text: str) -> str:
 
 ## Current Fixed Code
 
-**File (current)**: `src/giant/eval/answer_extraction.py:151-180` (commit `ee897191`)
+**File (current)**: `src/giant/eval/answer_extraction.py:151-180` (commit `733bda5a`)
 
 ```python
 def _extract_json_object(text: str) -> str:
@@ -301,13 +301,13 @@ class TestExtractJsonObject:
 
 ```bash
 uv run pytest tests/unit/eval/test_answer_extraction.py::TestExtractJsonObject::test_multiple_json_objects_returns_first -v
-# Expected: PASS (fixed in ee897191)
+# Expected: PASS (fixed in 733bda5a)
 ```
 
 ### 2. (Optional) Reproduce the Original Failure (pre-fix commit)
 
 ```bash
-git switch --detach 9317d6d4
+git switch --detach e7172a32
 uv run python - <<'PY'
 import json
 

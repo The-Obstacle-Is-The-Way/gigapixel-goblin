@@ -169,26 +169,20 @@ Our implementation outperforms the paper's thumbnail and patch baselines (9.2% a
 
 | Metric | Our Result | Paper (GPT-5 GIANT) | Paper (GPT-5 GIANT x5) |
 |--------|------------|---------------------|------------------------|
-| **Balanced Accuracy** | **9.4% ± 2.2%** | 23.2% | 25.4% |
-| Bootstrap CI (95%) | 5.3% - 14.0% | - | - |
+| **Balanced Accuracy** | **19.7% ± 1.9%** (rescored; see below) | 23.2% | 25.4% |
+| Bootstrap CI (95%) | 16.3% - 23.8% | - | - |
 | Items Processed | 197/197 | 197 | 197 |
 | Errors | 6 | - | - |
-| Extraction Failures | 47 (24%) | - | - |
+| Extraction Failures | 0 (rescored; 47 in pre-fix artifact) | - | - |
 | Total Cost | $73.38 | - | - |
 
 ### Analysis
 
-Our result of **9.4%** significantly underperforms the paper's single-run GIANT result (**23.2%**). This is the largest gap we've seen across benchmarks.
+The original 2025-12-29 PANDA artifact scored **9.4% ± 2.2%** largely due to BUG-038-B1 (PANDA `"isup_grade": null` not mapping to benign label 0), which created 47 extraction failures and many mis-parsed labels via integer fallback.
 
-**Key Issue: High Extraction Failure Rate**
+Rescoring the saved PANDA predictions with the current fixed extractor (no new LLM calls) yields **19.7% ± 1.9%** balanced accuracy, while still including the 6 hard failures caused by BUG-038-B2 in the saved artifact.
 
-The 47/197 (24%) extraction failures are the primary cause of underperformance. This indicates that the model is producing answers in formats that our answer extraction logic cannot parse for Gleason grading.
-
-**Possible reasons for underperformance:**
-
-1. **Answer Extraction**: PANDA uses Gleason grading (0-5 scale with ISUP grades). Our extraction regex may not handle the variety of formats GPT produces for Gleason scores
-2. **Task Complexity**: Prostate cancer grading requires very fine-grained pattern recognition (Gleason patterns 3, 4, 5)
-3. **High Cost per Item**: $73.38 / 197 = ~$0.37/item - nearly 10x more expensive than GTEx
+Remaining gap vs paper (23.2%) is now much smaller; likely contributors include the 6 hard failures plus model/prompt differences.
 
 ### Comparison to Baselines (from paper)
 
@@ -196,18 +190,15 @@ The 47/197 (24%) extraction failures are the primary cause of underperformance. 
 |--------|-------------------------|
 | Paper: GIANT x5 (GPT-5) | 25.4% |
 | Paper: GIANT x1 (GPT-5) | 23.2% |
-| **Our GIANT (gpt-5.2)** | **9.4%** |
+| **Our GIANT (gpt-5.2)** | **19.7%** (rescored) |
 | Paper: Thumbnail (GPT-5) | 17.9% |
 | Paper: Patch (GPT-5) | 12.6% |
 | Paper: TITAN | 59.9% |
 | Paper: SlideChat | 16.7% |
 
-### Recommended Fix
+### Recommended Next Step
 
-The high extraction failure rate (24%) suggests we need to improve the `answer_extraction.py` logic for PANDA's 6-way Gleason grading format. Specifically:
-- Parse "ISUP Grade Group X" format
-- Parse "Gleason X+Y=Z" format
-- Parse numeric answers (0-5)
+Re-run PANDA with the BUG-038 fixes applied to eliminate the 6 B2 hard failures and to get accurate cost accounting (the saved artifact costs are a lower bound when parsing fails before usage is recorded).
 
 ---
 
@@ -216,15 +207,15 @@ The high extraction failure rate (24%) suggests we need to improve the `answer_e
 ```json
 {
   "metric_type": "balanced_accuracy",
-  "point_estimate": 0.094,
-  "bootstrap_mean": 0.094,
-  "bootstrap_std": 0.022,
-  "bootstrap_ci_lower": 0.053,
-  "bootstrap_ci_upper": 0.140,
+  "point_estimate": 0.198,
+  "bootstrap_mean": 0.197,
+  "bootstrap_std": 0.019,
+  "bootstrap_ci_lower": 0.163,
+  "bootstrap_ci_upper": 0.238,
   "n_replicates": 1000,
   "n_total": 197,
   "n_errors": 6,
-  "n_extraction_failures": 47
+  "n_extraction_failures": 0
 }
 ```
 
@@ -236,7 +227,7 @@ The high extraction failure rate (24%) suggests we need to improve the `answer_e
 |-----------|--------|------------|------------|------------|------|
 | GTEx (Organ, 20-way) | **COMPLETE** ✓ | **67.6%** | 53.7% | 60.7% | $7.21 |
 | TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | **25.2%** | 32.3% | 29.3% | $15.14 |
-| PANDA (Grading, 6-way) | **COMPLETE** ✓ | **9.4%** ⚠️ | 23.2% | 25.4% | $73.38 |
+| PANDA (Grading, 6-way) | **COMPLETE** ✓ | **19.7%** (rescored) | 23.2% | 25.4% | $73.38 |
 | ExpertVQA | Pending | - | 57.0% | 62.5% | - |
 | SlideBenchVQA | Pending | - | 58.9% | 61.3% | - |
 
@@ -261,6 +252,6 @@ uv run giant benchmark gtex --provider openai --model gpt-5.2 -v
 
 ## Notes
 
-1. **Cost Tracking**: Total API cost for 191 items was $7.21 (~$0.038/item)
-2. **Error Rate**: 6/191 items (3.1%) failed due to JSON parsing errors
+1. **Cost Tracking**: Reported costs in the saved artifacts are lower bounds; parse-failed calls raised before usage/cost was accumulated (BUG-038-B2, now fixed for future runs).
+2. **Error Rate**: The saved artifacts include 6 hard failures per benchmark due to BUG-038-B2 (now fixed in code); re-running will be needed to update GTEx/TCGA error-free scores.
 3. **WSI Format**: Used DICOM format from IDC (OpenSlide 4.0.0+ compatible)

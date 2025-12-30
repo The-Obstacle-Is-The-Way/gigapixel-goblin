@@ -3,7 +3,7 @@
 **Status**: COMPLETED - ALL BUGS FIXED (B1, B2, B3, B4, B5, B7, B8, B9, B10, B11, B12)
 **Severity**: MIXED (see table below)
 **Audit Date**: 2025-12-29
-**Fix Date**: 2025-12-29
+**Fix Date**: 2025-12-30
 **Audited By**: 8 parallel swarm agents
 **Cost Impact**: Reported $73.38 spent on PANDA benchmark run (lower bound; see Cost Notes)
 
@@ -49,7 +49,7 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **RETRACTED** | 1 | Not a bug after review |
 
 **Primary Findings (verified against current code + saved run artifacts):**
-- In the pre-fix benchmark artifacts, PANDA reports **9.4% balanced accuracy** largely because `"isup_grade": null` was not mapped to benign label 0; rescoring the existing run with only the B1 fix yields **~19.8% balanced accuracy** (that rescore still includes the 6 B2 hard failures).
+- In the pre-fix benchmark artifacts, PANDA reports **9.4% balanced accuracy** largely because `"isup_grade": null` was not mapped to benign label 0; rescoring the saved predictions with the fixed extractor (no new LLM calls) yields **19.7% ± 1.9% balanced accuracy** (bootstrap mean ± std; point estimate 19.75%) with **0 extraction failures** (that rescore still includes the 6 B2 hard failures).
 - In the pre-fix benchmark artifacts, OpenAI `"Extra data"` parse failures blocked **18/609 items (3.0%)** across all benchmarks and triggered frequent retries; this also **undercounted spend** because parse-failed calls did not accumulate `usage` (fixed by B2).
 
 ---
@@ -99,7 +99,7 @@ def _extract_panda_label(text: str) -> int | None:
   - 47/115 become `predicted_label=None` (extraction failures)
   - 68/115 are mis-parsed via integer fallback (including **32 out-of-range labels** like 1700)
 - As-run PANDA metric: **9.4% ± 2.2% balanced accuracy** (`n_errors=6`, `n_extraction_failures=47`)
-- Rescore-only with B1 fix (no new LLM calls): **~19.8% balanced accuracy**, **~28.4% raw accuracy** (still includes 6 B2 failures)
+- Rescore-only with fixed extractor (no new LLM calls): **19.7% ± 1.9% balanced accuracy** (point estimate 19.75%), **28.4% raw accuracy** (56/197 correct; still includes 6 B2 failures)
 
 **Fix (must distinguish null vs missing key, and avoid integer fallback when JSON is present):**
 ```python
@@ -167,11 +167,11 @@ Python's `json.loads()` fails with "Extra data" error.
 
 **Location (fixed)**: `src/giant/eval/answer_extraction.py:151-180`
 
-**Status**: FIXED (2025-12-29; commit `ee897191`)
+**Status**: FIXED (2025-12-29; commit `733bda5a`)
 
 **Problem**: Uses `find("{")` + `rfind("}")` which can span multiple JSON objects, producing invalid JSON that causes `json.loads()` to fail.
 
-**Pre-fix code (for reference; commit `9317d6d4`)**:
+**Pre-fix code (for reference; commit `e7172a32`)**:
 ```python
 def _extract_json_object(text: str) -> str:
     """Extract the outermost JSON object from text."""
@@ -205,7 +205,7 @@ Expected: Same (works)
 Current: Works (rfind finds the right `}`)
 Expected: Same (works)
 
-**Caller Analysis**: Only called from `_extract_panda_label()` at line 53.
+**Caller Analysis**: Pre-fix, called from `_extract_panda_label()`; current code also uses it in `_has_isup_grade_key()`.
 
 **Fix** (use `json.JSONDecoder().raw_decode()`):
 ```python
@@ -319,11 +319,11 @@ class TestExtractJsonObject:
 
 **Location (fixed)**: `src/giant/llm/anthropic_client.py:73-113`
 
-**Status**: FIXED (2025-12-29; commit `ee897191`)
+**Status**: FIXED (2025-12-29; commit `733bda5a`)
 
 **Problem (pre-fix)**: If Anthropic returns `tool_input["action"]` as a string, invalid JSON was caught and ignored. The subsequent pydantic error was still raised, but the root-cause (“action was a string but not valid JSON”) was not explicit.
 
-**Pre-fix code (for reference; commit `9317d6d4`)**:
+**Pre-fix code (for reference; commit `e7172a32`)**:
 ```python
 except json.JSONDecodeError:
     pass  # Let pydantic handle the validation error
@@ -423,7 +423,7 @@ total_tokens = prompt_tokens + completion_tokens  # TypeError if None
 
 **Location (fixed)**: `src/giant/llm/openai_client.py:72-117`
 
-**Status**: FIXED (2025-12-29; commit `ee897191`)
+**Status**: FIXED (2025-12-29; commit `733bda5a`)
 
 **Problem (pre-fix)**: Unknown `action_type` was rejected by pydantic, but the discriminator error is confusing; raise a clearer `LLMParseError`.
 
@@ -482,9 +482,7 @@ The results files are internally consistent (sum of per-item `cost_usd` equals `
 
 ## TEST COVERAGE GAPS
 
-Remaining test coverage gaps correspond to deferred fixes:
-
-1. **B7**: retry counter reset after successful invalid-region recovery
+No known unit-test coverage gaps remain for the BUG-038 fixes. Each fixed item has either dedicated regression tests or is covered by existing runner tests (see the individual spec docs for exact pytest targets).
 
 ---
 
@@ -525,9 +523,13 @@ Remaining test coverage gaps correspond to deferred fixes:
 - [x] **B7**: Retry counter reset logic fixed and tested ✅ FIXED 2025-12-29
 - [x] **B11**: Comment updated for clarity ✅ FIXED 2025-12-29
 - [x] **B9**: Refactored recursive retry to iterative loop ✅ FIXED 2025-12-30
-- [ ] Re-score PANDA run after B1 fix (no new LLM calls) to verify ~19.8% balanced accuracy
-- [ ] Re-run PANDA benchmark with fix (optional, ~$73)
-- [ ] Update benchmark-results.md with corrected analysis
+- [x] Re-score PANDA run after B1 fix (no new LLM calls) ✅ VERIFIED 19.7% ± 1.9% balanced accuracy (bootstrap mean ± std)
+- [x] Update `docs/results/benchmark-results.md` with corrected PANDA analysis ✅
+
+### Optional Follow-Ups (Cost / Data Required)
+
+- Re-run PANDA benchmark with BUG-038 fixes applied (requires WSIs + live API spend; pre-fix baseline cost ~$73)
+- Re-run GTEx/TCGA benchmarks with BUG-038-B2 fix applied to remove the 6 hard failures per benchmark and to get accurate cost accounting
 
 ---
 

@@ -21,9 +21,9 @@ The PANDA benchmark run artifacts produced on 2025-12-29 were distorted by two i
 - `"isup_grade": null` appears in **115/197** PANDA predictions (58.4%)
   - 47/115 become `predicted_label=None` (extraction failure)
   - 68/115 are mis-parsed via integer fallback, including **32/68 out-of-range labels** (not in 0–5)
-- Rescoring the existing PANDA predictions with only the B1 fix (no new LLM calls) yields:
-  - Balanced accuracy ≈ **19.8%**
-  - Raw accuracy ≈ **28.4%** (56/197 correct; still includes 6 B2 failures)
+- Rescoring the existing PANDA predictions with the fixed extractor (no new LLM calls) yields:
+  - Balanced accuracy: **19.7% ± 1.9%** (bootstrap mean ± std; point estimate 19.75%)
+  - Raw accuracy: **28.4%** (56/197 correct; still includes 6 B2 failures)
 
 ## Root Cause Analysis
 
@@ -122,9 +122,9 @@ Using the saved predictions in `results/panda_giant_openai_gpt-5.2_results.json`
 
 | Metric | As-Run | Rescore w/ B1 Fix |
 |--------|--------|-------------------|
-| Balanced Accuracy (paper-faithful; failures incorrect) | 9.4% | ~19.8% |
-| Raw Accuracy (paper-faithful; failures incorrect) | 10.7% | ~28.4% |
-| Grade 0 Recall | 24.1% (13/54) | ~90.7% (49/54) |
+| Balanced Accuracy (bootstrap mean ± std; failures incorrect) | 9.4% ± 2.2% | 19.7% ± 1.9% |
+| Raw Accuracy (paper-faithful; failures incorrect) | 10.7% | 28.4% |
+| Grade 0 Recall | 24.1% (13/54) | 90.7% (49/54) |
 
 Note: In the saved pre-fix artifacts, this still includes the 6 hard failures caused by B2 (empty prediction / max retries exceeded).
 
