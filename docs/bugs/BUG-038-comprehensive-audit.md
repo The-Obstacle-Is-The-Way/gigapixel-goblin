@@ -1,6 +1,6 @@
 # BUG-038: Comprehensive E2E Bug Audit
 
-**Status**: BUGS FIXED (B1, B2, B3, B4, B10) - Remaining bugs deferred
+**Status**: BUGS FIXED (B1, B2, B3, B4, B5, B8, B10, B12) - Remaining bugs (B7, B9, B11) deferred
 **Severity**: MIXED (see table below)
 **Audit Date**: 2025-12-29
 **Fix Date**: 2025-12-29
@@ -62,14 +62,14 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **B2** | `src/giant/llm/openai_client.py:245` | CRITICAL | **FIXED** | [BUG-038-panda-answer-extraction.md](BUG-038-panda-answer-extraction.md) | Uses `json.JSONDecoder().raw_decode()` (skipping leading whitespace) to ignore trailing text after JSON |
 | **B3** | `src/giant/eval/answer_extraction.py:151-180` | HIGH | **FIXED** | [BUG-038-B3-json-extraction.md](BUG-038-B3-json-extraction.md) | Uses `json.JSONDecoder().raw_decode()` to extract the first complete JSON object (no naive brace matching) |
 | **B4** | `src/giant/llm/anthropic_client.py:73-113` | HIGH | **FIXED** | [BUG-038-B4-anthropic-json-parsing.md](BUG-038-B4-anthropic-json-parsing.md) | Raises clear `LLMParseError` when `tool_input["action"]` is a string containing invalid JSON |
-| **B5** | `src/giant/llm/openai_client.py:275-285`, `src/giant/llm/anthropic_client.py:246-256` | HIGH | DEFENSIVE | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
+| **B5** | `src/giant/llm/openai_client.py:275-285`, `src/giant/llm/anthropic_client.py:246-256` | HIGH | **FIXED** | [BUG-038-B5-token-count-none.md](BUG-038-B5-token-count-none.md) | Guard against `usage.*_tokens is None` to avoid TypeError-driven `LLMError` and improve root-cause clarity |
 | **B6** | `src/giant/agent/context.py:159` | — | RETRACTED | N/A | Step guard is correct and unit-tested; no off-by-one bug found |
 | **B7** | `src/giant/agent/runner.py:385-452` | MEDIUM | CONFIRMED | [BUG-038-B7-retry-counter-logic.md](BUG-038-B7-retry-counter-logic.md) | `_consecutive_errors` is not reset after a successful invalid-region recovery crop; can leak retries into subsequent steps |
-| **B8** | `src/giant/llm/converters.py:260-268` | MEDIUM | CONFIRMED | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
+| **B8** | `src/giant/llm/converters.py:260-268` | MEDIUM | **FIXED** | [BUG-038-B8-empty-base64.md](BUG-038-B8-empty-base64.md) | Empty base64 (`""`) decodes to zero bytes and fails later in `Image.open()` |
 | **B9** | `src/giant/agent/runner.py:444-450` | MEDIUM | IMPROVEMENT | [BUG-038-B9-recursive-retry.md](BUG-038-B9-recursive-retry.md) | Refactor note: recursion in invalid-region recovery is bounded (default `max_retries=3`) but avoidable |
 | **B10** | `src/giant/llm/openai_client.py:72-117` | MEDIUM | **FIXED** | [BUG-038-B10-unknown-action-type.md](BUG-038-B10-unknown-action-type.md) | Raises clear `LLMParseError` on unknown `action_type` (avoids confusing pydantic discriminator errors) |
 | **B11** | `src/giant/agent/context.py:268` | LOW | IMPROVEMENT | [BUG-038-B11-comment-fix.md](BUG-038-B11-comment-fix.md) | Comment clarity on user-message index vs LLM step numbering |
-| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | DEFENSIVE | [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
+| **B12** | `src/giant/llm/protocol.py:129-137` | LOW | **FIXED** | [BUG-038-B12-empty-message-content.md](BUG-038-B12-empty-message-content.md) | Add `min_length=1` for `Message.content` to prevent empty API payloads |
 
 ---
 
