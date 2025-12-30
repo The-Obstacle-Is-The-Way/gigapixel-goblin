@@ -134,7 +134,7 @@ class Message(BaseModel):
     """
 
     role: Literal["system", "user", "assistant"]
-    content: list[MessageContent]
+    content: list[MessageContent] = Field(..., min_length=1)
 
 
 # =============================================================================

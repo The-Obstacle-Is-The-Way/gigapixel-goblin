@@ -218,6 +218,17 @@ class TestMessage:
         assert message.content[0].type == "text"
         assert message.content[1].type == "image"
 
+    def test_empty_content_raises_validation_error(self) -> None:
+        """Empty content list should raise ValidationError (BUG-038-B12)."""
+        with pytest.raises(ValidationError) as exc_info:
+            Message(role="user", content=[])
+
+        # Check error mentions min_length / too_short
+        errors = exc_info.value.errors()
+        assert len(errors) == 1
+        assert errors[0]["loc"] == ("content",)
+        assert "too_short" in errors[0]["type"] or "min_length" in str(errors[0])
+
 
 class TestLLMResponse:
     """Tests for LLMResponse model."""
