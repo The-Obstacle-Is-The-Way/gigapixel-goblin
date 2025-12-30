@@ -4,8 +4,9 @@
 **Severity**: MEDIUM
 **Component**: `src/giant/agent/runner.py`
 **Fixed In**: `72df1b3` (fix: BUG-038-B9 refactor recursive retry to iterative loop)
-**Buggy Commit**: `18ca397` (pre-refactor; recursive retry)
-**Lines (pre-fix)**: 446-456
+**Pre-Refactor Commit**: `18ca397` (recursive retry)
+**Lines (pre-refactor recursion block)**: 438-456
+**Lines (fixed; iterative loop)**: 385-504
 **Discovered**: 2025-12-29
 **Audit**: Comprehensive E2E Bug Audit (8 parallel swarm agents)
 **Parent Ticket**: BUG-038
@@ -50,7 +51,7 @@ return None
 
 ## Problem Analysis
 
-### Current Behavior
+### Pre-Refactor Behavior
 
 1. `_handle_crop()` receives an invalid region
 2. Calls `_handle_invalid_region()` to ask model for correction
@@ -58,7 +59,7 @@ return None
 4. `_handle_invalid_region()` recursively calls `_handle_crop()` with new action
 5. If still invalid, recursion continues
 
-### Why This Works (Currently)
+### Why This Worked (Pre-Refactor)
 
 - **Bounded**: recursion depth is bounded by `max_retries` via `_consecutive_errors`
 - **Functional**: Behavior is correct
@@ -93,6 +94,57 @@ Implemented in `72df1b3` by refactoring `_handle_invalid_region()` to an iterati
 - Builds error feedback, calls the LLM for corrected coordinates, and validates/crops within the loop.
 - Uses `continue` on repeated invalid coordinates / crop failures, and exits on success or max retries.
 - Preserves the existing behavior of *not* accumulating error-feedback messages into the persistent context history.
+
+---
+
+## Current Fixed Code
+
+**File (fixed)**: `src/giant/agent/runner.py:385-504` (commit `72df1b3`)
+
+```python
+current_action = action
+current_error = error_detail
+
+while True:
+    self._consecutive_errors += 1
+
+    if self._consecutive_errors >= self.config.max_retries:
+        return self._build_error_result(
+            f"Max retries ({self.config.max_retries}) on invalid coordinates"
+        )
+
+    feedback = ERROR_FEEDBACK_TEMPLATE.format(
+        x=current_action.x,
+        y=current_action.y,
+        width=current_action.width,
+        height=current_action.height,
+        max_width=self._slide_bounds.width,
+        max_height=self._slide_bounds.height,
+        issues=current_error,
+    )
+
+    error_message = Message(
+        role="user",
+        content=[MessageContent(type="text", text=feedback)],
+    )
+    messages_with_error = [*messages, error_message]
+
+    response = await self.llm_provider.generate_response(messages_with_error)
+    self._accumulate_usage(response)
+
+    new_action = response.step_response.action
+    if isinstance(new_action, FinalAnswerAction):
+        self._consecutive_errors = 0
+        return self._handle_answer(response.step_response)
+
+    if isinstance(new_action, BoundingBoxAction):
+        # Validate + crop; continue loop on failures.
+        ...
+        self._consecutive_errors = 0
+        return None
+
+    return None
+```
 
 ---
 
