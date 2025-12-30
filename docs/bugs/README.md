@@ -46,11 +46,18 @@ See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-ex
 
 ### Comprehensive Swarm Audit (2025-12-30)
 
-**BUG-039**: 8-agent swarm audit followed by senior review (Critical + High triage only).
+**BUG-039**: 8-agent swarm audit followed by senior review.
 
-**Status**: COMPLETED & ARCHIVED — C1–C6 and H1–H12 were triaged; confirmed issues fixed; false positives retracted.
+| Severity | Total | Fixed | Retracted | Backlog |
+|----------|-------|-------|-----------|---------|
+| Critical | 6 | 5 | 1 | 0 |
+| High | 12 | 7 | 5 | 0 |
+| Medium | 22 | 0 | 0 | 22 |
+| Low | 12 | 0 | 0 | 12 |
 
-See [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md).
+**Status**:
+- Critical + High: COMPLETED & ARCHIVED — See [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md)
+- Medium + Low: BACKLOG — See [BUG-039-backlog.md](./BUG-039-backlog.md) (unvalidated leads for future maintenance)
 
 ## Archived (Fixed) Bugs
 
