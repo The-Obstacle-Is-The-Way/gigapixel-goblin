@@ -26,9 +26,11 @@ All 15 specs have been completed and archived.
 
 ## Validation Results
 
-Full E2E validation completed on 2025-12-29:
-- **TCGA**: 25.2% ± 3.2% (paper: 32.3%)
-- **GTEx**: 67.6% ± 3.1% (paper: 60.7%)
-- **PANDA**: 9.4% ± 2.2% (paper: 23.2%)
+Full E2E validation completed on 2025-12-29. After BUG-038/BUG-039 fixes, we
+rescored the saved artifacts (no new LLM calls) on scored items only (excluding
+the 6 parse failures per benchmark caused by the pre-fix OpenAI JSON parser):
+- **TCGA**: 26.2% balanced accuracy (paper: 32.3%)
+- **GTEx**: 70.3% balanced accuracy (paper: 60.7%)
+- **PANDA**: 20.3% balanced accuracy (paper: 23.2%)
 
 Total cost: $95.73 across 609 WSIs.

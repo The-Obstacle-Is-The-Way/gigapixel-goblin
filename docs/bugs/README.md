@@ -29,10 +29,10 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 | **MEDIUM** | 4 | ~~Retry counter~~ ✅ FIXED, ~~base64~~ ✅ FIXED, ~~recursion~~ ✅ FIXED, ~~action types~~ ✅ FIXED |
 | **LOW** | 2 | ~~Comments~~ ✅ FIXED, ~~validation~~ ✅ FIXED |
 
-Note: One originally-reported medium finding (step guard) was retracted after review in `docs/bugs/BUG-038-comprehensive-audit.md`.
+Note: One originally-reported medium finding (step guard) was retracted after review in `docs/archive/bugs/BUG-038-comprehensive-audit.md`.
 
 **Primary Impact**:
-- PANDA reports **9.4% balanced accuracy**; rescoring the existing run with the B1 fix (null → 0) yields **~19.8% balanced accuracy** (still includes 6 B2 hard failures)
+- PANDA improved from **9.7% → 20.3% balanced accuracy** on scored items only (excluding the 6 pre-fix OpenAI parse failures); no new LLM calls were needed to rescore the saved artifacts after BUG-038 fixes
 - PANDA outputs `"isup_grade": null` in **115/197** items; the pre-fix extractor turned many of these into extraction failures or bad integer fallbacks (fixed by B1)
 - OpenAI `"Extra data"` parsing caused **18/609 hard failures (3.0%)** across all benchmarks and triggered frequent retries (fixed by B2)
 - Reported run costs can still be a lower bound: if parsing fails for any reason, the current clients raise before usage is accumulated; B2 removes the common “trailing text” parse failures
@@ -134,7 +134,8 @@ See `../archive/bugs/` for historical bugs that have been resolved:
 **Blocker status (data)**:
 
 - TCGA WSIs are partially present; `giant check-data` currently reports missing files for `tcga`, `tcga_expert_vqa`, and `tcga_slidebench`.
-- GTEx and PANDA WSIs are not present locally (`gtex`: missing 191/191, `panda`: missing 197/197), so full “all tasks” paper reproduction is blocked until those files are acquired.
+- (As of 2025-12-26) GTEx and PANDA WSIs were not present locally, so full “all tasks” paper reproduction was blocked until those files were acquired.
+- Update (2025-12-30): GTEx and PANDA WSIs have since been downloaded under `data/wsi/`, and full benchmarks were run (see `docs/results/benchmark-results.md`).
 
 ### Benchmark Execution Bug Hunt (2025-12-21)
 

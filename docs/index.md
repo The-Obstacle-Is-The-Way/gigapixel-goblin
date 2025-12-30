@@ -60,14 +60,15 @@ giant benchmark gtex --provider openai
 
 ## Benchmark Results
 
-| Benchmark | Task | Our Result | Paper (GIANT x1) |
-|-----------|------|------------|------------------|
-| GTEx | Organ Classification (20-way) | **67.6%** | 53.7% |
-| TCGA | Cancer Diagnosis (30-way) | **25.2%** | 32.3% |
-| PANDA | Prostate Grading (6-way) | Pending | 23.2% |
+| Benchmark | Task | Our Result | Paper (GIANT x1) | Paper (GIANT x5) | Thumbnail Baseline |
+|-----------|------|------------|------------------|------------------|--------------------|
+| GTEx | Organ Classification (20-way) | **70.3%** | 53.7% ± 3.4% | 60.7% ± 3.2% | 36.5% ± 3.4% |
+| TCGA | Cancer Diagnosis (30-way) | **26.2%** | 32.3% ± 3.5% | 29.3% ± 3.3% | 9.2% ± 1.9% |
+| PANDA | Prostate Grading (6-way) | **20.3%** (rescored) | 23.2% ± 2.3% | 25.4% ± 2.0% | 12.2% ± 2.2% |
 
-- **GTEx (67.6%)**: Exceeds the paper's GPT-5 + GIANT x1 (53.7%) and x5 (60.7%) results.
-- **TCGA (25.2%)**: Below the paper's GIANT x1 (32.3%), but above paper thumbnail (9.2%) and patch (12.8%) baselines.
+- **GTEx (70.3%)**: Exceeds the paper's GPT-5 + GIANT x1 (53.7%) and x5 (60.7%) results.
+- **TCGA (26.2%)**: Below the paper's GIANT x1 (32.3%), but above paper thumbnail (9.2%) and patch (12.8%) baselines.
+- **PANDA (20.3%)**: Improved via extraction + parsing fixes; rescored from saved artifacts without new LLM calls.
 
 ## Supported Models
 
