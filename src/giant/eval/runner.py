@@ -948,13 +948,16 @@ class BenchmarkRunner:
         if len(predictions) == 1:
             return predictions[0], labels[0]
 
-        if any(label is not None for label in labels):
-            counts: Counter[int | None] = Counter(labels)
+        # Filter out None labels before voting to prevent unparsed results from
+        # affecting the vote. Only successfully parsed labels participate.
+        valid_labels = [label for label in labels if label is not None]
+        if valid_labels:
+            counts: Counter[int] = Counter(valid_labels)
             max_count = max(counts.values())
             winners = {label for label, count in counts.items() if count == max_count}
 
-            # Deterministic tie-break: first seen in input order.
-            winning_label = next(label for label in labels if label in winners)
+            # Deterministic tie-break: first seen in input order (among valid labels).
+            winning_label: int = next(label for label in labels if label in winners)
 
             winning_prediction = next(
                 pred

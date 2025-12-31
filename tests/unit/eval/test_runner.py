@@ -256,6 +256,35 @@ class TestMajorityVote:
         assert label is None
         assert pred == "bar"
 
+    def test_none_labels_excluded_from_voting(self, runner: BenchmarkRunner) -> None:
+        """Verify that None labels don't participate in voting.
+
+        This is a regression test for P2-9: when some runs fail to parse labels
+        (returning None), those None values should not affect the vote count.
+        Previously, None could tie with valid labels and win due to first-seen
+        tie-breaking.
+        """
+        # Scenario: 2 None labels, 2 valid labels with value 1
+        # Before fix: None and 1 tie, None wins because it appears first
+        # After fix: Only valid labels counted, 1 wins
+        pred, label = runner._select_majority_prediction(
+            predictions=["failed", "answer_1", "failed2", "answer_1b"],
+            labels=[None, 1, None, 1],
+        )
+        assert label == 1
+        assert pred in {"answer_1", "answer_1b"}
+
+    def test_single_valid_label_wins_over_many_nones(
+        self, runner: BenchmarkRunner
+    ) -> None:
+        """Even one valid label should win over any number of Nones."""
+        pred, label = runner._select_majority_prediction(
+            predictions=["failed", "failed", "failed", "success"],
+            labels=[None, None, None, 5],
+        )
+        assert label == 5
+        assert pred == "success"
+
 
 class TestComputeMetrics:
     def test_errors_count_as_incorrect(self, runner: BenchmarkRunner) -> None:

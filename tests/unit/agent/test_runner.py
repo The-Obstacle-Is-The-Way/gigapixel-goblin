@@ -19,6 +19,7 @@ from giant.agent.runner import (
     GIANTAgent,
     RunResult,
 )
+from giant.core.crop_engine import CropEngine
 from giant.llm.protocol import (
     BoundingBoxAction,
     ConchAction,
@@ -28,6 +29,7 @@ from giant.llm.protocol import (
     StepResponse,
     TokenUsage,
 )
+from giant.wsi.reader import WSIReader
 
 # =============================================================================
 # Fixtures
@@ -37,7 +39,7 @@ from giant.llm.protocol import (
 @pytest.fixture
 def mock_wsi_reader() -> MagicMock:
     """Create a mock WSI reader."""
-    reader = MagicMock()
+    reader = MagicMock(spec=WSIReader)
     reader.__enter__ = MagicMock(return_value=reader)
     reader.__exit__ = MagicMock(return_value=None)
 
@@ -57,7 +59,7 @@ def mock_wsi_reader() -> MagicMock:
 @pytest.fixture
 def mock_crop_engine() -> MagicMock:
     """Create a mock crop engine."""
-    engine = MagicMock()
+    engine = MagicMock(spec=CropEngine)
     engine.crop.return_value = MagicMock(
         base64_content="cropped_image_base64",
         read_level=2,

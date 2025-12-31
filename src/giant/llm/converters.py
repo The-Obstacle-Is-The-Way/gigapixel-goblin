@@ -110,8 +110,12 @@ def messages_to_openai_input(messages: list[Message]) -> list[dict[str, Any]]:
     return result
 
 
-def get_system_prompt_for_openai(messages: list[Message]) -> str | None:
-    """Extract system prompt from messages for OpenAI.
+def extract_system_prompt(messages: list[Message]) -> str | None:
+    """Extract system prompt from messages.
+
+    This is the canonical implementation for extracting system prompts.
+    Both OpenAI and Anthropic use the same format for system messages in
+    the internal Message protocol, so extraction logic is shared.
 
     Args:
         messages: List of generic messages.
@@ -127,6 +131,18 @@ def get_system_prompt_for_openai(messages: list[Message]) -> str | None:
                     system_parts.append(content.text)
 
     return "\n".join(system_parts) if system_parts else None
+
+
+def get_system_prompt_for_openai(messages: list[Message]) -> str | None:
+    """Extract system prompt from messages for OpenAI.
+
+    Args:
+        messages: List of generic messages.
+
+    Returns:
+        Combined system prompt text, or None if no system messages.
+    """
+    return extract_system_prompt(messages)
 
 
 def message_content_to_anthropic(content: MessageContent) -> dict[str, Any]:
@@ -215,14 +231,7 @@ def get_system_prompt_for_anthropic(messages: list[Message]) -> str | None:
     Returns:
         Combined system prompt text, or None if no system messages.
     """
-    system_parts: list[str] = []
-    for message in messages:
-        if message.role == "system":
-            for content in message.content:
-                if content.type == "text" and content.text:
-                    system_parts.append(content.text)
-
-    return "\n".join(system_parts) if system_parts else None
+    return extract_system_prompt(messages)
 
 
 def count_images_in_messages(messages: list[Message]) -> int:

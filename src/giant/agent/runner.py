@@ -675,7 +675,8 @@ class GIANTAgent:
             RunResult with the answer.
         """
         action = step_response.action
-        assert isinstance(action, FinalAnswerAction)
+        if not isinstance(action, FinalAnswerAction):
+            raise TypeError(f"Expected FinalAnswerAction, got {type(action).__name__}")
 
         # Record the answer turn with the current observation image
         observation_image = self._thumbnail_base64
@@ -848,16 +849,20 @@ class GIANTAgent:
         # Encode to base64 JPEG
         return self._encode_image_base64(navigable)
 
-    def _encode_image_base64(self, image: Image.Image, quality: int = 85) -> str:
+    def _encode_image_base64(
+        self, image: Image.Image, quality: int | None = None
+    ) -> str:
         """Encode a PIL Image to base64 JPEG.
 
         Args:
             image: PIL Image to encode.
-            quality: JPEG quality (1-100).
+            quality: JPEG quality (1-100). Defaults to settings.JPEG_QUALITY.
 
         Returns:
             Base64-encoded string.
         """
+        if quality is None:
+            quality = settings.JPEG_QUALITY
         buffer = BytesIO()
         image.save(buffer, format="JPEG", quality=quality)
         buffer.seek(0)

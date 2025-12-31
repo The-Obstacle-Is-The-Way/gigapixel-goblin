@@ -45,6 +45,11 @@ class OverlayStyle:
     num_guides: int = 4
     strict_font_check: bool = False
 
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        if self.num_guides < 1:
+            raise ValueError(f"num_guides must be at least 1, got {self.num_guides}")
+
 
 class AxisGuideGenerator:
     """Generates axis guide overlays for WSI thumbnails.

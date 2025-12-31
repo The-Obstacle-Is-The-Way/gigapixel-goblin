@@ -17,10 +17,7 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 from aiolimiter import AsyncLimiter
 from anthropic import APIConnectionError, AsyncAnthropic, RateLimitError
