@@ -3,7 +3,7 @@
 **Date:** 2025-12-31
 **Auditor:** Claude Code
 **Scope:** Full codebase review for anti-patterns, SOLID violations, DRY violations, potential bugs, and bad practices
-**Validation Status:** ✅ Double-checked for false positives
+**Validation Status:** ✅ Triple-checked with adversarial validation (second pass 2025-12-31)
 
 ---
 
@@ -13,10 +13,10 @@ The GIANT codebase is **well-structured with correct benchmark logic**. Your res
 
 This audit found mostly **code quality issues**, not correctness bugs. The original P0 issues were reclassified after validation:
 
-**Revised Issue Counts:**
+**Revised Issue Counts (After Adversarial Validation):**
 - **P0 (Critical):** 0 (original 2 were false positives)
 - **P1 (High):** 2 (code quality, not correctness)
-- **P2 (Medium):** 8
+- **P2 (Medium):** 9 (added 1 new bug found in adversarial pass)
 - **P3 (Low):** 15
 - **P4 (Cosmetic):** 6
 
@@ -162,6 +162,36 @@ If `num_guides=0`, no guides are drawn (unexpected but not a crash).
 Some places use `strict=True`, others don't. Inconsistent strictness can hide bugs.
 
 **Fix:** Use `strict=True` consistently where appropriate.
+
+---
+
+### P2-9: Voting Logic Bug - None Participates in Label Voting ✅ NEW (Adversarial Pass)
+
+**File:** `src/giant/eval/runner.py:951-964`
+
+**Bug:** When `runs_per_item > 1` and some runs fail to parse labels (returning `None`), the `_select_majority_prediction` method includes `None` in the vote count. If `None` ties with a valid label, it can WIN due to first-occurrence tie-breaking.
+
+```python
+# Example: labels = [None, 1, None, 1]
+counts = Counter(labels)  # {None: 2, 1: 2}
+winners = {None, 1}  # Both tied!
+winning_label = next(label for label in labels if label in winners)  # Returns None!
+```
+
+**Impact:** In edge cases where extraction fails for half the runs, the benchmark could return a prediction that was never successfully parsed, instead of selecting from successfully parsed predictions.
+
+**Conditions for bug to manifest:**
+1. `runs_per_item > 1` (default is 1, so won't affect single-run benchmarks)
+2. Exactly half of runs fail label extraction
+3. Tie-break selects None as winner
+
+**Fix:** Filter out `None` before counting votes:
+```python
+non_none_labels = [l for l in labels if l is not None]
+counts = Counter(non_none_labels)
+```
+
+**Test gap:** `tests/unit/eval/test_runner.py` has `test_votes_on_labels_when_available` but doesn't test the tie-with-None edge case.
 
 ---
 
@@ -321,6 +351,7 @@ Long import lists in `__init__.py` could use grouping.
 
 ## Validation Summary
 
+### First Pass Validation
 | Original Issue | Verdict | Reason |
 |----------------|---------|--------|
 | P0-1: Image pixel exception | ❌ False Positive | Exceptions properly caught and wrapped |
@@ -333,17 +364,26 @@ Long import lists in `__init__.py` could use grouping.
 | P1-6: Type coercion | ⬇️ Demoted to P3 | Defensive code |
 | P1-7: Budget validation | ⬇️ Demoted to P3 | Unlikely scenario |
 
+### Adversarial Pass (Second Validation)
+| Issue | Status | Notes |
+|-------|--------|-------|
+| Sampler division by zero | ❌ False Positive | Earlier "no tissue" check catches zero-dimension masks |
+| **P2-9: Voting logic bug** | ✅ NEW | None participates in label voting, can win ties |
+| All P2 issues (P2-1 to P2-8) | ✅ Confirmed | Re-verified with fresh examination |
+| All P3 issues | ✅ Confirmed | Re-verified with fresh examination |
+
 ---
 
 ## Key Findings
 
 ### Your Benchmark Results Are Valid ✅
 
-The core paths that affect correctness are sound:
+The core paths that affect correctness are sound for **single-run benchmarks** (default `runs_per_item=1`):
 - **Answer extraction** (`answer_extraction.py`): Well-tested with edge cases
 - **Metrics computation** (`metrics.py`): Correct balanced accuracy and bootstrap
 - **Label handling**: Sentinel -1 never collides with valid labels (0-5 or 1-based)
-- **Majority voting**: Correctly handles None as a vote (defensible design)
+
+**Caveat for multi-run benchmarks:** P2-9 voting bug could affect results if `runs_per_item > 1` AND exactly half of runs fail extraction AND tie-breaking selects None. This is an edge case but worth fixing.
 
 ### What This Audit Found
 
@@ -355,9 +395,10 @@ Mostly **maintainability issues**, not bugs:
 
 ### Recommended Actions
 
-1. **Quick wins:** Remove duplicate `get_system_prompt_*` functions
-2. **Medium effort:** Add `spec` to test mocks, standardize logging
-3. **Larger refactor:** Split `BenchmarkRunner` into smaller classes
+1. **Fix P2-9 (quick):** Filter None from labels before voting in `_select_majority_prediction`
+2. **Quick wins:** Remove duplicate `get_system_prompt_*` functions (P1-1)
+3. **Medium effort:** Add `spec` to test mocks, standardize logging
+4. **Larger refactor:** Split `BenchmarkRunner` into smaller classes (P1-2)
 
 ---
 
@@ -365,6 +406,7 @@ Mostly **maintainability issues**, not bugs:
 
 The existing tests are comprehensive. Additional coverage could include:
 
-1. **Property-based tests** for coordinate validation
-2. **Concurrent tests** for circuit breaker under load
-3. **Mutation testing** to verify test quality
+1. **P2-9 edge case test:** Add test for `labels=[None, 1, None, 1]` tie scenario
+2. **Property-based tests** for coordinate validation
+3. **Concurrent tests** for circuit breaker under load
+4. **Mutation testing** to verify test quality
