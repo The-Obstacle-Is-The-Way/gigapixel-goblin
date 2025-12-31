@@ -2,7 +2,7 @@
 
 ## Severity: P2 (Multiple Potential Issues)
 
-## Status: Investigation Complete - Awaiting Senior Review
+## Status: Closed (triage complete; GitHub issue #35 closed)
 
 ## Summary
 

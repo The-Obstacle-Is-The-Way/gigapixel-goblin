@@ -49,7 +49,7 @@ Comprehensive codebase audit produced **12 findings** across 8 audit domains:
 | **RETRACTED** | 1 | Not a bug after review |
 
 **Primary Findings (verified against current code + saved run artifacts):**
-- In the pre-fix benchmark artifacts, PANDA reports **9.4% balanced accuracy** largely because `"isup_grade": null` was not mapped to benign label 0; rescoring the saved predictions with the fixed extractor (no new LLM calls) yields **19.7% ± 1.9% balanced accuracy** (bootstrap mean ± std; point estimate 19.75%) with **0 extraction failures** (that rescore still includes the 6 B2 hard failures).
+- In the pre-fix benchmark artifacts, PANDA scored **9.7%** balanced accuracy on scored items only (excluding the 6 OpenAI parse failures) largely because `"isup_grade": null` was not mapped to benign label 0; rescoring the saved predictions with the fixed extractor (no new LLM calls) yields **20.3%** balanced accuracy on scored items only with **0 extraction failures**. (For paper-faithful scoring where failures count incorrect: 9.4% ± 2.2% → 19.7% ± 1.9%.)
 - In the pre-fix benchmark artifacts, OpenAI `"Extra data"` parse failures blocked **18/609 items (3.0%)** across all benchmarks and triggered frequent retries; this also **undercounted spend** because parse-failed calls did not accumulate `usage` (fixed by B2).
 
 ---
@@ -94,12 +94,12 @@ def _extract_panda_label(text: str) -> int | None:
         return None  # Returns failure instead of 0
 ```
 
-**Impact (from `results/panda_giant_openai_gpt-5.2_results.json`)**:
+**Impact (from saved run artifacts, notably `results/checkpoints/panda_giant_openai_gpt-5.2.checkpoint.json`)**:
 - `"isup_grade": null` appears in **115/197** PANDA predictions (58.4%)
   - 47/115 become `predicted_label=None` (extraction failures)
   - 68/115 are mis-parsed via integer fallback (including **32 out-of-range labels** like 1700)
-- As-run PANDA metric: **9.4% ± 2.2% balanced accuracy** (`n_errors=6`, `n_extraction_failures=47`)
-- Rescore-only with fixed extractor (no new LLM calls): **19.7% ± 1.9% balanced accuracy** (point estimate 19.75%), **28.4% raw accuracy** (56/197 correct; still includes 6 B2 failures)
+- As-run PANDA metric: **9.7% balanced accuracy** on scored items only (and **9.4% ± 2.2%** paper-faithful with failures incorrect)
+- Rescore-only with fixed extractor (no new LLM calls): **20.3% balanced accuracy** on scored items only (and **19.7% ± 1.9%** paper-faithful), **28.4% raw accuracy** (56/197 correct; paper-faithful, failures incorrect)
 
 **Fix (must distinguish null vs missing key, and avoid integer fallback when JSON is present):**
 ```python
@@ -523,7 +523,7 @@ No known unit-test coverage gaps remain for the BUG-038 fixes. Each fixed item h
 - [x] **B7**: Retry counter reset logic fixed and tested ✅ FIXED 2025-12-29
 - [x] **B11**: Comment updated for clarity ✅ FIXED 2025-12-29
 - [x] **B9**: Refactored recursive retry to iterative loop ✅ FIXED 2025-12-30
-- [x] Re-score PANDA run after B1 fix (no new LLM calls) ✅ VERIFIED 19.7% ± 1.9% balanced accuracy (bootstrap mean ± std)
+- [x] Re-score PANDA run after B1 fix (no new LLM calls) ✅ VERIFIED 20.3% balanced accuracy on scored items only (point estimate; errors excluded); 19.7% ± 1.9% paper-faithful (bootstrap mean ± std)
 - [x] Update `docs/results/benchmark-results.md` with corrected PANDA analysis ✅
 
 ### Optional Follow-Ups (Cost / Data Required)

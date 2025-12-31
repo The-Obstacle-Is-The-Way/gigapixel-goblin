@@ -229,11 +229,11 @@ giant check-data gtex -v
 
 | Benchmark | Our Result | Paper (GIANT x1) | Paper (GIANT x5) |
 |-----------|------------|------------------|------------------|
-| GTEx | **67.6%** | 53.7% | 60.7% |
-| TCGA | **25.2%** | 32.3% | 29.3% |
-| PANDA | TBD | 23.2% | 25.4% |
-| Expert VQA | TBD | 57.0% | 62.5% |
-| SlideBench | TBD | 58.9% | 59.4% |
+| GTEx | **70.3%** | 53.7% ± 3.4% | 60.7% ± 3.2% |
+| TCGA | **26.2%** | 32.3% ± 3.5% | 29.3% ± 3.3% |
+| PANDA | **20.3%** (rescored) | 23.2% ± 2.3% | 25.4% ± 2.0% |
+| Expert VQA | TBD | 57.0% ± 4.5% | 62.5% ± 4.4% |
+| SlideBench | TBD | 58.9% ± 3.5% | 59.4% ± 3.4% |
 
 See [Benchmark Results](../results/benchmark-results.md) for detailed analysis.
 

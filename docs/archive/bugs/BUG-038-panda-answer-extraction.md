@@ -16,14 +16,16 @@ The PANDA benchmark run artifacts produced on 2025-12-29 were distorted by two i
 1) **B1 (answer extraction; fixed)**: PANDA JSON outputs frequently contain `"isup_grade": null` to represent benign/no cancer (label 0). The pre-fix extractor treated `null` as a failure and then fell back to naive integer extraction, which often grabbed **coordinate numbers** and produced **out-of-range labels**.
 2) **B2 (OpenAI structured output parsing; fixed)**: The pre-fix `OpenAIProvider` used `json.loads(output_text)` and failed with `Extra data` when the model appended trailing text after a valid JSON object. This caused retries (wasted spend) and **6/197 hard failures** in the saved PANDA artifacts.
 
-**Measured on current artifacts** (`results/panda_giant_openai_gpt-5.2_results.json`, `results/panda_benchmark.log`):
-- As-run PANDA metric (balanced accuracy): **9.4% ± 2.2%** (`n_errors=6`, `n_extraction_failures=47`)
+**Measured on saved pre-fix artifacts** (notably `results/checkpoints/panda_giant_openai_gpt-5.2.checkpoint.json`, `results/panda_benchmark.log`):
+- As-run PANDA metric (balanced accuracy; paper-faithful, failures incorrect): **9.4% ± 2.2%** (`n_errors=6`, `n_extraction_failures=47`)
+- As-run balanced accuracy (scored items only; errors excluded): **9.7%** (point estimate; `n_scored=191`)
 - `"isup_grade": null` appears in **115/197** PANDA predictions (58.4%)
   - 47/115 become `predicted_label=None` (extraction failure)
   - 68/115 are mis-parsed via integer fallback, including **32/68 out-of-range labels** (not in 0–5)
 - Rescoring the existing PANDA predictions with the fixed extractor (no new LLM calls) yields:
-  - Balanced accuracy: **19.7% ± 1.9%** (bootstrap mean ± std; point estimate 19.75%)
-  - Raw accuracy: **28.4%** (56/197 correct; still includes 6 B2 failures)
+  - Balanced accuracy (scored items only; errors excluded): **20.3%** (point estimate; `n_scored=191`)
+  - Balanced accuracy (paper-faithful, failures incorrect): **19.7% ± 1.9%** (bootstrap mean ± std; point estimate 19.75%)
+  - Raw accuracy (paper-faithful; failures incorrect): **28.4%** (56/197 correct; includes the 6 B2 failures)
 
 ## Root Cause Analysis
 
@@ -123,6 +125,7 @@ Using the saved predictions in `results/panda_giant_openai_gpt-5.2_results.json`
 | Metric | As-Run | Rescore w/ B1 Fix |
 |--------|--------|-------------------|
 | Balanced Accuracy (bootstrap mean ± std; failures incorrect) | 9.4% ± 2.2% | 19.7% ± 1.9% |
+| Balanced Accuracy (scored items only; errors excluded) | 9.7% | 20.3% |
 | Raw Accuracy (paper-faithful; failures incorrect) | 10.7% | 28.4% |
 | Grade 0 Recall | 24.1% (13/54) | 90.7% (49/54) |
 
@@ -149,7 +152,7 @@ import json
 import re
 from collections import Counter
 
-path = "results/panda_giant_openai_gpt-5.2_results.json"
+path = "results/checkpoints/panda_giant_openai_gpt-5.2.checkpoint.json"
 data = json.load(open(path))
 results = data["results"]
 

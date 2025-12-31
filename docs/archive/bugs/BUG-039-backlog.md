@@ -2,7 +2,7 @@
 
 **Status**: VALIDATED (all leads have verdicts)
 **Source**: 8-agent swarm audit (2025-12-30)
-**Parent**: [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md)
+**Parent**: [BUG-039-comprehensive-swarm-audit.md](./BUG-039-comprehensive-swarm-audit.md)
 
 ## Context
 

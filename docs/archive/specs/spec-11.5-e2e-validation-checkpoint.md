@@ -314,7 +314,17 @@ Before running this checkpoint, you MUST have:
   **Notes:**
   - GTEx exceeded paper baseline by 6.9 percentage points
   - TCGA within expected range
-  - PANDA underperformed - 47/197 extraction failures (24%) suggest answer format issues, not model capability
+  - PANDA underperformed in the original artifacts due to answer-extraction + parsing bugs (later fixed in BUG-038/BUG-039)
+
+  **Update (2025-12-30):** After BUG-038/BUG-039 fixes, rescoring the saved
+  artifacts on scored items only (excluding the 6 OpenAI parse failures per
+  benchmark in the pre-fix artifacts) yields:
+  - TCGA: **26.2%** balanced accuracy
+  - GTEx: **70.3%** balanced accuracy
+  - PANDA: **20.3%** balanced accuracy (with 0 extraction failures after the
+    PANDA extractor fix)
+
+  See `docs/results/benchmark-results.md` for details.
 
 ## Validation Report Template
 

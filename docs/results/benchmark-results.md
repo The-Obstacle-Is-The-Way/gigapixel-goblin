@@ -11,15 +11,18 @@ This document tracks our MultiPathQA benchmark results and compares them to the 
 
 | Metric | Our Result | Paper (GPT-5 GIANT) | Paper (GPT-5 GIANT x5) |
 |--------|------------|---------------------|------------------------|
-| **Balanced Accuracy** | **67.6% ± 3.1%** | 53.7% | 60.7% |
-| Bootstrap CI (95%) | 61.4% - 73.5% | - | - |
+| **Balanced Accuracy (scored items only)** | **70.3%** (bootstrap: 70.4% ± 3.0%) | 53.7% ± 3.4% | 60.7% ± 3.2% |
+| Bootstrap CI (95%) | 64.3% - 76.1% | - | - |
 | Items Processed | 191/191 | 191 | 191 |
-| Errors | 6 | - | - |
+| Scored Items | 185/191 | 191 | 191 |
+| Parse Errors (excluded) | 6 | - | - |
 | Total Cost | $7.21 | - | - |
 
 ### Analysis
 
-Our single-run result of **67.6%** exceeds the paper's single-run GIANT result (**53.7%**) and the paper's 5-run majority vote (**60.7%**). This is a strong validation that our implementation is working correctly.
+Our scored-items-only point estimate of **70.3%** exceeds the paper's single-run GIANT result (**53.7%**) and the paper's 5-run majority vote (**60.7%**). This is a strong validation that our implementation is working correctly.
+
+Note: The saved artifacts include 6 OpenAI parse failures (BUG-038-B2) where the prediction text was not saved; scoring those failures as incorrect yields the original **67.6% ± 3.1%** paper-faithful result.
 
 **Possible reasons for improvement over paper:**
 - We used `gpt-5.2` (latest) vs paper's `gpt-5` baseline
@@ -29,13 +32,13 @@ Our single-run result of **67.6%** exceeds the paper's single-run GIANT result (
 
 | Method | GTEx Balanced Accuracy |
 |--------|------------------------|
-| **Our GIANT (gpt-5.2)** | **67.6%** |
-| Paper: GIANT x5 (GPT-5) | 60.7% |
-| Paper: GIANT x1 (GPT-5) | 53.7% |
-| Paper: Thumbnail (GPT-5) | 36.5% |
-| Paper: Patch (GPT-5) | 43.7% |
-| Paper: TITAN | 96.3% |
-| Paper: SlideChat | 5.0% |
+| **Our GIANT (gpt-5.2)** | **70.3%** (rescored) |
+| Paper: GIANT x5 (GPT-5) | 60.7% ± 3.2% |
+| Paper: GIANT x1 (GPT-5) | 53.7% ± 3.4% |
+| Paper: Thumbnail (GPT-5) | 36.5% ± 3.4% |
+| Paper: Patch (GPT-5) | 43.7% ± 2.4% |
+| Paper: TITAN (zero-shot) | 96.3% ± 1.3% |
+| Paper: SlideChat (zero-shot) | 5.0% ± 0.0% |
 
 Our implementation significantly outperforms the paper's thumbnail and patch baselines, but remains below specialized models like TITAN.
 
@@ -80,14 +83,15 @@ Each trajectory contains:
 ```json
 {
   "metric_type": "balanced_accuracy",
-  "point_estimate": 0.676,
-  "bootstrap_mean": 0.676,
-  "bootstrap_std": 0.031,
-  "bootstrap_ci_lower": 0.614,
-  "bootstrap_ci_upper": 0.735,
+  "point_estimate": 0.703,
+  "bootstrap_mean": 0.704,
+  "bootstrap_std": 0.030,
+  "bootstrap_ci_lower": 0.643,
+  "bootstrap_ci_upper": 0.761,
   "n_replicates": 1000,
+  "n_scored": 185,
   "n_total": 191,
-  "n_errors": 6,
+  "n_errors_excluded": 6,
   "n_extraction_failures": 0
 }
 ```
@@ -103,15 +107,16 @@ Each trajectory contains:
 
 | Metric | Our Result | Paper (GPT-5 GIANT) | Paper (GPT-5 GIANT x5) |
 |--------|------------|---------------------|------------------------|
-| **Balanced Accuracy** | **25.2% ± 3.2%** | 32.3% | 29.3% |
-| Bootstrap CI (95%) | 18.7% - 31.2% | - | - |
+| **Balanced Accuracy (scored items only)** | **26.2%** (bootstrap: 25.3% ± 3.1%) | 32.3% ± 3.5% | 29.3% ± 3.3% |
+| Bootstrap CI (95%) | 19.2% - 31.1% | - | - |
 | Items Processed | 221/221 | 221 | 221 |
-| Errors | 6 | - | - |
+| Scored Items | 215/221 | 221 | 221 |
+| Parse Errors (excluded) | 6 | - | - |
 | Total Cost | $15.14 | - | - |
 
 ### Analysis
 
-Our single-run result of **25.2%** is below the paper's single-run GIANT result (**32.3%**). This 30-way cancer classification task is significantly harder than GTEx's 20-way organ classification.
+Our scored-items-only point estimate of **26.2%** is below the paper's single-run GIANT result (**32.3%**). This 30-way cancer classification task is significantly harder than GTEx's 20-way organ classification.
 
 **Possible reasons for underperformance:**
 
@@ -123,13 +128,13 @@ Our single-run result of **25.2%** is below the paper's single-run GIANT result 
 
 | Method | TCGA Balanced Accuracy |
 |--------|------------------------|
-| Paper: GIANT x5 (GPT-5) | 29.3% |
-| Paper: GIANT x1 (GPT-5) | 32.3% |
-| **Our GIANT (gpt-5.2)** | **25.2%** |
-| Paper: Thumbnail (GPT-5) | 9.2% |
-| Paper: Patch (GPT-5) | 12.8% |
-| Paper: TITAN | 88.8% |
-| Paper: SlideChat | 3.3% |
+| Paper: GIANT x5 (GPT-5) | 29.3% ± 3.3% |
+| Paper: GIANT x1 (GPT-5) | 32.3% ± 3.5% |
+| **Our GIANT (gpt-5.2)** | **26.2%** (rescored) |
+| Paper: Thumbnail (GPT-5) | 9.2% ± 1.9% |
+| Paper: Patch (GPT-5) | 12.8% ± 2.1% |
+| Paper: TITAN (zero-shot) | 88.8% ± 1.7% |
+| Paper: SlideChat (zero-shot) | 3.3% ± 1.2% |
 
 Our implementation outperforms the paper's thumbnail and patch baselines (9.2% and 12.8%), indicating the agent navigation is providing value, but there's room for improvement.
 
@@ -146,14 +151,15 @@ Our implementation outperforms the paper's thumbnail and patch baselines (9.2% a
 ```json
 {
   "metric_type": "balanced_accuracy",
-  "point_estimate": 0.260,
-  "bootstrap_mean": 0.252,
-  "bootstrap_std": 0.032,
-  "bootstrap_ci_lower": 0.187,
-  "bootstrap_ci_upper": 0.312,
+  "point_estimate": 0.262,
+  "bootstrap_mean": 0.253,
+  "bootstrap_std": 0.031,
+  "bootstrap_ci_lower": 0.192,
+  "bootstrap_ci_upper": 0.311,
   "n_replicates": 1000,
+  "n_scored": 215,
   "n_total": 221,
-  "n_errors": 6,
+  "n_errors_excluded": 6,
   "n_extraction_failures": 0
 }
 ```
@@ -169,18 +175,19 @@ Our implementation outperforms the paper's thumbnail and patch baselines (9.2% a
 
 | Metric | Our Result | Paper (GPT-5 GIANT) | Paper (GPT-5 GIANT x5) |
 |--------|------------|---------------------|------------------------|
-| **Balanced Accuracy** | **19.7% ± 1.9%** (rescored; see below) | 23.2% | 25.4% |
-| Bootstrap CI (95%) | 16.3% - 23.8% | - | - |
+| **Balanced Accuracy (rescored; scored items only)** | **20.3%** (bootstrap: 20.4% ± 1.9%) | 23.2% ± 2.3% | 25.4% ± 2.0% |
+| Bootstrap CI (95%) | 16.9% - 24.2% | - | - |
 | Items Processed | 197/197 | 197 | 197 |
-| Errors | 6 | - | - |
+| Scored Items | 191/197 | 197 | 197 |
+| Parse Errors (excluded) | 6 | - | - |
 | Extraction Failures | 0 (rescored; 47 in pre-fix artifact) | - | - |
 | Total Cost | $73.38 | - | - |
 
 ### Analysis
 
-The original 2025-12-29 PANDA artifact scored **9.4% ± 2.2%** largely due to BUG-038-B1 (PANDA `"isup_grade": null` not mapping to benign label 0), which created 47 extraction failures and many mis-parsed labels via integer fallback.
+The original 2025-12-29 PANDA artifact scored **9.7%** on scored items only (and **9.4% ± 2.2%** paper-faithful, with errors counted incorrect), largely due to BUG-038-B1 (PANDA `"isup_grade": null` not mapping to benign label 0), which created 47 extraction failures and many mis-parsed labels via integer fallback.
 
-Rescoring the saved PANDA predictions with the current fixed extractor (no new LLM calls) yields **19.7% ± 1.9%** balanced accuracy, while still including the 6 hard failures caused by BUG-038-B2 in the saved artifact.
+Rescoring the saved PANDA predictions with the current fixed extractor (no new LLM calls) yields **20.3%** balanced accuracy on scored items only (excluding the 6 hard failures caused by BUG-038-B2 in the saved artifact). The equivalent paper-faithful score (counting those failures incorrect) is **19.7% ± 1.9%**.
 
 Remaining gap vs paper (23.2%) is now much smaller; likely contributors include the 6 hard failures plus model/prompt differences.
 
@@ -188,13 +195,13 @@ Remaining gap vs paper (23.2%) is now much smaller; likely contributors include 
 
 | Method | PANDA Balanced Accuracy |
 |--------|-------------------------|
-| Paper: GIANT x5 (GPT-5) | 25.4% |
-| Paper: GIANT x1 (GPT-5) | 23.2% |
-| **Our GIANT (gpt-5.2)** | **19.7%** (rescored) |
-| Paper: Thumbnail (GPT-5) | 17.9% |
-| Paper: Patch (GPT-5) | 12.6% |
-| Paper: TITAN | 59.9% |
-| Paper: SlideChat | 16.7% |
+| Paper: GIANT x5 (GPT-5) | 25.4% ± 2.0% |
+| Paper: GIANT x1 (GPT-5) | 23.2% ± 2.3% |
+| **Our GIANT (gpt-5.2)** | **20.3%** (rescored) |
+| Paper: Thumbnail (GPT-5) | 12.2% ± 2.2% |
+| Paper: Patch (GPT-5) | 21.3% ± 2.4% |
+| Paper: TITAN (zero-shot) | 27.5% ± 2.3% |
+| Paper: SlideChat (zero-shot) | 17.0% ± 0.4% |
 
 ### Recommended Next Step
 
@@ -207,14 +214,15 @@ Re-run PANDA with the BUG-038 fixes applied to eliminate the 6 B2 hard failures 
 ```json
 {
   "metric_type": "balanced_accuracy",
-  "point_estimate": 0.198,
-  "bootstrap_mean": 0.197,
+  "point_estimate": 0.203,
+  "bootstrap_mean": 0.204,
   "bootstrap_std": 0.019,
-  "bootstrap_ci_lower": 0.163,
-  "bootstrap_ci_upper": 0.238,
+  "bootstrap_ci_lower": 0.169,
+  "bootstrap_ci_upper": 0.242,
   "n_replicates": 1000,
+  "n_scored": 191,
   "n_total": 197,
-  "n_errors": 6,
+  "n_errors_excluded": 6,
   "n_extraction_failures": 0
 }
 ```
@@ -225,9 +233,9 @@ Re-run PANDA with the BUG-038 fixes applied to eliminate the 6 B2 hard failures 
 
 | Benchmark | Status | Our Result | Paper (x1) | Paper (x5) | Cost |
 |-----------|--------|------------|------------|------------|------|
-| GTEx (Organ, 20-way) | **COMPLETE** ✓ | **67.6%** | 53.7% | 60.7% | $7.21 |
-| TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | **25.2%** | 32.3% | 29.3% | $15.14 |
-| PANDA (Grading, 6-way) | **COMPLETE** ✓ | **19.7%** (rescored) | 23.2% | 25.4% | $73.38 |
+| GTEx (Organ, 20-way) | **COMPLETE** ✓ | **70.3%** (rescored) | 53.7% ± 3.4% | 60.7% ± 3.2% | $7.21 |
+| TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | **26.2%** (rescored) | 32.3% ± 3.5% | 29.3% ± 3.3% | $15.14 |
+| PANDA (Grading, 6-way) | **COMPLETE** ✓ | **20.3%** (rescored) | 23.2% ± 2.3% | 25.4% ± 2.0% | $73.38 |
 | ExpertVQA | Pending | - | 57.0% | 62.5% | - |
 | SlideBenchVQA | Pending | - | 58.9% | 61.3% | - |
 
@@ -253,5 +261,5 @@ uv run giant benchmark gtex --provider openai --model gpt-5.2 -v
 ## Notes
 
 1. **Cost Tracking**: Reported costs in the saved artifacts are lower bounds; parse-failed calls raised before usage/cost was accumulated (BUG-038-B2, now fixed for future runs).
-2. **Error Rate**: The saved artifacts include 6 hard failures per benchmark due to BUG-038-B2 (now fixed in code); re-running will be needed to update GTEx/TCGA error-free scores.
+2. **Rescore Policy**: “Rescored” results above exclude the 6 hard failures per benchmark due to BUG-038-B2 (now fixed in code), because the pre-fix artifacts do not include prediction text for those failures.
 3. **WSI Format**: Used DICOM format from IDC (OpenSlide 4.0.0+ compatible)
