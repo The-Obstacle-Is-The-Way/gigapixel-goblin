@@ -33,7 +33,7 @@ from giant.data.schemas import BENCHMARK_TASKS
 from giant.eval.answer_extraction import extract_label
 from giant.eval.metrics import accuracy, balanced_accuracy, bootstrap_metric
 
-_MISSING_LABEL_SENTINEL = -1  # Must not overlap any truth label
+_MISSING_LABEL_SENTINEL = -1  # Safe: PANDA uses 0-5, multi-choice uses 1-based (>=1)
 _DEFAULT_CSV_PATH = (
     Path(__file__).parent.parent / "data" / "multipathqa" / "MultiPathQA.csv"
 )
