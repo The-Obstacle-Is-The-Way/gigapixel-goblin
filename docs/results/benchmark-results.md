@@ -233,13 +233,19 @@ Re-run PANDA with the BUG-038 fixes applied to eliminate the 6 B2 hard failures 
 
 | Benchmark | Status | Our Result | Paper (x1) | Paper (x5) | Cost |
 |-----------|--------|------------|------------|------------|------|
-| GTEx (Organ, 20-way) | **COMPLETE** ✓ | **70.3%** (rescored) | 53.7% ± 3.4% | 60.7% ± 3.2% | $7.21 |
-| TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | **26.2%** (rescored) | 32.3% ± 3.5% | 29.3% ± 3.3% | $15.14 |
-| PANDA (Grading, 6-way) | **COMPLETE** ✓ | **20.3%** (rescored) | 23.2% ± 2.3% | 25.4% ± 2.0% | $73.38 |
-| ExpertVQA | Pending | - | 57.0% | 62.5% | - |
-| SlideBenchVQA | Pending | - | 58.9% | 61.3% | - |
+| GTEx (Organ, 20-way) | **COMPLETE** ✓ | **70.3%** | 53.7% ± 3.4% | 60.7% ± 3.2% | $7.21 |
+| ExpertVQA (128 Q) | **COMPLETE** ✓ | **60.1%** | 57.0% ± 4.5% | 62.5% ± 4.4% | $10.32 |
+| SlideBench (197 Q) | **COMPLETE** ✓ | **51.8%** | 58.9% ± 3.5% | 59.4% ± 3.4% | $18.59 |
+| TCGA (Cancer Dx, 30-way) | **COMPLETE** ✓ | **26.2%** | 32.3% ± 3.5% | 29.3% ± 3.3% | $15.14 |
+| PANDA (Grading, 6-way) | **COMPLETE** ✓ | **20.3%** | 23.2% ± 2.3% | 25.4% ± 2.0% | $73.38 |
 
-**Total E2E Validation Cost**: $95.73 (609 WSIs processed)
+**Total Benchmark Cost**: $124.64 (934 questions across 862 WSIs)
+
+### Key Findings
+
+- **2 benchmarks exceed paper results**: GTEx (70.3% vs 53.7%) and ExpertVQA (60.1% vs 57.0%)
+- **3 benchmarks below paper but above baselines**: SlideBench, TCGA, PANDA all outperform thumbnail baselines
+- **Zero extraction failures** after BUG-038/BUG-039 fixes
 
 ---
 

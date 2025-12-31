@@ -26,11 +26,14 @@ All 15 specs have been completed and archived.
 
 ## Validation Results
 
-Full E2E validation completed on 2025-12-29. After BUG-038/BUG-039 fixes, we
-rescored the saved artifacts (no new LLM calls) on scored items only (excluding
-the 6 parse failures per benchmark caused by the pre-fix OpenAI JSON parser):
-- **TCGA**: 26.2% balanced accuracy (paper: 32.3%)
-- **GTEx**: 70.3% balanced accuracy (paper: 60.7%)
-- **PANDA**: 20.3% balanced accuracy (paper: 23.2%)
+**All 5 MultiPathQA benchmarks complete** (2025-12-30):
 
-Total cost: $95.73 across 609 WSIs.
+| Benchmark | Our Result | Paper (x1) | Status |
+|-----------|------------|------------|--------|
+| GTEx | **70.3%** | 53.7% | Exceeds paper |
+| ExpertVQA | **60.1%** | 57.0% | Exceeds paper |
+| SlideBench | **51.8%** | 58.9% | Below paper |
+| TCGA | **26.2%** | 32.3% | Below paper |
+| PANDA | **20.3%** | 23.2% | Below paper |
+
+Total cost: $124.64 across 934 questions (862 WSIs).

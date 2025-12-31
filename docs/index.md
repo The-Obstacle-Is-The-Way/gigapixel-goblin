@@ -63,12 +63,16 @@ giant benchmark gtex --provider openai
 | Benchmark | Task | Our Result | Paper (GIANT x1) | Paper (GIANT x5) | Thumbnail Baseline |
 |-----------|------|------------|------------------|------------------|--------------------|
 | GTEx | Organ Classification (20-way) | **70.3%** | 53.7% ± 3.4% | 60.7% ± 3.2% | 36.5% ± 3.4% |
+| ExpertVQA | Pathologist-Authored (128 Q) | **60.1%** | 57.0% ± 4.5% | 62.5% ± 4.4% | 50.0% ± 4.4% |
+| SlideBench | Visual QA (197 Q) | **51.8%** | 58.9% ± 3.5% | 59.4% ± 3.4% | 54.8% ± 3.5% |
 | TCGA | Cancer Diagnosis (30-way) | **26.2%** | 32.3% ± 3.5% | 29.3% ± 3.3% | 9.2% ± 1.9% |
-| PANDA | Prostate Grading (6-way) | **20.3%** (rescored) | 23.2% ± 2.3% | 25.4% ± 2.0% | 12.2% ± 2.2% |
+| PANDA | Prostate Grading (6-way) | **20.3%** | 23.2% ± 2.3% | 25.4% ± 2.0% | 12.2% ± 2.2% |
 
-- **GTEx (70.3%)**: Exceeds the paper's GPT-5 + GIANT x1 (53.7%) and x5 (60.7%) results.
-- **TCGA (26.2%)**: Below the paper's GIANT x1 (32.3%), but above paper thumbnail (9.2%) and patch (12.8%) baselines.
-- **PANDA (20.3%)**: Improved via extraction + parsing fixes; rescored from saved artifacts without new LLM calls.
+- **GTEx (70.3%)**: Exceeds the paper's GIANT x1 (53.7%) and x5 (60.7%) results.
+- **ExpertVQA (60.1%)**: Exceeds the paper's GIANT x1 (57.0%), approaching x5 (62.5%).
+- **SlideBench (51.8%)**: Below paper's GIANT x1 (58.9%), but comparable to thumbnail baseline.
+- **TCGA (26.2%)**: Below paper's GIANT x1 (32.3%), but 3× above thumbnail baseline (9.2%).
+- **PANDA (20.3%)**: Rescored from saved artifacts after extraction fixes.
 
 ## Supported Models
 

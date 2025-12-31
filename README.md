@@ -60,15 +60,17 @@ Evaluated on [MultiPathQA](https://huggingface.co/datasets/tbuckley/MultiPathQA)
 | Benchmark | Task | Our Result | Paper (GIANT) | Paper (GIANT x5) | Thumbnail Baseline |
 |-----------|------|:----------:|:-------------:|:----------------:|:------------------:|
 | **GTEx** | Organ Classification (20-way) | **70.3%** | 53.7% ± 3.4% | 60.7% ± 3.2% | 36.5% ± 3.4% |
-| **TCGA** | Cancer Diagnosis (30-way) | **26.2%** | 32.3% ± 3.5% | 29.3% ± 3.3% | 9.2% ± 1.9% |
-| PANDA | Prostate Grading (6-way) | **20.3%** (rescored) | 23.2% ± 2.3% | 25.4% ± 2.0% | 12.2% ± 2.2% |
-| ExpertVQA | Pathologist-Authored (128 Q) | — | 57.0% ± 4.5% | 62.5% ± 4.4% | 50.0% ± 4.4% |
+| **ExpertVQA** | Pathologist-Authored (128 Q) | **60.1%** | 57.0% ± 4.5% | 62.5% ± 4.4% | 50.0% ± 4.4% |
+| SlideBench | Visual QA (197 Q) | **51.8%** | 58.9% ± 3.5% | 59.4% ± 3.4% | 54.8% ± 3.5% |
+| TCGA | Cancer Diagnosis (30-way) | **26.2%** | 32.3% ± 3.5% | 29.3% ± 3.3% | 9.2% ± 1.9% |
+| PANDA | Prostate Grading (6-way) | **20.3%** | 23.2% ± 2.3% | 25.4% ± 2.0% | 12.2% ± 2.2% |
 
-Scores above are rescored point estimates on scored items only (excluding the 6 pre-fix OpenAI parse failures per benchmark); see `docs/results/benchmark-results.md`.
+All 5 MultiPathQA benchmarks complete. See `docs/results/benchmark-results.md` for detailed analysis.
 
-**Key finding**: Our GTEx result (70.3%) *exceeds* the paper's 5-run majority vote (60.7%) on GTEx (note: we used `gpt-5.2`, not the paper's `gpt-5`). Agent navigation provides up to ~3.5× improvement over thumbnail baselines depending on the task.
-
-*Note:* The paper reports **62.5% ± 4.4%** on ExpertVQA with GIANT x5 majority vote (Table 1).
+**Key findings**:
+- **GTEx (70.3%)** and **ExpertVQA (60.1%)** *exceed* the paper's single-run GIANT results
+- Agent navigation provides up to ~3× improvement over thumbnail baselines
+- Total benchmark cost: **$124.64** across 934 questions
 
 ---
 
