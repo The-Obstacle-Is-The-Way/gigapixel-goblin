@@ -393,12 +393,103 @@ Mostly **maintainability issues**, not bugs:
 - Inconsistent patterns across similar code
 - Missing validations for edge cases
 
-### Recommended Actions
+### Recommended Actions (Updated After Fixes)
 
-1. **Fix P2-9 (quick):** Filter None from labels before voting in `_select_majority_prediction`
-2. **Quick wins:** Remove duplicate `get_system_prompt_*` functions (P1-1)
-3. **Medium effort:** Add `spec` to test mocks, standardize logging
-4. **Larger refactor:** Split `BenchmarkRunner` into smaller classes (P1-2)
+**Completed in this pass:** ~~P2-9~~, ~~P1-1~~, ~~P3-8 (spec mocks)~~
+
+**Remaining priority order:**
+1. **P2-4 (medium):** Standardize on structured logging across all files
+2. **P2-7/P2-8 (small):** Design decisions needed for retry config and strict zip
+3. **P1-2 (large):** Split `BenchmarkRunner` into smaller classes when time permits
+
+See **Implementation Status** section below for full tracking.
+
+---
+
+## Implementation Status
+
+### ✅ FIXED (This Audit Pass - 2025-12-31)
+
+| Issue | Description | Commit | Test Coverage |
+|-------|-------------|--------|---------------|
+| **P1-1** | DRY: Consolidated `get_system_prompt_for_*` → `extract_system_prompt()` | `d2783cf` | Existing tests pass |
+| **P2-3** | JPEG quality now uses `settings.JPEG_QUALITY` in crop_engine.py and runner.py | `d2783cf` | Existing tests pass |
+| **P2-5** | Removed empty `TYPE_CHECKING` block from anthropic_client.py | `d2783cf` | N/A (dead code removal) |
+| **P2-6** | Added `__post_init__` validation for `num_guides >= 1` in OverlayStyle | `d2783cf` | `test_num_guides_must_be_at_least_one` (`b427e44`) |
+| **P2-9** | Voting logic filters `None` before `Counter()`, deterministic tie-break | `d2783cf` | 4 tests: `test_none_labels_excluded_from_voting`, `test_single_valid_label_wins_over_many_nones`, `test_deterministic_tiebreak`, `test_all_none_labels_returns_majority_vote` |
+| **P3-4** | Replaced `assert isinstance(...)` with explicit `TypeError` raise | `d2783cf` | Existing tests pass |
+| **P3-8** | Added `spec=WSIReader` and `spec=CropEngine` to MagicMock in test_runner.py | `d2783cf` | Test quality improvement |
+
+### ⏳ DEFERRED - Technical Debt Backlog
+
+#### High Priority (P1) - Significant Refactoring Required
+
+| Issue | Description | Effort | Why Deferred |
+|-------|-------------|--------|--------------|
+| **P1-2** | **BenchmarkRunner SRP violation** (1062 lines) - Split into `BenchmarkItemLoader`, `MetricsCalculator`, `ResultsPersistence` | **Large** (2-4 days) | Architectural refactor, requires careful test migration, breaks API |
+
+#### Medium Priority (P2) - Should Fix Before Next Major Release
+
+| Issue | Description | Effort | Why Deferred |
+|-------|-------------|--------|--------------|
+| **P2-1** | Inconsistent frozen dataclass usage | Small | Needs policy decision first |
+| **P2-2** | Test fixture uses old API response structure | Small | Low impact, tests still pass |
+| **P2-4** | Inconsistent logging patterns (structured vs format strings) | Medium | Cross-cutting, many files |
+| **P2-7** | Hardcoded retry parameters (should be configurable) | Small | Needs design decision |
+| **P2-8** | Inconsistent `strict=True` in `zip()` calls | Small | Needs codebase-wide audit |
+
+#### Low Priority (P3) - Nice to Have
+
+| Issue | Description | Effort |
+|-------|-------------|--------|
+| **P3-1** | Circuit breaker state property mutates on read | Small |
+| **P3-2** | No feedback when CONCH is disabled but requested | Small |
+| **P3-3** | Magic sentinel -1 (fragile if formats change) | Medium |
+| **P3-5** | Unused TYPE_CHECKING import in agent/runner.py | Trivial |
+| **P3-6** | Nested import anti-pattern (PIL inside method) | Trivial |
+| **P3-7** | No validation for negative budget | Trivial |
+| **P3-9** | Unused Generic[T] type parameter in CircuitBreaker | Trivial |
+| **P3-10** | Confusing `budget_state` dict naming | Trivial |
+| **P3-11** | Inconsistent exception chaining (`from e` vs `from None`) | Small |
+| **P3-12** | Heuristic provider detection (`if "openai" in name`) | Small |
+| **P3-13** | Message content mutation (immutability unclear) | Small |
+| **P3-14** | Path traversal checks not consolidated | Small |
+| **P3-15** | Long `run_benchmark` method (83 lines) | Small |
+
+#### Cosmetic (P4) - Low Value
+
+| Issue | Description |
+|-------|-------------|
+| **P4-1** | Inconsistent method ordering (public/private) |
+| **P4-2** | Some lines exceed 100 chars |
+| **P4-3** | Inconsistent blank lines in test classes |
+| **P4-4** | Mix of `#` and `# ` comment styles |
+| **P4-5** | Missing type hints in test fixtures |
+| **P4-6** | Verbose import lists in `__init__.py` |
+
+---
+
+## Risk Assessment of Deferred Items
+
+### P1-2 (BenchmarkRunner) - The 1062-Line Elephant
+
+**Current Risk:** LOW for correctness, MEDIUM for maintainability
+
+**Why it's not urgent:**
+- All public methods have test coverage
+- Logic is correct (verified in BUG-039 swarm audit)
+- Class is stable, rarely modified
+
+**When to fix:**
+- Before adding new evaluation modes
+- If onboarding new developers who need to understand it
+- If test coverage drops below 90%
+
+**Recommended approach:**
+1. Extract `ResultsPersistence` first (lowest coupling)
+2. Extract `MetricsCalculator` (pure functions)
+3. Extract `BenchmarkItemLoader` (CSV/DICOM logic)
+4. Rename remaining class to `EvaluationOrchestrator`
 
 ---
 
@@ -406,7 +497,6 @@ Mostly **maintainability issues**, not bugs:
 
 The existing tests are comprehensive. Additional coverage could include:
 
-1. **P2-9 edge case test:** Add test for `labels=[None, 1, None, 1]` tie scenario
-2. **Property-based tests** for coordinate validation
-3. **Concurrent tests** for circuit breaker under load
-4. **Mutation testing** to verify test quality
+1. **Property-based tests** for coordinate validation
+2. **Concurrent tests** for circuit breaker under load
+3. **Mutation testing** to verify test quality
