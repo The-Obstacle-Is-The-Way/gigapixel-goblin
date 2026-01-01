@@ -1,9 +1,10 @@
 # Technical Debt Spec: P2 Medium Priority Items
 
 **Priority:** P2 (Medium)
-**Total Items:** 5 remaining
+**Total Items:** 4 remaining
 **Effort:** Small to Medium each
-**Status:** DEFERRED - Design decisions needed
+**Status:** ACTIONABLE - Ready for implementation
+**Last Verified:** 2025-12-31
 
 ---
 
@@ -11,13 +12,12 @@
 
 These are medium-priority code quality issues that should be addressed before the next major release. Each requires either a design decision or codebase-wide changes.
 
-| ID | Issue | Effort | Blocker |
-|----|-------|--------|---------|
-| P2-1 | Inconsistent frozen dataclass usage | Small | Policy decision needed |
-| P2-2 | Test fixture uses old API structure | Small | Low impact |
-| P2-4 | Inconsistent logging patterns | Medium | Cross-cutting change |
-| P2-7 | Hardcoded retry parameters | Small | Design decision needed |
-| P2-8 | Inconsistent `strict=True` in zip() | Small | Codebase audit needed |
+| ID | Issue | Effort | Status | Action |
+|----|-------|--------|--------|--------|
+| P2-1 | Inconsistent frozen dataclass usage | Small | READY | Document policy, update 3 files |
+| P2-2 | Unused test fixture (dead code) | Trivial | READY | Delete 32 lines |
+| P2-4 | Inconsistent logging patterns | Medium | READY | Update 9 files |
+| P2-7 | Hardcoded retry parameters | Trivial | READY | Add documentation comments |
 
 ---
 
@@ -27,97 +27,210 @@ These are medium-priority code quality issues that should be addressed before th
 
 Some dataclasses use `frozen=True`, others don't. No documented policy.
 
-### Current State
+### Current State (Verified 2025-12-31)
 
-```python
-# FROZEN (immutable)
-@dataclass(frozen=True)
-class ExtractedAnswer:        # answer_extraction.py
-class BootstrapResult:        # metrics.py
-class Region:                 # primitives.py
-
-# NOT FROZEN (mutable)
-@dataclass
-class OverlayStyle:           # overlay.py (has __post_init__)
-class BenchmarkItem:          # schemas.py
-class BenchmarkResult:        # schemas.py
+**FROZEN dataclasses (14 total) - CORRECT:**
+```
+src/giant/data/tcga.py:29           @dataclass(frozen=True) class GdcFile
+src/giant/eval/answer_extraction.py:32  @dataclass(frozen=True) class ExtractedAnswer
+src/giant/eval/wsi_resolver.py:17   @dataclass(frozen=True) class WSIPathResolver
+src/giant/eval/runner.py:115        @dataclass(frozen=True) class _ItemRunState
+src/giant/eval/metrics.py:79        @dataclass(frozen=True) class BootstrapResult
+src/giant/core/crop_engine.py:53    @dataclass(frozen=True) class CroppedImage
+src/giant/core/baselines.py:30      @dataclass(frozen=True) class BaselineRequest
+src/giant/cli/runners.py:51         @dataclass(frozen=True) class DataCheckResult
+src/giant/agent/runner.py:118       @dataclass(frozen=True) class _StepDecision
+src/giant/geometry/overlay.py:26    @dataclass(frozen=True) class OverlayStyle
+src/giant/wsi/types.py:14           @dataclass(frozen=True) class WSIMetadata
 ```
 
-### Proposed Policy
+**FROZEN pydantic models (3 total) - CORRECT:**
+```
+src/giant/geometry/primitives.py:15  class Point(BaseModel, frozen=True)
+src/giant/geometry/primitives.py:39  class Size(BaseModel, frozen=True)
+src/giant/geometry/primitives.py:67  class Region(BaseModel, frozen=True)
+```
 
-**Rule:** Use `frozen=True` for value objects; use mutable for objects that need post-initialization.
+**NON-FROZEN dataclasses (9 total) - REVIEW NEEDED:**
+```
+src/giant/cli/runners.py:25         @dataclass class InferenceResult      # Has mutable state
+src/giant/cli/runners.py:39         @dataclass class BenchmarkResult      # Has mutable state
+src/giant/llm/anthropic_client.py:113  @dataclass class AnthropicProvider  # Has _client
+src/giant/llm/openai_client.py:128  @dataclass class OpenAIProvider       # Has _client
+src/giant/llm/circuit_breaker.py:41 @dataclass class CircuitBreakerConfig # Config object
+src/giant/llm/circuit_breaker.py:58 @dataclass class CircuitBreaker       # Has mutable state
+src/giant/agent/context.py:29       @dataclass class ContextManager       # Has mutable state
+src/giant/agent/runner.py:130       @dataclass class AgentConfig          # Config object
+src/giant/agent/runner.py:162       @dataclass class GIANTAgent           # Has mutable state
+```
 
-| Category | Frozen | Examples |
-|----------|--------|----------|
-| Value objects (coordinates, results) | Yes | `Region`, `Point`, `Size`, `ExtractedAnswer` |
-| Configuration objects | No | `OverlayStyle`, `EvaluationConfig` |
-| Data transfer objects | No | `BenchmarkItem`, `BenchmarkResult` |
+**NON-FROZEN pydantic models (16 total) - CORRECT AS-IS:**
+```
+src/giant/data/schemas.py:44        class BenchmarkItem(BaseModel)        # Mutable
+src/giant/data/schemas.py:73        class BenchmarkResult(BaseModel)      # Mutable
+src/giant/eval/resumable.py:63      class CheckpointState(BaseModel)      # Mutable
+src/giant/eval/runner.py:50         class EvaluationConfig(BaseModel)     # Config
+src/giant/eval/runner.py:89         class EvaluationResults(BaseModel)    # Mutable
+src/giant/llm/protocol.py:29        class BoundingBoxAction(BaseModel)    # Value object
+src/giant/llm/protocol.py:43        class FinalAnswerAction(BaseModel)    # Value object
+src/giant/llm/protocol.py:57        class ConchAction(BaseModel)          # Value object
+src/giant/llm/protocol.py:84        class StepResponse(BaseModel)         # Value object
+src/giant/llm/protocol.py:100       class TokenUsage(BaseModel)           # Value object
+src/giant/llm/protocol.py:113       class LLMResponse(BaseModel)          # Value object
+src/giant/llm/protocol.py:131       class MessageContent(BaseModel)       # Value object
+src/giant/llm/protocol.py:147       class Message(BaseModel)              # Value object
+src/giant/agent/runner.py:98        class RunResult(BaseModel)            # Value object
+src/giant/agent/trajectory.py:20    class Turn(BaseModel)                 # Value object
+src/giant/agent/trajectory.py:50    class Trajectory(BaseModel)           # Value object
+```
+
+### Recommended Policy
+
+| Category | Frozen | Rationale |
+|----------|--------|-----------|
+| Value objects (coordinates, results, actions) | Yes | Immutable by nature |
+| Configuration objects (small, read-only) | Yes | Prevents accidental mutation |
+| Service classes (providers, agents) | No | Have mutable internal state |
+| Data transfer objects (schemas) | No | Often mutated during processing |
 
 ### Implementation
 
-1. Document policy in `CONTRIBUTING.md`
-2. Audit all dataclasses for consistency
-3. Add comments explaining why each is frozen or not
+**Step 1: Make config dataclasses frozen (2 files)**
 
-### Files Affected
+File: `src/giant/llm/circuit_breaker.py:41`
+```python
+# BEFORE
+@dataclass
+class CircuitBreakerConfig:
 
+# AFTER
+@dataclass(frozen=True)
+class CircuitBreakerConfig:
 ```
-src/giant/geometry/primitives.py
-src/giant/geometry/overlay.py
-src/giant/data/schemas.py
-src/giant/eval/answer_extraction.py
-src/giant/eval/metrics.py
-src/giant/llm/protocol.py
+
+File: `src/giant/agent/runner.py:130`
+```python
+# BEFORE
+@dataclass
+class AgentConfig:
+
+# AFTER
+@dataclass(frozen=True)
+class AgentConfig:
+```
+
+**Step 2: Make protocol value objects frozen (1 file)**
+
+File: `src/giant/llm/protocol.py`
+
+Add `frozen=True` to these Pydantic models (lines 29, 43, 57, 84, 100, 113, 131, 147):
+```python
+class BoundingBoxAction(BaseModel, frozen=True):  # line 29
+class FinalAnswerAction(BaseModel, frozen=True):  # line 43
+class ConchAction(BaseModel, frozen=True):        # line 57
+class StepResponse(BaseModel, frozen=True):       # line 84
+class TokenUsage(BaseModel, frozen=True):         # line 100
+class LLMResponse(BaseModel, frozen=True):        # line 113
+class MessageContent(BaseModel, frozen=True):     # line 131
+class Message(BaseModel, frozen=True):            # line 147
+```
+
+**Step 3: Document policy**
+
+Add to `docs/development/CONTRIBUTING.md`:
+```markdown
+## Immutability Policy
+
+- **Value objects** (coordinates, parsed responses): Use `frozen=True`
+- **Config objects** (small, read-only after init): Use `frozen=True`
+- **Service classes** (with mutable state): Do NOT use `frozen=True`
+- **DTOs** (schemas, results): Case-by-case based on usage
+```
+
+### Verification Commands
+
+```bash
+# Find frozen dataclasses
+grep -rn "@dataclass(frozen=True)" src/
+
+# Find non-frozen dataclasses
+grep -rn "@dataclass$" src/
+
+# Find frozen pydantic models
+grep -rn "BaseModel, frozen=True" src/
+
+# Run tests after changes
+uv run pytest tests/unit -x
 ```
 
 ---
 
-## P2-2: Test Fixture Uses Old API Response Structure
+## P2-2: Unused Test Fixture (Dead Code)
 
 ### Problem
 
-`tests/conftest.py:40-71` has `mock_api_responses` fixture using Chat Completions API format, but production code uses Responses API.
+`tests/conftest.py:40-71` defines `mock_api_responses` fixture that is **never used**.
 
-### Current State
-
-```python
-# conftest.py - Uses old format
-@pytest.fixture
-def mock_api_responses():
-    return {
-        "choices": [{"message": {"content": "..."}}]  # Chat Completions format
-    }
-```
-
-### Investigation Needed
-
-1. Search for usages of `mock_api_responses` fixture
-2. Determine if it's actively used or dead code
-3. If used, update to Responses API format
-4. If unused, remove entirely
-
-### Commands to Run
+### Verification (2025-12-31)
 
 ```bash
-# Find usages
-grep -r "mock_api_responses" tests/
-
-# Check if tests still pass without it
-pytest tests/unit -x
+$ grep -rn "mock_api_responses" tests/
+tests/conftest.py:40:def mock_api_responses() -> dict[str, Any]:
 ```
+
+Only the definition is found. No test imports or uses this fixture.
 
 ### Implementation
 
-If fixture is used:
+**Delete lines 39-71 from `tests/conftest.py`:**
+
 ```python
+# DELETE THIS ENTIRE BLOCK (lines 39-71):
 @pytest.fixture
-def mock_api_responses():
+def mock_api_responses() -> dict[str, Any]:
+    """Provide mock API response structures for LLM tests."""
     return {
-        "output": [{"type": "message", "content": [...]}]  # Responses API format
+        "openai_completion": {
+            "id": "test-completion-id",
+            "choices": [
+                {
+                    "message": {
+                        "role": "assistant",
+                        "content": "Test response",
+                    },
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+            },
+        },
+        "anthropic_message": {
+            "id": "test-message-id",
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": "Test response"}],
+            "stop_reason": "end_turn",
+            "usage": {
+                "input_tokens": 100,
+                "output_tokens": 50,
+            },
+        },
     }
 ```
 
-If unused: Delete the fixture.
+### Verification
+
+```bash
+# Ensure tests still pass
+uv run pytest tests/unit -x
+
+# Verify fixture is gone
+grep -rn "mock_api_responses" tests/
+# Should return nothing
+```
 
 ---
 
@@ -125,62 +238,92 @@ If unused: Delete the fixture.
 
 ### Problem
 
-Mixed logging styles across the codebase:
+Mixed logging approaches across the codebase:
+- Some files use `import logging` + `logging.getLogger(__name__)`
+- Some files use `from giant.utils.logging import get_logger`
+
+### Current State (Verified 2025-12-31)
+
+**Files using standard logging (NEED UPDATE - 9 files):**
+```
+src/giant/data/download.py:13       import logging
+src/giant/eval/resumable.py:12      import logging
+src/giant/geometry/overlay.py:14    import logging
+src/giant/agent/runner.py:20        import logging
+src/giant/eval/runner.py:17         import logging
+src/giant/llm/circuit_breaker.py:20 import logging
+src/giant/llm/anthropic_client.py:17 import logging
+src/giant/llm/openai_client.py:17   import logging
+src/giant/utils/logging.py:7        import logging  # OK - this IS the logging module
+```
+
+**Files using structured logging (CORRECT - 6 files):**
+```
+src/giant/data/tcga.py:22           from giant.utils.logging import get_logger
+src/giant/data/download.py:19       from giant.utils.logging import get_logger  # MIXED!
+src/giant/cli/visualizer.py:12      from giant.utils.logging import get_logger
+src/giant/cli/main.py:18            from giant.utils.logging import get_logger
+src/giant/cli/runners.py:19         from giant.utils.logging import get_logger
+```
+
+### Implementation
+
+**For each of the 8 files (excluding utils/logging.py and download.py which already has it):**
+
+**Pattern to apply:**
 
 ```python
-# Style 1: Structured (preferred)
-logger.info("Processing item", item_id=item.id, wsi=str(wsi_path))
+# BEFORE
+import logging
+# ...
+logger = logging.getLogger(__name__)
 
-# Style 2: Format strings
-logger.info("Processing item %s from %s", item_id, wsi_path)
-
-# Style 3: f-strings (worst - evaluated even when logging disabled)
-logger.info(f"Processing item {item_id} from {wsi_path}")
+# AFTER
+from giant.utils.logging import get_logger
+# ...
+logger = get_logger(__name__)
 ```
 
-### Proposed Standard
+**File-by-file changes:**
 
-Use **structured logging** (Style 1) with `structlog` integration:
+1. `src/giant/eval/resumable.py:12`
+   - Replace `import logging` with `from giant.utils.logging import get_logger`
+   - Replace `logger = logging.getLogger(__name__)` with `logger = get_logger(__name__)`
 
-```python
-import structlog
+2. `src/giant/geometry/overlay.py:14`
+   - Same pattern
 
-logger = structlog.get_logger(__name__)
+3. `src/giant/agent/runner.py:20`
+   - Same pattern
 
-# All log calls use keyword arguments
-logger.info("item.processing.started", item_id=item.id, wsi_path=str(wsi_path))
-logger.error("item.processing.failed", item_id=item.id, error=str(e))
+4. `src/giant/eval/runner.py:17`
+   - Same pattern
+
+5. `src/giant/llm/circuit_breaker.py:20`
+   - Same pattern
+
+6. `src/giant/llm/anthropic_client.py:17`
+   - Same pattern
+
+7. `src/giant/llm/openai_client.py:17`
+   - Same pattern
+
+8. `src/giant/data/download.py`
+   - Remove `import logging` on line 13 (already has structured import on line 19)
+
+### Verification
+
+```bash
+# Check no files use import logging (except utils/logging.py itself)
+grep -rn "^import logging$" src/giant/ | grep -v "utils/logging.py"
+# Should return nothing
+
+# Run tests
+uv run pytest tests/unit -x
+
+# Check type hints
+uv run mypy src/giant
 ```
-
-### Benefits
-
-- Machine-parseable logs
-- Consistent format across codebase
-- Easy to filter/search in production
-- No string formatting overhead
-
-### Files Affected (Major)
-
-```
-src/giant/agent/runner.py      # 15+ log calls
-src/giant/eval/runner.py       # 20+ log calls
-src/giant/llm/openai_client.py # 5+ log calls
-src/giant/llm/anthropic_client.py # 5+ log calls
-src/giant/core/crop_engine.py  # 3+ log calls
-```
-
-### Implementation Steps
-
-1. Add `structlog` to dependencies
-2. Create logging configuration in `src/giant/logging.py`
-3. Update all log calls file-by-file
-4. Add log event naming convention to `CONTRIBUTING.md`
-
-### Effort Estimate
-
-- Setup: 1 hour
-- Migration: 2-4 hours (many files)
-- Testing: 1 hour
 
 ---
 
@@ -191,14 +334,7 @@ src/giant/core/crop_engine.py  # 3+ log calls
 Retry logic uses hardcoded values instead of configurable settings:
 
 ```python
-# openai_client.py:207-212
-@retry(
-    wait=wait_random_exponential(min=1, max=60),
-    stop=stop_after_attempt(6),
-    retry=retry_if_exception_type((RateLimitError, APIConnectionError)),
-)
-
-# anthropic_client.py:195-200 (same values)
+# openai_client.py:207-212 and anthropic_client.py:192-197
 @retry(
     wait=wait_random_exponential(min=1, max=60),
     stop=stop_after_attempt(6),
@@ -206,108 +342,89 @@ Retry logic uses hardcoded values instead of configurable settings:
 )
 ```
 
-### Design Decision Needed
+### Decision: Document, Don't Configure
 
-**Option A: Add to Settings (Configurable)**
+**Rationale:** These values are tuned for production API rate limits:
+- `min=1s`: Avoid hammering after transient errors
+- `max=60s`: Cap backoff to prevent long hangs
+- `6 attempts`: ~2-3 minutes total with exponential backoff
 
-```python
-# config.py
-class Settings(BaseSettings):
-    RETRY_MIN_WAIT: int = 1
-    RETRY_MAX_WAIT: int = 60
-    RETRY_MAX_ATTEMPTS: int = 6
-```
-
-Pros: Users can tune for their use case
-Cons: More configuration surface
-
-**Option B: Document as Fixed (No Change)**
-
-Add comment explaining why values are fixed:
-```python
-# These values are tuned for OpenAI/Anthropic rate limits:
-# - min=1s: Avoid hammering after transient errors
-# - max=60s: Cap backoff to prevent long hangs
-# - 6 attempts: ~2-3 minutes total with exponential backoff
-```
-
-Pros: Simpler, no new configuration
-Cons: Users can't customize
-
-### Recommendation
-
-**Option B (Document)** - These values are well-tuned for production API usage. Making them configurable adds complexity without clear benefit.
+Making them configurable adds complexity without clear benefit.
 
 ### Implementation
 
-Add explanatory comment above `@retry` decorators in both clients.
+**Add documentation comment above `@retry` in both files:**
 
----
-
-## P2-8: Inconsistent `strict=True` in zip()
-
-### Problem
-
-Some `zip()` calls use `strict=True`, others don't. This inconsistency can hide bugs where iterables have different lengths.
-
-### Current State
-
+File: `src/giant/llm/openai_client.py:206-212`
 ```python
-# WITH strict=True (catches length mismatches)
-for pred, truth in zip(predictions, truths, strict=True):  # metrics.py
-    ...
-
-# WITHOUT strict=True (silently truncates)
-for pred, truth in zip(predictions, truths):  # Some places
-    ...
+    # Retry configuration tuned for OpenAI API rate limits:
+    # - min=1s wait prevents hammering on transient errors
+    # - max=60s caps backoff to avoid long hangs
+    # - 6 attempts provides ~2-3 min total with exponential backoff
+    # These values match production recommendations; do not configure.
+    @retry(
+        wait=wait_random_exponential(min=1, max=60),
+        stop=stop_after_attempt(6),
+        retry=retry_if_exception_type((RateLimitError, APIConnectionError)),
+    )
 ```
 
-### Proposed Standard
+File: `src/giant/llm/anthropic_client.py:191-197`
+```python
+    # Retry configuration tuned for Anthropic API rate limits:
+    # - min=1s wait prevents hammering on transient errors
+    # - max=60s caps backoff to avoid long hangs
+    # - 6 attempts provides ~2-3 min total with exponential backoff
+    # These values match production recommendations; do not configure.
+    @retry(
+        wait=wait_random_exponential(min=1, max=60),
+        stop=stop_after_attempt(6),
+        retry=retry_if_exception_type((RateLimitError, APIConnectionError)),
+    )
+```
 
-Use `strict=True` by default unless explicitly handling different-length iterables.
-
-### Audit Needed
+### Verification
 
 ```bash
-# Find all zip() calls
-grep -rn "zip(" src/giant/ --include="*.py" | grep -v strict
-```
+# Check comments are in place
+grep -A5 "Retry configuration" src/giant/llm/*.py
 
-### Implementation
-
-1. Run audit command
-2. For each `zip()` without `strict`:
-   - If iterables should be same length: add `strict=True`
-   - If intentionally handling different lengths: add comment explaining why
-3. Add linting rule (if possible with ruff)
-
-### Files Likely Affected
-
-```
-src/giant/eval/runner.py          # Multiple zip() calls
-src/giant/eval/answer_extraction.py
-src/giant/llm/converters.py
-src/giant/agent/context.py
+# Run tests
+uv run pytest tests/unit -x
 ```
 
 ---
 
 ## Implementation Priority
 
-Recommended order based on impact and effort:
+Recommended order based on effort and value:
 
-1. **P2-2** (Low effort, removes dead code or fixes test)
-2. **P2-7** (Trivial, just add documentation)
-3. **P2-8** (Low effort, improves safety)
-4. **P2-1** (Low effort, establishes policy)
-5. **P2-4** (Medium effort, cross-cutting change)
+1. **P2-2** (5 min) - Delete unused fixture, trivial cleanup
+2. **P2-7** (5 min) - Add documentation comments only
+3. **P2-1** (30 min) - Add `frozen=True` to config classes + protocol
+4. **P2-4** (1-2 hours) - Update 8 files to use structured logging
 
 ---
 
 ## Acceptance Criteria
 
 For each item:
-- [ ] Issue is resolved or documented
-- [ ] All tests pass
-- [ ] mypy and ruff checks pass
-- [ ] Policy documented in CONTRIBUTING.md (if applicable)
+- [ ] Issue is resolved as specified
+- [ ] All 858+ unit tests pass: `uv run pytest tests/unit`
+- [ ] Type checking passes: `uv run mypy src/giant`
+- [ ] Linting passes: `uv run ruff check .`
+- [ ] Changes committed with descriptive message
+
+---
+
+## Commit Messages
+
+```
+fix(tests): remove unused mock_api_responses fixture
+
+chore(llm): document retry parameter rationale
+
+refactor(core): add frozen=True to config dataclasses
+
+refactor(logging): standardize on structured logging
+```

@@ -4,6 +4,7 @@
 **Effort:** Large (2-4 days)
 **Risk:** LOW for correctness, MEDIUM for maintainability
 **Status:** DEFERRED - Awaiting capacity
+**Last Verified:** 2025-12-31 (all line numbers confirmed)
 
 ---
 
@@ -64,7 +65,7 @@ Extract into 4 focused classes:
 src/giant/eval/
 ├── runner.py           # EvaluationOrchestrator (orchestration only, ~200 lines)
 ├── loader.py           # BenchmarkItemLoader (CSV parsing, ~150 lines)
-├── metrics.py          # MetricsCalculator (already exists, extend)
+├── metrics.py          # Existing metric functions (keep)
 ├── persistence.py      # ResultsPersistence (saving, ~100 lines)
 └── executor.py         # ItemExecutor (agent runs, ~300 lines)
 ```
@@ -117,8 +118,9 @@ class BenchmarkItemLoader:
 - `_parse_truth_label()` (lines 404-455)
 
 **Tests to migrate:**
-- `tests/unit/eval/test_runner.py::TestBenchmarkItemLoading`
-- `tests/unit/eval/test_runner.py::TestOptionsParsing`
+- `tests/unit/eval/test_runner.py::TestLoadBenchmarkItems` (includes options parsing)
+- `tests/unit/eval/test_runner.py::TestResolveWsiPath`
+- `tests/unit/eval/test_runner.py::TestWsiNotFound`
 - `tests/unit/eval/test_runner.py::TestTruthLabelParsing`
 
 ---
@@ -176,8 +178,8 @@ class ItemExecutor:
 - `_select_majority_prediction()` (lines 929-969)
 
 **Tests to migrate:**
-- `tests/unit/eval/test_runner.py::TestMajorityVoting`
-- `tests/unit/eval/test_runner.py::TestItemExecution`
+- `tests/unit/eval/test_runner.py::TestMajorityVote`
+- `tests/unit/eval/test_runner.py::TestSelectMajorityPrediction`
 
 ---
 
@@ -205,7 +207,7 @@ class ResultsPersistence:
         item_id: str,
         run_idx: int,
     ) -> Path:
-        """Save trajectory to YAML."""
+        """Save trajectory to JSON."""
         ...
 
     @staticmethod
@@ -226,8 +228,8 @@ class ResultsPersistence:
 - `_safe_filename_component()` (lines 557-560)
 
 **Tests to migrate:**
-- `tests/unit/eval/test_runner.py::TestResultsSaving`
-- `tests/unit/eval/test_runner.py::TestTrajectoryPersistence`
+- `tests/unit/eval/test_runner.py::TestValidateRunId`
+- `tests/unit/eval/test_runner.py::TestSafeFilenameComponent`
 
 ---
 
@@ -366,16 +368,18 @@ results = await orchestrator.run_benchmark(items, benchmark_name, model_name)
 
 ## Test Migration Checklist
 
-| Test Class | Target Module | Status |
-|------------|---------------|--------|
-| `TestBenchmarkItemLoading` | `loader.py` | Pending |
-| `TestOptionsParsing` | `loader.py` | Pending |
-| `TestTruthLabelParsing` | `loader.py` | Pending |
-| `TestMajorityVoting` | `executor.py` | Pending |
-| `TestItemExecution` | `executor.py` | Pending |
-| `TestResultsSaving` | `persistence.py` | Pending |
-| `TestTrajectoryPersistence` | `persistence.py` | Pending |
-| `TestBenchmarkRunnerIntegration` | `runner.py` | Keep |
+Test file: `tests/unit/eval/test_runner.py` (verified 2025-12-31)
+
+| Test Class | Line | Target Module | Status |
+|------------|------|---------------|--------|
+| `TestLoadBenchmarkItems` | 352 | `loader.py` | Pending |
+| `TestResolveWsiPath` | 107 | `loader.py` | Pending |
+| `TestWsiNotFound` | 730 | `loader.py` | Pending |
+| `TestTruthLabelParsing` | 207 | `loader.py` | Pending |
+| `TestMajorityVote` | 240 | `executor.py` | Pending |
+| `TestSelectMajorityPrediction` | 737 | `executor.py` | Pending |
+| `TestValidateRunId` | 700 | `persistence.py` | Pending |
+| `TestSafeFilenameComponent` | 718 | `persistence.py` | Pending |
 
 ---
 

@@ -16,18 +16,18 @@ This audit found mostly **code quality issues**, not correctness bugs. The origi
 
 ### Current Status (Post-Fix)
 
-| Priority | Original | Fixed | Remaining | Notes |
-|----------|----------|-------|-----------|-------|
-| **P0 (Critical)** | 2 | N/A | **0** | Both were false positives |
-| **P1 (High)** | 2 | 1 | **1** | P1-1 fixed, P1-2 deferred (large refactor) |
-| **P2 (Medium)** | 9 | 4 | **5** | P2-3/5/6/9 fixed |
-| **P3 (Low)** | 15 | 2 | **13** | P3-4/8 fixed |
-| **P4 (Cosmetic)** | 6 | 0 | **6** | Low value, not prioritized |
-| **TOTAL** | 34 | 7 | **25** | All correctness bugs fixed |
+| Priority | Fixed | Deferred | Closed | Notes |
+|----------|-------|----------|--------|-------|
+| **P0 (Critical)** | 0 | 0 | **1** | P0-1 false positive; P0-2 reclassified as P3-1 |
+| **P1 (High)** | 1 | **1** | **1** | P1-1 fixed, P1-2 deferred; P1-4 false positive |
+| **P2 (Medium)** | 4 | **4** | **1** | P2-3/5/6/9 fixed; P2-1/2/4/7 deferred; P2-8 false positive |
+| **P3 (Low)** | 2 | **13** | 0 | Includes P0-2 reclassified as P3-1 |
+| **P4 (Cosmetic)** | 0 | **6** | 0 | Low value, not prioritized |
+| **TOTAL** | 7 | **24** | **3** | All correctness-affecting issues found here fixed |
 
 ### Benchmark Results: VALID ✅
 
-All correctness-affecting bugs have been fixed. The P2-9 voting bug (only bug found) is now fixed with test coverage.
+All correctness-affecting issues identified in this audit have been fixed. The P2-9 voting bug (only correctness bug found) is now fixed with test coverage.
 
 ---
 
@@ -57,6 +57,14 @@ All correctness-affecting bugs have been fixed. The P2-9 voting bug (only bug fo
 
 ---
 
+### ~~P2-8: Inconsistent Use of strict=True in zip()~~ - FALSE POSITIVE ❌
+
+**Original claim:** Some `zip()` calls omit `strict=True`, which can silently truncate mismatched iterables.
+
+**Why it's false:** A repo-wide search shows **all** `zip()` calls already use `strict=True` (4 total). No action required.
+
+---
+
 ## P1 - High Priority Issues (Code Quality)
 
 ### P1-1: DRY Violation - Duplicate System Prompt Extraction ✅ FIXED
@@ -75,7 +83,7 @@ All correctness-affecting bugs have been fixed. The P2-9 voting bug (only bug fo
 
 ### P1-2: Single Responsibility Violation - BenchmarkRunner ⏳ DEFERRED
 
-**File:** `src/giant/eval/runner.py` (1062 lines)
+**File:** `src/giant/eval/runner.py` (1064 lines)
 
 The class handles too many responsibilities:
 - CSV loading and parsing
@@ -170,7 +178,7 @@ if TYPE_CHECKING:
 
 ### P2-7: Retry Logic Uses Hardcoded Parameters ⏳ DEFERRED
 
-**Files:** `openai_client.py:207-212`, `anthropic_client.py:195-200`
+**Files:** `src/giant/llm/openai_client.py:207-212`, `src/giant/llm/anthropic_client.py:192-197`
 
 ```python
 @retry(
@@ -181,16 +189,6 @@ if TYPE_CHECKING:
 ```
 
 **Fix:** Make configurable via settings or document why fixed.
-
-**Detailed spec:** See `TECH_DEBT_P2.md`
-
----
-
-### P2-8: Inconsistent Use of strict=True in zip() ⏳ DEFERRED
-
-Some places use `strict=True`, others don't. Inconsistent strictness can hide bugs.
-
-**Fix:** Use `strict=True` consistently where appropriate.
 
 **Detailed spec:** See `TECH_DEBT_P2.md`
 
@@ -214,10 +212,11 @@ counts = Counter(valid_labels)  # {1: 2} - Only valid labels vote
 **Fix applied:** Filter out `None` before `Counter()`, deterministic tie-break on first valid label.
 
 **Commit:** `d2783cf`
-**Tests added:**
+**Test coverage:**
 - `test_none_labels_excluded_from_voting`
 - `test_single_valid_label_wins_over_many_nones`
 - `test_deterministic_tiebreak`
+- `test_falls_back_to_string_vote_when_all_labels_none`
 
 ---
 
@@ -369,22 +368,22 @@ Mutates `MessageContent.text` instead of creating new object. If immutability is
 
 ## P4 - Cosmetic Issues
 
-### P4-1: Inconsistent Class Organization
+### P4-1: Inconsistent Class Organization ⏳ DEFERRED
 Methods not consistently ordered (public before private).
 
-### P4-2: Long Lines in Some Files
+### P4-2: Long Lines in Some Files ⏳ DEFERRED
 Some lines exceed 100 characters.
 
-### P4-3: Missing Blank Lines in Test Classes
+### P4-3: Missing Blank Lines in Test Classes ⏳ DEFERRED
 Inconsistent spacing between test methods.
 
-### P4-4: Inconsistent Comment Style
+### P4-4: Inconsistent Comment Style ⏳ DEFERRED
 Mix of `#` and `# ` (with space).
 
-### P4-5: Missing Type Hints in Test Fixtures
+### P4-5: Missing Type Hints in Test Fixtures ⏳ DEFERRED
 Some fixtures lack return type annotations.
 
-### P4-6: Verbose Imports
+### P4-6: Verbose Imports ⏳ DEFERRED
 Long import lists in `__init__.py` could use grouping.
 
 ---
@@ -397,7 +396,7 @@ Long import lists in `__init__.py` could use grouping.
 | P0-1: Image pixel exception | ❌ False Positive | Exceptions properly caught and wrapped |
 | P0-2: Circuit breaker race | ⬇️ Demoted to P3 | Cooperative async, minimal impact |
 | P1-1: DRY violation | ✅ Confirmed | 100% duplicate code |
-| P1-2: SRP violation | ✅ Confirmed | 1062-line class |
+| P1-2: SRP violation | ✅ Confirmed | 1064-line class |
 | P1-3: Magic sentinel | ⬇️ Demoted to P3 | Safe by design |
 | P1-4: Infinite loop | ❌ False Positive | Code handles correctly |
 | P1-5: CONCH feedback | ⬇️ Demoted to P3 | Edge case only |
@@ -409,7 +408,7 @@ Long import lists in `__init__.py` could use grouping.
 |-------|--------|-------|
 | Sampler division by zero | ❌ False Positive | Earlier "no tissue" check catches zero-dimension masks |
 | **P2-9: Voting logic bug** | ✅ NEW | None participates in label voting, can win ties |
-| All P2 issues (P2-1 to P2-8) | ✅ Confirmed | Re-verified with fresh examination |
+| All P2 issues (P2-1 to P2-7) | ✅ Confirmed | Re-verified with fresh examination |
 | All P3 issues | ✅ Confirmed | Re-verified with fresh examination |
 
 ---
@@ -448,7 +447,8 @@ Mostly **maintainability issues**, not bugs:
 
 For detailed implementation specs, see:
 - **`TECH_DEBT_P1.md`** - BenchmarkRunner refactor (large, 2-4 days)
-- **`TECH_DEBT_P2.md`** - Medium priority items (5 remaining)
+- **`TECH_DEBT_P2.md`** - Medium priority items (4 remaining, actionable)
+- **`TECH_DEBT_P3.md`** - Low priority items (13 remaining, skip most)
 
 ---
 
@@ -462,7 +462,7 @@ For detailed implementation specs, see:
 | **P2-3** | JPEG quality now uses `settings.JPEG_QUALITY` in crop_engine.py and runner.py | `d2783cf` | Existing tests pass |
 | **P2-5** | Removed empty `TYPE_CHECKING` block from anthropic_client.py | `d2783cf` | N/A (dead code removal) |
 | **P2-6** | Added `__post_init__` validation for `num_guides >= 1` in OverlayStyle | `d2783cf` | `test_num_guides_must_be_at_least_one` (`b427e44`) |
-| **P2-9** | Voting logic filters `None` before `Counter()`, deterministic tie-break | `d2783cf` | 4 tests: `test_none_labels_excluded_from_voting`, `test_single_valid_label_wins_over_many_nones`, `test_deterministic_tiebreak`, `test_all_none_labels_returns_majority_vote` |
+| **P2-9** | Voting logic filters `None` before `Counter()`, deterministic tie-break | `d2783cf` | 4 tests: `test_none_labels_excluded_from_voting`, `test_single_valid_label_wins_over_many_nones`, `test_deterministic_tiebreak`, `test_falls_back_to_string_vote_when_all_labels_none` |
 | **P3-4** | Replaced `assert isinstance(...)` with explicit `TypeError` raise | `d2783cf` | Existing tests pass |
 | **P3-8** | Added `spec=WSIReader` and `spec=CropEngine` to MagicMock in test_runner.py | `d2783cf` | Test quality improvement |
 
@@ -472,7 +472,7 @@ For detailed implementation specs, see:
 
 | Issue | Description | Effort | Why Deferred |
 |-------|-------------|--------|--------------|
-| **P1-2** | **BenchmarkRunner SRP violation** (1062 lines) - Split into `BenchmarkItemLoader`, `MetricsCalculator`, `ResultsPersistence` | **Large** (2-4 days) | Architectural refactor, requires careful test migration, breaks API |
+| **P1-2** | **BenchmarkRunner SRP violation** (1064 lines) - Split into `BenchmarkItemLoader`, `ItemExecutor`, `ResultsPersistence` (metrics stay in `src/giant/eval/metrics.py`) | **Large** (2-4 days) | Architectural refactor, requires careful test migration, breaks API |
 
 #### Medium Priority (P2) - Should Fix Before Next Major Release
 
@@ -482,7 +482,6 @@ For detailed implementation specs, see:
 | **P2-2** | Test fixture uses old API response structure | Small | Low impact, tests still pass |
 | **P2-4** | Inconsistent logging patterns (structured vs format strings) | Medium | Cross-cutting, many files |
 | **P2-7** | Hardcoded retry parameters (should be configurable) | Small | Needs design decision |
-| **P2-8** | Inconsistent `strict=True` in `zip()` calls | Small | Needs codebase-wide audit |
 
 #### Low Priority (P3) - Nice to Have
 
@@ -517,7 +516,7 @@ For detailed implementation specs, see:
 
 ## Risk Assessment of Deferred Items
 
-### P1-2 (BenchmarkRunner) - The 1062-Line Elephant
+### BenchmarkRunner - The 1064-Line Elephant
 
 **Current Risk:** LOW for correctness, MEDIUM for maintainability
 
@@ -533,8 +532,8 @@ For detailed implementation specs, see:
 
 **Recommended approach:**
 1. Extract `ResultsPersistence` first (lowest coupling)
-2. Extract `MetricsCalculator` (pure functions)
-3. Extract `BenchmarkItemLoader` (CSV/DICOM logic)
+2. Extract `BenchmarkItemLoader` (CSV loading + WSI resolution)
+3. Extract `ItemExecutor` (per-item execution + voting)
 4. Rename remaining class to `EvaluationOrchestrator`
 
 ---
