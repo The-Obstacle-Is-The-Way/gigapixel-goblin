@@ -36,7 +36,7 @@ All CLI options are defined in `src/giant/cli/main.py`.
 | `--output-dir, -o` | `results` | any | Output directory for results |
 | `--mode, -m` | `giant` | `giant` or `patch_vote` | Evaluation mode. See [Modes](#modes) |
 | `--provider, -p` | `openai` | any | LLM provider (`openai`, `anthropic`) |
-| `--model` | `gpt-5.2` | varies | Model ID (see [Model Registry](#model-registry)). Note: if `--provider anthropic`, you must also set `--model` to an Anthropic-approved model. |
+| `--model` | `gpt-5.2` | varies | Model ID (see [Model Registry](#3-model-registry)). Note: if `--provider anthropic`, you must also set `--model` to an Anthropic-approved model. |
 | `--max-steps, -T` | `20` | `20` | Max navigation steps (T parameter) |
 | `--strict-font-check/--no-strict-font-check` | `False` | `False` | Fail if TrueType fonts are unavailable for axis labels |
 | `--enforce-fixed-iterations/--no-enforce-fixed-iterations` | `False` | **`True`** | Reject early answers before the final step (paper-fidelity fixed-iteration mode) |
@@ -70,7 +70,7 @@ Single-slide inference shares most flags with `benchmark`:
 | `--question, -q` | (required) | Question to answer about the slide |
 | `--mode, -m` | `giant` | Same modes as benchmark |
 | `--provider, -p` | `openai` | LLM provider (`openai`, `anthropic`) |
-| `--model` | `gpt-5.2` | Model ID (see [Model Registry](#model-registry)). Note: if `--provider anthropic`, you must also set `--model` to an Anthropic-approved model. |
+| `--model` | `gpt-5.2` | Model ID (see [Model Registry](#3-model-registry)). Note: if `--provider anthropic`, you must also set `--model` to an Anthropic-approved model. |
 | `--max-steps, -T` | `20` | Max navigation steps |
 | `--strict-font-check/--no-strict-font-check` | `False` | Fail if TrueType fonts are unavailable for axis labels |
 | `--enforce-fixed-iterations/--no-enforce-fixed-iterations` | `False` | Reject early answers (paper-fidelity fixed-iteration mode) |

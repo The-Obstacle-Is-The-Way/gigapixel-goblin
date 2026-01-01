@@ -25,7 +25,7 @@ Launched comprehensive swarm audit to investigate why SlideBench (51.8%), TCGA (
 
 **Location**: `results/panda_giant_openai_gpt-5.2_results.json`
 **Evidence**:
-```
+```text
 Predicted: Label 0 = 78.2% (154/197)
 Truth:     Label 0 = 27.4% (54/197)
 Gap:       +50.8 percentage points over-prediction of benign
@@ -39,7 +39,7 @@ Gap:       +50.8 percentage points over-prediction of benign
 
 **Location**: `results/tcga_giant_openai_gpt-5.2_results.json`
 **Evidence**:
-```
+```text
 Top predictions:
   Label 5:  21.3% predicted (47/221) vs ~5% truth
   Label 19: 14.0% predicted (31/221) vs 8.1% truth

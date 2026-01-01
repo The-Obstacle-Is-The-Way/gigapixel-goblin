@@ -416,7 +416,6 @@ class ItemExecutor:
 
     async def _run_item_patch_vote(self, item: BenchmarkItem) -> BenchmarkResult:
         """Run patch baseline with per-patch majority vote (paper-fidelity)."""
-        from giant.agent.runner import RunResult  # noqa: PLC0415
         from giant.agent.trajectory import Trajectory  # noqa: PLC0415
 
         regions, patch_requests = self._prepare_patch_vote_requests(item)
