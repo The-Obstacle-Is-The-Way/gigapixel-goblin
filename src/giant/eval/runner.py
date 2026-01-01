@@ -45,7 +45,7 @@ class EvaluationConfig(BaseModel):
     """Configuration for benchmark evaluation.
 
     Attributes:
-        mode: Evaluation mode ("giant", "thumbnail", "patch").
+        mode: Evaluation mode ("giant", "thumbnail", "patch", "patch_vote").
         max_steps: Maximum navigation steps per item (default: 20 per paper).
         runs_per_item: Number of runs per item for majority voting (default: 1).
         max_concurrent: Maximum concurrent agent runs.
@@ -55,11 +55,12 @@ class EvaluationConfig(BaseModel):
         budget_usd: Optional total budget across the whole run (stop early once
             exceeded).
         strict_font_check: If True, fail if axis label fonts are missing.
+        enforce_fixed_iterations: If True, reject early answers before final step.
         save_trajectories: Whether to save full trajectories.
         checkpoint_interval: Save checkpoint every N items.
     """
 
-    mode: Literal["giant", "thumbnail", "patch"] = Field(default="giant")
+    mode: Literal["giant", "thumbnail", "patch", "patch_vote"] = Field(default="giant")
     max_steps: int = Field(default=20, ge=1)
     runs_per_item: int = Field(default=1, ge=1)
     max_concurrent: int = Field(default=4, ge=1)
@@ -67,6 +68,7 @@ class EvaluationConfig(BaseModel):
     skip_missing_wsis: bool = False
     budget_usd: float | None = Field(default=None, ge=0.0)
     strict_font_check: bool = Field(default=False)
+    enforce_fixed_iterations: bool = Field(default=False)
     save_trajectories: bool = True
     checkpoint_interval: int = Field(default=10, ge=1)
 

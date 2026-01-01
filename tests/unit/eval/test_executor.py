@@ -17,6 +17,8 @@ from giant.data.schemas import BenchmarkItem
 from giant.eval.executor import ItemExecutor, _ItemRunState
 from giant.eval.persistence import ResultsPersistence
 from giant.eval.runner import EvaluationConfig
+from giant.geometry.primitives import Region
+from giant.llm.protocol import FinalAnswerAction, LLMResponse, StepResponse, TokenUsage
 
 
 def _make_benchmark_item(  # noqa: PLR0913
@@ -176,6 +178,21 @@ class TestRunSingleItem:
             mock_patch.return_value = MagicMock()
             await executor.run_single_item(item)
             mock_patch.assert_called_once_with(item)
+
+    @pytest.mark.asyncio
+    async def test_dispatches_to_patch_vote_mode(self, executor: ItemExecutor) -> None:
+        """Verify patch_vote mode calls _run_item_patch_vote."""
+        item = _make_benchmark_item()
+
+        executor.config = EvaluationConfig(mode="patch_vote")
+        with patch.object(
+            executor,
+            "_run_item_patch_vote",
+            new_callable=AsyncMock,
+        ) as mock_vote:
+            mock_vote.return_value = MagicMock()
+            await executor.run_single_item(item)
+            mock_vote.assert_called_once_with(item)
 
     @pytest.mark.asyncio
     async def test_returns_error_result_on_exception(
@@ -384,6 +401,85 @@ class TestRunItemGiant:
 
         assert result.total_tokens == 300  # 3 runs * 100 tokens
         assert result.cost_usd == pytest.approx(0.03)  # 3 runs * 0.01
+
+
+class TestRunItemPatchVote:
+    @pytest.mark.asyncio
+    async def test_patch_vote_calls_provider_30x_and_majority_votes(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        """Patch-vote baseline should perform per-patch calls (BUG-042)."""
+        from PIL import Image
+
+        provider = MagicMock()
+        provider.get_model_name.return_value = "gpt-5.2"
+        provider.get_provider_name.return_value = "openai"
+        provider.generate_response = AsyncMock()
+
+        def make_llm_answer(answer: str) -> LLMResponse:
+            return LLMResponse(
+                step_response=StepResponse(
+                    reasoning="Patch analysis",
+                    action=FinalAnswerAction(answer_text=answer),
+                ),
+                usage=TokenUsage(
+                    prompt_tokens=1,
+                    completion_tokens=1,
+                    total_tokens=2,
+                    cost_usd=0.001,
+                ),
+                model="gpt-5.2",
+                latency_ms=1.0,
+            )
+
+        provider.generate_response.side_effect = [
+            *[make_llm_answer("Lung") for _ in range(20)],
+            *[make_llm_answer("Breast") for _ in range(10)],
+        ]
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        persistence = ResultsPersistence(output_dir=output_dir)
+        config = EvaluationConfig(
+            mode="patch_vote",
+            runs_per_item=1,
+            save_trajectories=False,
+        )
+        executor = ItemExecutor(
+            llm_provider=provider,
+            config=config,
+            persistence=persistence,
+        )
+
+        item = _make_benchmark_item(truth_label=1)
+
+        regions = [
+            Region(x=idx * 10, y=idx * 10, width=224, height=224) for idx in range(30)
+        ]
+        reader = MagicMock()
+        reader.__enter__ = MagicMock(return_value=reader)
+        reader.__exit__ = MagicMock(return_value=None)
+        reader.get_metadata.return_value = MagicMock(width=1000, height=1000)
+        reader.get_thumbnail.return_value = Image.new("RGB", (64, 64), color="white")
+        reader.read_region.side_effect = [
+            Image.new("RGB", (224, 224), color="white") for _ in range(30)
+        ]
+
+        segmentor_instance = MagicMock()
+        segmentor_instance.segment.return_value = object()
+
+        with (
+            patch("giant.wsi.reader.WSIReader", return_value=reader),
+            patch("giant.vision.TissueSegmentor", return_value=segmentor_instance),
+            patch("giant.vision.sample_patches", return_value=regions),
+        ):
+            result = await executor.run_single_item(item)
+
+        assert provider.generate_response.await_count == 30
+        assert result.prediction == "Lung"
+        assert result.predicted_label == 1
+        assert result.correct is True
 
 
 class TestMajorityVote:

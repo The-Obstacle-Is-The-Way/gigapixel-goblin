@@ -51,6 +51,7 @@ class ContextManager:
     max_history_images: int | None = None
     system_prompt: str | None = None
     enable_conch: bool = False
+    enforce_fixed_iterations: bool = False
 
     trajectory: Trajectory = field(init=False)
     _prompt_builder: PromptBuilder = field(init=False, repr=False)
@@ -61,7 +62,9 @@ class ContextManager:
             wsi_path=self.wsi_path,
             question=self.question,
         )
-        self._prompt_builder = PromptBuilder()
+        self._prompt_builder = PromptBuilder(
+            enforce_fixed_iterations=self.enforce_fixed_iterations
+        )
 
     @property
     def current_step(self) -> int:

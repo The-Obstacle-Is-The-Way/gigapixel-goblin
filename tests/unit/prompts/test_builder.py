@@ -63,6 +63,15 @@ class TestPromptBuilderSystemMessage:
         text = message.content[0].text or ""
         assert "answer" in text.lower()
 
+    def test_system_message_includes_fixed_iteration_constraints_when_enabled(
+        self,
+    ) -> None:
+        builder = PromptBuilder(enforce_fixed_iterations=True)
+        message = builder.build_system_message()
+        text = message.content[0].text or ""
+        assert "fixed-iteration" in text.lower()
+        assert "must not" in text.lower()
+
 
 class TestPromptBuilderUserMessage:
     """Tests for user message construction."""
@@ -186,6 +195,22 @@ class TestPromptBuilderSubsequentSteps:
         text = text_content.text or ""
         # Should mention the last region
         assert "1000" in text or "crop" in text.lower()
+
+    def test_subsequent_step_disallows_early_answer_when_fixed_iterations_enforced(
+        self,
+    ) -> None:
+        builder = PromptBuilder(enforce_fixed_iterations=True)
+        message = builder.build_user_message(
+            question="What is the diagnosis?",
+            step=2,
+            max_steps=5,
+            context_images=["base64crop=="],
+            last_region="(1000, 2000, 500, 500)",
+        )
+        text_content = next(c for c in message.content if c.type == "text")
+        text = text_content.text or ""
+        assert "do not answer" in text.lower()
+        assert "continue exploring or answer" not in text.lower()
 
     def test_image_media_type_is_jpeg(self) -> None:
         """Test that image content has correct media type."""

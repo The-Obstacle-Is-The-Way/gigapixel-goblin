@@ -2,7 +2,15 @@
 
 ## Severity: P2 (Medium) — Baseline Comparability / Paper Reproducibility
 
-## Status: OPEN (2026-01-01)
+## Status: ✅ Fixed (2026-01-01)
+
+## Resolution
+
+Added an explicit paper-fidelity baseline mode:
+
+- Eval/CLI mode: `patch_vote`
+- Behavior: samples 30 patches and runs 30 independent baseline calls, then aggregates via majority vote
+- Preserved: existing `patch` mode remains the collage/montage baseline for quick comparisons
 
 ## Summary
 
@@ -47,17 +55,14 @@ This is aligned with `src/giant/core/baselines.py`’s stated behavior (“Patch
 
 ---
 
-## Proposed Fix (Paper-Faithful Patch Baseline Mode)
+## Implemented Fix (Paper-Faithful Patch Baseline Mode)
 
-Introduce a paper-faithful patch baseline, ideally as an explicit mode:
+Implemented `mode="patch_vote"` in evaluation and CLI:
 
-1. Add `mode="patch_vote"` (name TBD) to evaluation modes.
-2. For each item:
-   - Sample 30 tissue patches as today.
-   - For each patch:
-     - Call `run_baseline_answer(...)` with that single patch image.
-   - Aggregate the 30 patch predictions by majority vote (use `giant.vision.aggregate_predictions`).
-3. Preserve current collage baseline as `mode="patch_collage"` (or keep `patch` as collage and add `patch_vote`).
+1. Sample 30 tissue patches (same sampler/segmentor path as the collage baseline).
+2. For each patch, run `run_baseline_answer(...)` with the single patch image.
+3. Aggregate the 30 patch predictions via majority vote to produce one prediction per item/run.
+4. Preserve `mode="patch"` as the existing montage/collage baseline.
 
 ---
 

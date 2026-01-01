@@ -2,7 +2,15 @@
 
 ## Severity: P1 (High) — Benchmark Validity / Paper Reproducibility
 
-## Status: OPEN (2026-01-01)
+## Status: ✅ Fixed (2026-01-01)
+
+## Resolution
+
+Implemented an opt-in paper-fidelity fixed-iteration mode:
+
+- Config: `AgentConfig.enforce_fixed_iterations`, `EvaluationConfig.enforce_fixed_iterations`, CLI `--enforce-fixed-iterations`
+- Prompts: `PromptBuilder(..., enforce_fixed_iterations=True)` + `SUBSEQUENT_USER_PROMPT_FIXED_ITERATIONS`
+- Runtime: early `answer` before the final step triggers corrective reprompt up to `max_retries`, then marks the run incorrect
 
 ## Summary
 
@@ -85,7 +93,7 @@ Interpretation:
 
 ---
 
-## Proposed Fix (Paper-Fidelity Mode)
+## Implemented Fix (Paper-Fidelity Mode)
 
 Add an explicit “paper-fidelity” enforcement mode (opt-in by default to avoid behavior surprises), e.g.:
 

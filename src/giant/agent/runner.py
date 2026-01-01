@@ -86,6 +86,15 @@ Question: {question}
 Provide your best answer using the `answer` action.
 """
 
+EARLY_ANSWER_FEEDBACK_TEMPLATE = """
+You attempted to answer at step {step} of {max_steps}, but answering early is
+not allowed.
+You MUST continue navigating and only answer on the FINAL step.
+
+Return a StepResponse with action_type='crop' (or 'conch' if enabled).
+Do NOT use action_type='answer' until step {max_steps}.
+"""
+
 
 # =============================================================================
 # Result Models
@@ -138,6 +147,7 @@ class AgentConfig:
         enable_conch: If True, allow the model to invoke CONCH.
         conch_scorer: Optional scorer implementation for CONCH.
         system_prompt: Optional system prompt override (reproducibility).
+        enforce_fixed_iterations: If True, reject early answers before the final step.
     """
 
     max_steps: int = 20  # T=20 per GIANT paper (accuracy improves up to 20 iterations)
@@ -149,6 +159,7 @@ class AgentConfig:
     enable_conch: bool = False
     conch_scorer: ConchScorer | None = None
     system_prompt: str | None = None
+    enforce_fixed_iterations: bool = False
 
     def __post_init__(self) -> None:
         if self.budget_usd is not None and self.budget_usd < 0.0:
@@ -250,6 +261,7 @@ class GIANTAgent:
                     max_steps=self.config.max_steps,
                     system_prompt=system_prompt,
                     enable_conch=self.config.enable_conch,
+                    enforce_fixed_iterations=self.config.enforce_fixed_iterations,
                 )
 
                 # Step 0: Generate thumbnail with axis guides
@@ -359,6 +371,13 @@ class GIANTAgent:
         action = step_response.action
 
         if isinstance(action, FinalAnswerAction):
+            if self.config.enforce_fixed_iterations and not self._context.is_final_step:
+                logger.warning(
+                    "Model returned early answer at step %d/%d (fixed-iteration mode)",
+                    self._context.current_step,
+                    self.config.max_steps,
+                )
+                return await self._handle_early_answer_before_final_step(messages)
             logger.warning(
                 "Model returned answer at step %d/%d",
                 self._context.current_step,
@@ -376,6 +395,71 @@ class GIANTAgent:
             return _StepDecision(break_to_force_answer=True)
 
         return _StepDecision()
+
+    async def _handle_early_answer_before_final_step(
+        self, messages: list[Message]
+    ) -> _StepDecision:
+        """Enforce fixed-iteration contract by rejecting early answers."""
+        feedback_text = EARLY_ANSWER_FEEDBACK_TEMPLATE.format(
+            step=self._context.current_step,
+            max_steps=self.config.max_steps,
+        )
+        feedback_message = Message(
+            role="user",
+            content=[MessageContent(type="text", text=feedback_text)],
+        )
+
+        for attempt in range(self.config.max_retries):
+            messages_with_feedback = [*messages, feedback_message]
+
+            try:
+                response = await self.llm_provider.generate_response(
+                    messages_with_feedback
+                )
+                self._accumulate_usage(response)
+            except (LLMError, LLMParseError) as e:
+                logger.warning(
+                    "Early-answer retry LLM call failed (attempt %d/%d): %s",
+                    attempt + 1,
+                    self.config.max_retries,
+                    e,
+                )
+                continue
+
+            step_response = response.step_response
+            action = step_response.action
+
+            if isinstance(action, FinalAnswerAction):
+                logger.warning(
+                    "Model still answered early at step %d/%d (attempt %d/%d)",
+                    self._context.current_step,
+                    self.config.max_steps,
+                    attempt + 1,
+                    self.config.max_retries,
+                )
+                continue
+
+            if isinstance(action, BoundingBoxAction):
+                return await self._handle_crop_action(
+                    step_response,
+                    action,
+                    messages_with_feedback,
+                )
+
+            if isinstance(action, ConchAction):
+                return await self._handle_conch_action(step_response, action)
+
+            if self._context.is_final_step:
+                return _StepDecision(break_to_force_answer=True)
+
+            return _StepDecision()
+
+        return _StepDecision(
+            run_result=self._build_error_result(
+                "Early answer rejected but model continued answering early "
+                f"after {self.config.max_retries} retries"
+            )
+        )
 
     def _build_forced_summary_for_final_step(self, attempted_action: str) -> str:
         base_summary = self._build_observation_summary()
@@ -626,6 +710,20 @@ class GIANTAgent:
             new_action = response.step_response.action
 
             if isinstance(new_action, FinalAnswerAction):
+                if (
+                    self.config.enforce_fixed_iterations
+                    and not self._context.is_final_step
+                ):
+                    logger.warning(
+                        "Model attempted early answer while correcting invalid crop "
+                        "at step %d/%d",
+                        self._context.current_step,
+                        self.config.max_steps,
+                    )
+                    current_error = (
+                        "You must not answer yet. Provide corrected crop coordinates."
+                    )
+                    continue
                 # Success: answer ends the run, reset error counter
                 self._consecutive_errors = 0
                 return self._handle_answer(response.step_response)

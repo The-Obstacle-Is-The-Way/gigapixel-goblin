@@ -159,6 +159,7 @@ def run_single_inference(  # noqa: PLR0913
     model: str,
     max_steps: int,
     strict_font_check: bool = False,
+    enforce_fixed_iterations: bool = False,
     runs: int,
     budget_usd: float,
     verbose: int,
@@ -169,6 +170,7 @@ def run_single_inference(  # noqa: PLR0913
     - giant: Full agentic navigation
     - thumbnail: Single thumbnail baseline
     - patch: CLAM segmentation + random patches baseline
+    - patch_vote: Per-patch baseline (30 calls + majority vote)
     """
     logger = get_logger(__name__)
 
@@ -190,6 +192,7 @@ def run_single_inference(  # noqa: PLR0913
             model=model,
             max_steps=max_steps,
             strict_font_check=strict_font_check,
+            enforce_fixed_iterations=enforce_fixed_iterations,
             runs=runs,
             budget_usd=budget_usd,
         )
@@ -202,8 +205,17 @@ def run_single_inference(  # noqa: PLR0913
             runs=runs,
             budget_usd=budget_usd,
         )
-    else:  # mode == Mode.patch
+    elif mode == Mode.patch:
         return _run_patch_mode(
+            wsi_path=wsi_path,
+            question=question,
+            provider=provider,
+            model=model,
+            runs=runs,
+            budget_usd=budget_usd,
+        )
+    else:  # mode == Mode.patch_vote
+        return _run_patch_vote_mode(
             wsi_path=wsi_path,
             question=question,
             provider=provider,
@@ -221,6 +233,7 @@ def _run_giant_mode(  # pragma: no cover  # noqa: PLR0913
     model: str,
     max_steps: int,
     strict_font_check: bool = False,
+    enforce_fixed_iterations: bool = False,
     runs: int,
     budget_usd: float,
 ) -> InferenceResult:
@@ -255,6 +268,7 @@ def _run_giant_mode(  # pragma: no cover  # noqa: PLR0913
                     max_steps=max_steps,
                     budget_usd=remaining_budget,
                     strict_font_check=strict_font_check,
+                    enforce_fixed_iterations=enforce_fixed_iterations,
                 )
             )
             results.append(result)
@@ -421,6 +435,145 @@ def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
     )
 
 
+def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913
+    *,
+    wsi_path: Path,
+    question: str,
+    provider: Provider,
+    model: str,
+    runs: int,
+    budget_usd: float,
+) -> InferenceResult:
+    """Run paper-fidelity patch baseline (30 independent calls + vote)."""
+    from giant.agent.runner import RunResult  # noqa: PLC0415
+    from giant.agent.trajectory import Trajectory, Turn  # noqa: PLC0415
+    from giant.core.baselines import (  # noqa: PLC0415
+        BaselineRequest,
+        encode_image_to_base64,
+        run_baseline_answer,
+    )
+    from giant.llm import create_provider  # noqa: PLC0415
+    from giant.vision import (  # noqa: PLC0415
+        N_PATCHES,
+        PATCH_SIZE,
+        TissueSegmentor,
+        aggregate_predictions,
+        sample_patches,
+    )
+    from giant.wsi import WSIReader  # noqa: PLC0415
+
+    llm = create_provider(provider.value, model=model)
+
+    with WSIReader(wsi_path) as reader:
+        meta = reader.get_metadata()
+        thumbnail = reader.get_thumbnail((2048, 2048))
+
+        segmentor = TissueSegmentor()
+        mask = segmentor.segment(thumbnail)
+        regions = sample_patches(
+            mask,
+            meta,
+            n_patches=N_PATCHES,
+            patch_size=PATCH_SIZE,
+        )
+
+        patch_images = [
+            reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
+        ]
+
+    patch_requests: list[tuple[int, BaselineRequest]] = []
+    for patch_idx, patch in enumerate(patch_images):
+        image_b64, media_type = encode_image_to_base64(patch)
+        patch_requests.append(
+            (
+                patch_idx,
+                BaselineRequest(
+                    wsi_path=wsi_path,
+                    question=question,
+                    image_base64=image_b64,
+                    media_type=media_type,
+                    context_note=(
+                        f"This image is patch {patch_idx + 1} of {N_PATCHES} random "
+                        f"{PATCH_SIZE}x{PATCH_SIZE} tissue patches sampled from "
+                        "the slide."
+                    ),
+                ),
+            )
+        )
+
+    async def run_once() -> RunResult:
+        patch_predictions: list[str] = []
+        patch_turns: list[Turn] = []
+        total_tokens = 0
+        total_cost = 0.0
+        last_error: str | None = None
+
+        for patch_idx, request in patch_requests:
+            result = await run_baseline_answer(llm_provider=llm, request=request)
+            total_cost += result.total_cost
+            total_tokens += result.total_tokens
+            if result.error_message:
+                last_error = result.error_message
+
+            if result.answer:
+                patch_predictions.append(result.answer)
+
+            if result.trajectory.turns:
+                patch_turns.append(
+                    Turn(
+                        step_index=len(patch_turns),
+                        image_base64=request.image_base64,
+                        response=result.trajectory.turns[0].response,
+                        region=regions[patch_idx],
+                    )
+                )
+
+        final_answer = (
+            aggregate_predictions(patch_predictions) if patch_predictions else ""
+        )
+        success = bool(final_answer)
+        return RunResult(
+            answer=final_answer,
+            trajectory=Trajectory(
+                wsi_path=str(wsi_path),
+                question=question,
+                turns=patch_turns,
+                final_answer=final_answer if success else None,
+            ),
+            total_tokens=total_tokens,
+            total_cost=total_cost,
+            success=success,
+            error_message=None if success else (last_error or "No patch answers"),
+        )
+
+    async def run_all() -> list[Any]:
+        results: list[Any] = []
+        total = 0.0
+
+        for _i in range(runs):
+            if budget_usd > 0 and total >= budget_usd:
+                break
+
+            result = await run_once()
+            results.append(result)
+            total += result.total_cost
+
+            if budget_usd > 0 and total >= budget_usd:
+                break
+
+        return results
+
+    run_results = asyncio.run(run_all())
+    total_cost = sum(r.total_cost for r in run_results)
+    total_tokens = sum(r.total_tokens for r in run_results)
+
+    return _summarize_runs(
+        run_results=run_results,
+        total_cost=total_cost,
+        total_tokens=total_tokens,
+    )
+
+
 def run_benchmark(  # pragma: no cover  # noqa: PLR0913
     *,
     dataset: str,
@@ -432,6 +585,7 @@ def run_benchmark(  # pragma: no cover  # noqa: PLR0913
     model: str,
     max_steps: int,
     strict_font_check: bool = False,
+    enforce_fixed_iterations: bool = False,
     runs: int,
     concurrency: int,
     budget_usd: float,
@@ -461,6 +615,7 @@ def run_benchmark(  # pragma: no cover  # noqa: PLR0913
         skip_missing_wsis=skip_missing,
         budget_usd=budget_usd if budget_usd > 0 else None,
         strict_font_check=strict_font_check,
+        enforce_fixed_iterations=enforce_fixed_iterations,
     )
 
     runner = BenchmarkRunner(
