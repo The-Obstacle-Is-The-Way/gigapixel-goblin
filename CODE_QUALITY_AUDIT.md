@@ -3,7 +3,8 @@
 **Date:** 2025-12-31
 **Auditor:** Claude Code
 **Scope:** Full codebase review for anti-patterns, SOLID violations, DRY violations, potential bugs, and bad practices
-**Validation Status:** ✅ Triple-checked with adversarial validation (second pass 2025-12-31)
+**Validation Status:** ✅ Triple-checked with adversarial validation + senior review (2025-12-31)
+**Last Updated:** 2025-12-31 (post-fix validation)
 
 ---
 
@@ -11,14 +12,22 @@
 
 The GIANT codebase is **well-structured with correct benchmark logic**. Your results are valid - the core evaluation paths (answer extraction, metrics computation, agent loop) are sound.
 
-This audit found mostly **code quality issues**, not correctness bugs. The original P0 issues were reclassified after validation:
+This audit found mostly **code quality issues**, not correctness bugs. The original P0 issues were reclassified after validation.
 
-**Revised Issue Counts (After Adversarial Validation):**
-- **P0 (Critical):** 0 (original 2 were false positives)
-- **P1 (High):** 2 (code quality, not correctness)
-- **P2 (Medium):** 9 (added 1 new bug found in adversarial pass)
-- **P3 (Low):** 15
-- **P4 (Cosmetic):** 6
+### Current Status (Post-Fix)
+
+| Priority | Original | Fixed | Remaining | Notes |
+|----------|----------|-------|-----------|-------|
+| **P0 (Critical)** | 2 | N/A | **0** | Both were false positives |
+| **P1 (High)** | 2 | 1 | **1** | P1-1 fixed, P1-2 deferred (large refactor) |
+| **P2 (Medium)** | 9 | 4 | **5** | P2-3/5/6/9 fixed |
+| **P3 (Low)** | 15 | 2 | **13** | P3-4/8 fixed |
+| **P4 (Cosmetic)** | 6 | 0 | **6** | Low value, not prioritized |
+| **TOTAL** | 34 | 7 | **25** | All correctness bugs fixed |
+
+### Benchmark Results: VALID ✅
+
+All correctness-affecting bugs have been fixed. The P2-9 voting bug (only bug found) is now fixed with test coverage.
 
 ---
 
@@ -50,21 +59,21 @@ This audit found mostly **code quality issues**, not correctness bugs. The origi
 
 ## P1 - High Priority Issues (Code Quality)
 
-### P1-1: DRY Violation - Duplicate System Prompt Extraction ✅ CONFIRMED
+### P1-1: DRY Violation - Duplicate System Prompt Extraction ✅ FIXED
 
-**Files:** `src/giant/llm/converters.py:113-130` and `src/giant/llm/converters.py:209-226`
+**Files:** `src/giant/llm/converters.py:113-134`
 
-These two functions are **100% identical**:
+**Original issue:** Two functions were 100% identical:
 - `get_system_prompt_for_openai`
 - `get_system_prompt_for_anthropic`
 
-**Impact:** Maintenance burden - bug fixes must be applied twice.
+**Fix applied:** Created canonical `extract_system_prompt(messages)` function. Both provider-specific functions now delegate to it.
 
-**Fix:** Create a single `extract_system_prompt(messages)` function.
+**Commit:** `d2783cf`
 
 ---
 
-### P1-2: Single Responsibility Violation - BenchmarkRunner ✅ CONFIRMED
+### P1-2: Single Responsibility Violation - BenchmarkRunner ⏳ DEFERRED
 
 **File:** `src/giant/eval/runner.py` (1062 lines)
 
@@ -78,21 +87,25 @@ The class handles too many responsibilities:
 
 **Impact:** Hard to test individual components, complex to maintain.
 
-**Fix:** Extract into smaller classes: `BenchmarkItemLoader`, `MetricsCalculator`, `ResultsPersistence`.
+**Why deferred:** Large architectural refactor (2-4 days), requires careful test migration, would break API. Logic is correct and well-tested.
+
+**Detailed spec:** See `TECH_DEBT_P1.md` for full implementation plan.
 
 ---
 
 ## P2 - Medium Priority Issues
 
-### P2-1: Inconsistent Frozen Dataclass Usage
+### P2-1: Inconsistent Frozen Dataclass Usage ⏳ DEFERRED
 
 Some dataclasses use `frozen=True`, others don't. No clear pattern.
 
 **Fix:** Document policy and apply consistently.
 
+**Detailed spec:** See `TECH_DEBT_P2.md`
+
 ---
 
-### P2-2: Test Fixture Using Old API Response Structure
+### P2-2: Test Fixture Using Old API Response Structure ⏳ DEFERRED
 
 **File:** `tests/conftest.py:40-71`
 
@@ -100,48 +113,62 @@ The `mock_api_responses` fixture uses old Chat Completions API format, but code 
 
 **Fix:** Update to match Responses API or remove if unused.
 
----
-
-### P2-3: Hardcoded JPEG Quality Throughout
-
-JPEG quality `85` is defined in `config.py` but hardcoded in `crop_engine.py:137` and `runner.py:851`.
-
-**Fix:** Use `settings.JPEG_QUALITY` consistently.
+**Detailed spec:** See `TECH_DEBT_P2.md`
 
 ---
 
-### P2-4: Inconsistent Logging Patterns
+### P2-3: Hardcoded JPEG Quality Throughout ✅ FIXED
+
+**Files:** `src/giant/core/crop_engine.py:159`, `src/giant/agent/runner.py:865`
+
+**Original issue:** JPEG quality `85` hardcoded instead of using `settings.JPEG_QUALITY`.
+
+**Fix applied:** Both locations now use `settings.JPEG_QUALITY`.
+
+**Commit:** `d2783cf`
+
+---
+
+### P2-4: Inconsistent Logging Patterns ⏳ DEFERRED
 
 Some files use structured logging (`wsi=str(wsi_path)`), others use format strings (`"Message: %s", value`).
 
 **Fix:** Standardize on structured logging.
 
+**Detailed spec:** See `TECH_DEBT_P2.md`
+
 ---
 
-### P2-5: Empty TYPE_CHECKING Block
+### P2-5: Empty TYPE_CHECKING Block ✅ FIXED
 
-**File:** `src/giant/llm/anthropic_client.py:22-23`
+**File:** `src/giant/llm/anthropic_client.py`
 
+**Original issue:**
 ```python
 if TYPE_CHECKING:
     pass
 ```
 
-**Fix:** Remove or add intended imports.
+**Fix applied:** Removed the empty block entirely.
+
+**Commit:** `d2783cf`
 
 ---
 
-### P2-6: Missing Validation for num_guides = 0
+### P2-6: Missing Validation for num_guides = 0 ✅ FIXED
 
-**File:** `src/giant/geometry/overlay.py:44`
+**File:** `src/giant/geometry/overlay.py:48-51`
 
-If `num_guides=0`, no guides are drawn (unexpected but not a crash).
+**Original issue:** If `num_guides=0`, no guides are drawn (unexpected but not a crash).
 
-**Fix:** Add `Field(ge=1)` validation.
+**Fix applied:** Added `__post_init__` validation that raises `ValueError` if `num_guides < 1`.
+
+**Commit:** `d2783cf`
+**Test:** `test_num_guides_must_be_at_least_one` in `b427e44`
 
 ---
 
-### P2-7: Retry Logic Uses Hardcoded Parameters
+### P2-7: Retry Logic Uses Hardcoded Parameters ⏳ DEFERRED
 
 **Files:** `openai_client.py:207-212`, `anthropic_client.py:195-200`
 
@@ -155,61 +182,60 @@ If `num_guides=0`, no guides are drawn (unexpected but not a crash).
 
 **Fix:** Make configurable via settings or document why fixed.
 
+**Detailed spec:** See `TECH_DEBT_P2.md`
+
 ---
 
-### P2-8: Inconsistent Use of strict=True in zip()
+### P2-8: Inconsistent Use of strict=True in zip() ⏳ DEFERRED
 
 Some places use `strict=True`, others don't. Inconsistent strictness can hide bugs.
 
 **Fix:** Use `strict=True` consistently where appropriate.
 
+**Detailed spec:** See `TECH_DEBT_P2.md`
+
 ---
 
-### P2-9: Voting Logic Bug - None Participates in Label Voting ✅ NEW (Adversarial Pass)
+### P2-9: Voting Logic Bug - None Participates in Label Voting ✅ FIXED
 
-**File:** `src/giant/eval/runner.py:951-964`
+**File:** `src/giant/eval/runner.py:951-967`
 
-**Bug:** When `runs_per_item > 1` and some runs fail to parse labels (returning `None`), the `_select_majority_prediction` method includes `None` in the vote count. If `None` ties with a valid label, it can WIN due to first-occurrence tie-breaking.
+**Original bug:** When `runs_per_item > 1` and some runs fail to parse labels (returning `None`), `None` could participate in voting and win ties.
 
 ```python
-# Example: labels = [None, 1, None, 1]
-counts = Counter(labels)  # {None: 2, 1: 2}
-winners = {None, 1}  # Both tied!
-winning_label = next(label for label in labels if label in winners)  # Returns None!
+# BEFORE (buggy):
+counts = Counter(labels)  # {None: 2, 1: 2} - None participates!
+
+# AFTER (fixed):
+valid_labels = [label for label in labels if label is not None]
+counts = Counter(valid_labels)  # {1: 2} - Only valid labels vote
 ```
 
-**Impact:** In edge cases where extraction fails for half the runs, the benchmark could return a prediction that was never successfully parsed, instead of selecting from successfully parsed predictions.
+**Fix applied:** Filter out `None` before `Counter()`, deterministic tie-break on first valid label.
 
-**Conditions for bug to manifest:**
-1. `runs_per_item > 1` (default is 1, so won't affect single-run benchmarks)
-2. Exactly half of runs fail label extraction
-3. Tie-break selects None as winner
-
-**Fix:** Filter out `None` before counting votes:
-```python
-non_none_labels = [l for l in labels if l is not None]
-counts = Counter(non_none_labels)
-```
-
-**Test gap:** `tests/unit/eval/test_runner.py` has `test_votes_on_labels_when_available` but doesn't test the tie-with-None edge case.
+**Commit:** `d2783cf`
+**Tests added:**
+- `test_none_labels_excluded_from_voting`
+- `test_single_valid_label_wins_over_many_nones`
+- `test_deterministic_tiebreak`
 
 ---
 
 ## P3 - Low Priority Issues
 
-### P3-1: Circuit Breaker State Property Mutates (Demoted from P0)
+### P3-1: Circuit Breaker State Property Mutates (Demoted from P0) ⏳ DEFERRED
 
 The `state` property can mutate internal state during reads. In async contexts with high concurrency, this could cause minor inconsistencies (off-by-one counts). Not a correctness issue.
 
 ---
 
-### P3-2: CONCH Disabled Feedback Missing (Demoted from P1)
+### P3-2: CONCH Disabled Feedback Missing (Demoted from P1) ⏳ DEFERRED
 
 When CONCH is disabled and model requests it, no feedback is provided. Model wastes API calls retrying. Edge case since enable_conch defaults to False.
 
 ---
 
-### P3-3: Magic Sentinel Value -1 (Demoted from P1)
+### P3-3: Magic Sentinel Value -1 (Demoted from P1) ⏳ DEFERRED
 
 `_MISSING_LABEL_SENTINEL = -1` is safe for current benchmarks (PANDA 0-5, options 1-based) but fragile if formats change.
 
@@ -217,19 +243,26 @@ When CONCH is disabled and model requests it, no feedback is provided. Model was
 
 ---
 
-### P3-4: Assert Used for Runtime Validation
+### P3-4: Assert Used for Runtime Validation ✅ FIXED
 
+**File:** `src/giant/agent/runner.py:678-679`
+
+**Original issue:**
 ```python
-assert isinstance(action, FinalAnswerAction)  # runner.py:678
+assert isinstance(action, FinalAnswerAction)
 ```
 
-`assert` can be disabled with `python -O`.
+**Fix applied:** Replaced with explicit `TypeError` raise:
+```python
+if not isinstance(action, FinalAnswerAction):
+    raise TypeError(f"Expected FinalAnswerAction, got {type(action).__name__}")
+```
 
-**Fix:** Use explicit if/raise.
+**Commit:** `d2783cf`
 
 ---
 
-### P3-5: Unused TYPE_CHECKING Import
+### P3-5: Unused TYPE_CHECKING Import ⏳ DEFERRED
 
 **File:** `src/giant/agent/runner.py:54-55`
 
@@ -237,7 +270,7 @@ PIL.Image is imported at runtime in line 508, making TYPE_CHECKING import redund
 
 ---
 
-### P3-6: Nested Import Anti-Pattern
+### P3-6: Nested Import Anti-Pattern ⏳ DEFERRED
 
 **File:** `src/giant/agent/runner.py:508`
 
@@ -249,25 +282,32 @@ Import inside method.
 
 ---
 
-### P3-7: Missing Validation for Negative Budget
+### P3-7: Missing Validation for Negative Budget ⏳ DEFERRED
 
 `AgentConfig.budget_usd` accepts negative values. If -10.0 is passed, `_total_cost >= -10.0` is immediately True. Unlikely in practice.
 
 ---
 
-### P3-8: Test Uses Mock Without spec
+### P3-8: Test Uses Mock Without spec ✅ FIXED
 
-**File:** `tests/unit/agent/test_runner.py:38-54`
+**File:** `tests/unit/agent/test_runner.py:42,62`
 
+**Original issue:**
 ```python
-reader = MagicMock()  # Should be MagicMock(spec=WSIReader)
+reader = MagicMock()  # No spec
 ```
 
-**Fix:** Use `spec` to catch interface mismatches.
+**Fix applied:**
+```python
+reader = MagicMock(spec=WSIReader)
+engine = MagicMock(spec=CropEngine)
+```
+
+**Commit:** `d2783cf`
 
 ---
 
-### P3-9: Unused Generic Type Parameter
+### P3-9: Unused Generic Type Parameter ⏳ DEFERRED
 
 **File:** `src/giant/llm/circuit_breaker.py:59`
 
@@ -277,7 +317,7 @@ class CircuitBreaker(Generic[T]):  # T is never used
 
 ---
 
-### P3-10: Confusing Variable Naming
+### P3-10: Confusing Variable Naming ⏳ DEFERRED
 
 **File:** `src/giant/eval/runner.py:581`
 
@@ -287,13 +327,13 @@ budget_state = {"total_cost": ...}  # Dict as mutable container for closures
 
 ---
 
-### P3-11: Exception Chaining Inconsistent
+### P3-11: Exception Chaining Inconsistent ⏳ DEFERRED
 
 Some places use `from e`, some use `from None`.
 
 ---
 
-### P3-12: Heuristic Provider Detection
+### P3-12: Heuristic Provider Detection ⏳ DEFERRED
 
 **File:** `src/giant/agent/runner.py:282-288`
 
@@ -305,7 +345,7 @@ if "openai" in name:  # Matches "MyOpenAIWrapper"
 
 ---
 
-### P3-13: Message Content Mutation
+### P3-13: Message Content Mutation ⏳ DEFERRED
 
 **File:** `src/giant/agent/context.py:281-282`
 
@@ -313,7 +353,7 @@ Mutates `MessageContent.text` instead of creating new object. If immutability is
 
 ---
 
-### P3-14: Path Traversal Check Not Consolidated
+### P3-14: Path Traversal Check Not Consolidated ⏳ DEFERRED
 
 `run_id` validation and `_safe_filename_component` use different approaches.
 
@@ -321,7 +361,7 @@ Mutates `MessageContent.text` instead of creating new object. If immutability is
 
 ---
 
-### P3-15: Long Method in BenchmarkRunner
+### P3-15: Long Method in BenchmarkRunner ⏳ DEFERRED
 
 `run_benchmark` is 83 lines. Could be further decomposed.
 
@@ -378,31 +418,37 @@ Long import lists in `__init__.py` could use grouping.
 
 ### Your Benchmark Results Are Valid ✅
 
-The core paths that affect correctness are sound for **single-run benchmarks** (default `runs_per_item=1`):
+All correctness-affecting bugs have been fixed. The core paths are sound:
 - **Answer extraction** (`answer_extraction.py`): Well-tested with edge cases
 - **Metrics computation** (`metrics.py`): Correct balanced accuracy and bootstrap
 - **Label handling**: Sentinel -1 never collides with valid labels (0-5 or 1-based)
-
-**Caveat for multi-run benchmarks:** P2-9 voting bug could affect results if `runs_per_item > 1` AND exactly half of runs fail extraction AND tie-breaking selects None. This is an edge case but worth fixing.
+- **Voting logic** (`runner.py`): ✅ Fixed - None no longer participates in voting
 
 ### What This Audit Found
 
 Mostly **maintainability issues**, not bugs:
-- Duplicate code that should be consolidated
-- Large class that should be split
-- Inconsistent patterns across similar code
-- Missing validations for edge cases
+- Duplicate code that should be consolidated → ✅ FIXED (P1-1)
+- Large class that should be split → ⏳ DEFERRED (P1-2, see `TECH_DEBT_P1.md`)
+- Inconsistent patterns across similar code → ⏳ DEFERRED (see `TECH_DEBT_P2.md`)
+- Missing validations for edge cases → ✅ FIXED (P2-6, P3-4)
 
-### Recommended Actions (Updated After Fixes)
+### Fixes Completed (7 total)
 
-**Completed in this pass:** ~~P2-9~~, ~~P1-1~~, ~~P3-8 (spec mocks)~~
+| Issue | Fix |
+|-------|-----|
+| **P1-1** | DRY: `extract_system_prompt()` consolidates duplicates |
+| **P2-3** | JPEG quality uses `settings.JPEG_QUALITY` |
+| **P2-5** | Empty `TYPE_CHECKING` block removed |
+| **P2-6** | `num_guides >= 1` validation added |
+| **P2-9** | Voting filters out `None` before counting |
+| **P3-4** | `assert` replaced with explicit `TypeError` |
+| **P3-8** | Mock specs added for interface checking |
 
-**Remaining priority order:**
-1. **P2-4 (medium):** Standardize on structured logging across all files
-2. **P2-7/P2-8 (small):** Design decisions needed for retry config and strict zip
-3. **P1-2 (large):** Split `BenchmarkRunner` into smaller classes when time permits
+### Remaining Work
 
-See **Implementation Status** section below for full tracking.
+For detailed implementation specs, see:
+- **`TECH_DEBT_P1.md`** - BenchmarkRunner refactor (large, 2-4 days)
+- **`TECH_DEBT_P2.md`** - Medium priority items (5 remaining)
 
 ---
 
