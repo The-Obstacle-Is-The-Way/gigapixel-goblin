@@ -29,6 +29,7 @@ from io import BytesIO
 
 from PIL import Image
 
+from giant.config import settings
 from giant.core.level_selector import LevelSelectorProtocol, PyramidLevelSelector
 from giant.geometry import Region
 from giant.wsi.types import WSIReaderProtocol, size_at_level
@@ -123,7 +124,7 @@ class CropEngine:
         region: Region,
         target_size: int = 1000,
         bias: float = 0.85,
-        jpeg_quality: int = 85,
+        jpeg_quality: int | None = None,
         max_read_dimension: int | None = None,
     ) -> CroppedImage:
         """Extract, resize, and encode a region from the WSI.
@@ -134,7 +135,8 @@ class CropEngine:
             region: Requested crop in Level-0 coordinates.
             target_size: Target long-side in pixels (default: 1000).
             bias: Oversampling bias for level selection (default: 0.85).
-            jpeg_quality: JPEG encoding quality 1-100 (default: 85).
+            jpeg_quality: JPEG encoding quality 1-100. Defaults to
+                settings.JPEG_QUALITY (typically 85).
             max_read_dimension: Maximum allowed dimension (width or height) for
                 the read operation, in pixels. If the region at the selected
                 level exceeds this, a ValueError is raised to prevent OOM.
@@ -153,6 +155,8 @@ class CropEngine:
             ValueError: If jpeg_quality is not in range 1-100.
             ValueError: If region at selected level exceeds max_read_dimension.
         """
+        if jpeg_quality is None:
+            jpeg_quality = settings.JPEG_QUALITY
         if not _JPEG_QUALITY_MIN <= jpeg_quality <= _JPEG_QUALITY_MAX:
             raise ValueError(
                 f"jpeg_quality must be {_JPEG_QUALITY_MIN}-{_JPEG_QUALITY_MAX}, "

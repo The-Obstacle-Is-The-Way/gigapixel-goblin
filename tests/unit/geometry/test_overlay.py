@@ -46,6 +46,14 @@ class TestOverlayStyle:
         with pytest.raises(AttributeError):
             style.line_width = 5  # type: ignore[misc]
 
+    def test_num_guides_must_be_at_least_one(self) -> None:
+        """Test num_guides validation rejects zero and negative values."""
+        with pytest.raises(ValueError, match="num_guides must be at least 1"):
+            OverlayStyle(num_guides=0)
+
+        with pytest.raises(ValueError, match="num_guides must be at least 1"):
+            OverlayStyle(num_guides=-1)
+
 
 class TestAxisGuideGenerator:
     """Tests for AxisGuideGenerator."""

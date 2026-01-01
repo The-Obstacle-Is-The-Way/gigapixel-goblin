@@ -19,6 +19,7 @@ from giant.agent.runner import (
     GIANTAgent,
     RunResult,
 )
+from giant.core.crop_engine import CropEngine
 from giant.llm.protocol import (
     BoundingBoxAction,
     ConchAction,
@@ -28,6 +29,7 @@ from giant.llm.protocol import (
     StepResponse,
     TokenUsage,
 )
+from giant.wsi.reader import WSIReader
 
 # =============================================================================
 # Fixtures
@@ -37,7 +39,7 @@ from giant.llm.protocol import (
 @pytest.fixture
 def mock_wsi_reader() -> MagicMock:
     """Create a mock WSI reader."""
-    reader = MagicMock()
+    reader = MagicMock(spec=WSIReader)
     reader.__enter__ = MagicMock(return_value=reader)
     reader.__exit__ = MagicMock(return_value=None)
 
@@ -57,7 +59,7 @@ def mock_wsi_reader() -> MagicMock:
 @pytest.fixture
 def mock_crop_engine() -> MagicMock:
     """Create a mock crop engine."""
-    engine = MagicMock()
+    engine = MagicMock(spec=CropEngine)
     engine.crop.return_value = MagicMock(
         base64_content="cropped_image_base64",
         read_level=2,
@@ -657,3 +659,85 @@ class TestObservationSummary:
                     break
 
         assert "Step reasoning" in force_text or "Step 1" in force_text
+
+
+class TestAgentConfigValidation:
+    def test_budget_usd_must_be_non_negative(self) -> None:
+        with pytest.raises(ValueError, match="budget_usd must be non-negative"):
+            AgentConfig(budget_usd=-0.01)
+
+
+class TestProviderNameInference:
+    def test_infer_provider_name_prefers_provider_method(self) -> None:
+        class _Provider:
+            def get_provider_name(self) -> str | None:
+                return "wrapped"
+
+        agent = GIANTAgent(
+            wsi_path="/test/slide.svs",
+            question="Is this malignant?",
+            llm_provider=_Provider(),
+        )
+        assert agent._infer_provider_name() == "wrapped"
+
+    def test_infer_provider_name_falls_back_to_class_name(self) -> None:
+        class OpenAIWrapper:
+            pass
+
+        agent = GIANTAgent(
+            wsi_path="/test/slide.svs",
+            question="Is this malignant?",
+            llm_provider=OpenAIWrapper(),
+        )
+        assert agent._infer_provider_name() == "openai"
+
+    def test_infer_provider_name_ignores_non_string_provider_method(self) -> None:
+        class OpenAIWrapper:
+            def get_provider_name(self) -> object:
+                return 123
+
+        agent = GIANTAgent(
+            wsi_path="/test/slide.svs",
+            question="Is this malignant?",
+            llm_provider=OpenAIWrapper(),
+        )
+        assert agent._infer_provider_name() == "openai"
+
+
+class TestGIANTAgentConchDisabled:
+    @pytest.mark.asyncio
+    async def test_conch_disabled_adds_user_facing_feedback(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        captured_messages: list = []
+
+        async def capture_messages(messages):
+            captured_messages.append(messages)
+            if len(captured_messages) == 1:
+                return make_conch_response(["benign", "malignant"])
+            return make_answer_response("Benign tissue")
+
+        mock_llm_provider.generate_response.side_effect = capture_messages
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(max_steps=5, enable_conch=False),
+                )
+                result = await agent.run()
+
+        assert result.success is True
+        assert len(captured_messages) >= 2
+
+        second_messages = captured_messages[1]
+        assert any(
+            content.text and "CONCH is disabled" in content.text
+            for msg in second_messages
+            for content in msg.content
+        )

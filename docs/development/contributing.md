@@ -107,6 +107,13 @@ Then create a Pull Request on GitHub.
 - Use type hints for all public functions
 - Docstrings for all public classes and functions
 
+### Immutability Policy
+
+- **Value objects** (coordinates, parsed responses): Use `frozen=True`
+- **Config objects** (small, read-only after init): Use `frozen=True`
+- **Service classes** (with mutable state): Do NOT use `frozen=True`
+- **DTOs** (schemas, results): Case-by-case based on usage
+
 ### Example
 
 ```python
@@ -171,6 +178,7 @@ from giant.llm import LLMProvider
 - Use specific exception types
 - Never catch bare `Exception` unless re-raising
 - Include context in error messages
+- Preserve root causes with exception chaining
 
 ```python
 # Good
@@ -186,6 +194,14 @@ try:
 except:
     pass
 ```
+
+### Exception Chaining
+
+When catching an exception and raising a new exception:
+
+- Use `raise NewError(...) from e` in library code so root causes are preserved.
+- Use `raise ... from None` only for user-facing CLI exits or when intentionally hiding
+  internal exceptions; add a brief comment explaining why.
 
 ## Test Guidelines
 

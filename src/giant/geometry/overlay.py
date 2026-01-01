@@ -11,16 +11,17 @@ intervals and labeling them with their corresponding Level-0 coordinates.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw, ImageFont
 
+from giant.utils.logging import get_logger
+
 if TYPE_CHECKING:
     from giant.wsi.types import WSIMetadata
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,11 @@ class OverlayStyle:
     label_padding: int = 5
     num_guides: int = 4
     strict_font_check: bool = False
+
+    def __post_init__(self) -> None:
+        """Validate configuration values."""
+        if self.num_guides < 1:
+            raise ValueError(f"num_guides must be at least 1, got {self.num_guides}")
 
 
 class AxisGuideGenerator:

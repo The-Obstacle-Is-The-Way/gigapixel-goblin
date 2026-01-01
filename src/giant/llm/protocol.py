@@ -13,20 +13,16 @@ implementations (OpenAI, Anthropic).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Literal, Protocol
+from typing import Annotated, Literal, Protocol
 
 from pydantic import BaseModel, Field
-
-if TYPE_CHECKING:
-    pass
-
 
 # =============================================================================
 # Action Models (what the LLM decides to do)
 # =============================================================================
 
 
-class BoundingBoxAction(BaseModel):
+class BoundingBoxAction(BaseModel, frozen=True):
     """Action to crop a region from the current view.
 
     The bounding box coordinates are in **Level-0 (full-slide)** pixel space.
@@ -40,7 +36,7 @@ class BoundingBoxAction(BaseModel):
     height: int = Field(..., gt=0, description="Height of bounding box")
 
 
-class FinalAnswerAction(BaseModel):
+class FinalAnswerAction(BaseModel, frozen=True):
     """Action to provide the final answer and end navigation.
 
     The agent uses this when it has gathered enough information to answer
@@ -54,7 +50,7 @@ class FinalAnswerAction(BaseModel):
 HypothesisText = Annotated[str, Field(min_length=1)]
 
 
-class ConchAction(BaseModel):
+class ConchAction(BaseModel, frozen=True):
     """Action to score hypotheses using CONCH (paper ablation feature).
 
     The agent supplies the *current* observation image (thumbnail or crop) along
@@ -81,7 +77,7 @@ Action = Annotated[
 # =============================================================================
 
 
-class StepResponse(BaseModel):
+class StepResponse(BaseModel, frozen=True):
     """Response from the LLM for a single navigation step.
 
     Contains the model's reasoning (chain-of-thought) and the action it
@@ -97,7 +93,7 @@ class StepResponse(BaseModel):
     action: Action = Field(..., description="The action to take")
 
 
-class TokenUsage(BaseModel):
+class TokenUsage(BaseModel, frozen=True):
     """Token usage and cost for an API call.
 
     Tracks prompt (input) and completion (output) tokens separately
@@ -110,7 +106,7 @@ class TokenUsage(BaseModel):
     cost_usd: float = Field(..., ge=0.0)
 
 
-class LLMResponse(BaseModel):
+class LLMResponse(BaseModel, frozen=True):
     """Full response from an LLM provider.
 
     Combines the parsed step response with metadata about the API call
@@ -128,7 +124,7 @@ class LLMResponse(BaseModel):
 # =============================================================================
 
 
-class MessageContent(BaseModel):
+class MessageContent(BaseModel, frozen=True):
     """A single piece of content within a message.
 
     Can be either text or an image. For images, the base64-encoded data
@@ -144,7 +140,7 @@ class MessageContent(BaseModel):
     )
 
 
-class Message(BaseModel):
+class Message(BaseModel, frozen=True):
     """A message in the conversation with the LLM.
 
     Messages can contain multiple content items (text and images).
@@ -183,6 +179,14 @@ class LLMProvider(Protocol):
         Raises:
             LLMError: If the API call fails after retries.
             LLMParseError: If the response cannot be parsed into StepResponse.
+        """
+        ...
+
+    def get_provider_name(self) -> str | None:
+        """Get the provider identifier, if known.
+
+        Returns:
+            Provider name (e.g., "openai" or "anthropic"), or None if unknown.
         """
         ...
 

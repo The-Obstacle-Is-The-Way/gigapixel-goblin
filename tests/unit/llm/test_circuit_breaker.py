@@ -145,7 +145,7 @@ class TestCircuitBreakerHalfOpen:
         # Wait for cooldown
         time.sleep(0.02)
 
-        # State check should trigger transition
+        breaker.refresh_state()
         assert breaker.state == CircuitState.HALF_OPEN
 
     def test_half_open_allows_limited_calls(self) -> None:
@@ -178,8 +178,7 @@ class TestCircuitBreakerHalfOpen:
         breaker.record_failure()
         time.sleep(0.02)  # Wait for transition to half-open
 
-        # Force check state to trigger transition
-        _ = breaker.state  # This triggers the transition to half-open
+        breaker.refresh_state()
 
         # Record successes
         breaker.record_success()
@@ -199,6 +198,7 @@ class TestCircuitBreakerHalfOpen:
         breaker.record_failure()
         time.sleep(0.02)  # Wait for transition to half-open
 
+        breaker.refresh_state()
         assert breaker.state == CircuitState.HALF_OPEN
 
         # Record failure in half-open
@@ -252,8 +252,7 @@ class TestCircuitBreakerLogging:
         breaker.record_failure()
         time.sleep(0.02)
 
-        # Force transition to half-open by checking state
-        _ = breaker.state
+        breaker.refresh_state()
 
         with caplog.at_level("INFO"):
             breaker.record_success()
@@ -281,6 +280,6 @@ class TestCircuitBreakerMonotonicTime:
             # Advance time past cooldown
             mock_time.return_value = 1000.1  # 0.1 seconds later
 
-            # Checking state should trigger transition
+            breaker.refresh_state()
             state = breaker.state
             assert state == CircuitState.HALF_OPEN
