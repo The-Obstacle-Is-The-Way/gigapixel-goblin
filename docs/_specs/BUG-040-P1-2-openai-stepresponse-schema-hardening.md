@@ -1,6 +1,6 @@
 # BUG-040-P1-2: OpenAI `StepResponse` Schema Hardening
 
-**Status**: DRAFT (not implemented)
+**Status**: IMPLEMENTED (2026-01-01)
 **Severity**: P1 (reliability + benchmark correctness)
 **Components**:
 - `src/giant/llm/schemas.py` (`step_response_json_schema_openai`)
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The OpenAI structured output JSON schema for `StepResponse` is currently **less strict** than the
+The OpenAI structured output JSON schema for `StepResponse` was previously **less strict** than the
 Pydantic `StepResponse` model constraints. This mismatch allows OpenAI to emit values that pass
 schema validation but fail Pydantic validation, producing `LLMParseError` retries and occasionally
 hard item failures that count as incorrect in benchmarks.
@@ -36,13 +36,13 @@ field constraints without changing the Pydantic models.
 - `src/giant/llm/protocol.py:61` + `src/giant/llm/protocol.py:62` (`hypotheses: list[HypothesisText] = Field(..., min_length=1, ...)`)
 - `src/giant/llm/protocol.py:50` (`HypothesisText = Annotated[str, Field(min_length=1)]`)
 
-### Mismatch: OpenAI JSON schema is too permissive
+### Mismatch (pre-fix): OpenAI JSON schema was too permissive
 
-`step_response_json_schema_openai()` currently omits multiple constraints:
-- `src/giant/llm/schemas.py:94-97`: `reasoning` is `type: "string"` but missing `minLength: 1`
-- `src/giant/llm/schemas.py:111-126`: `x`, `y`, `width`, `height` allow integers without bounds
-- `src/giant/llm/schemas.py:127-130`: `answer_text` allows empty strings (no `minLength`)
-- `src/giant/llm/schemas.py:131-137`: `hypotheses` allows empty arrays (no `minItems`)
+Before this fix, `step_response_json_schema_openai()` omitted multiple constraints, e.g.:
+- `reasoning` allowed empty strings
+- `x/y` allowed negatives
+- `width/height` allowed 0/negatives
+- `hypotheses` allowed empty arrays
 
 Because OpenAI structured output uses this schema as the primary constraint surface, the model can
 emit values that are schema-valid but Pydantic-invalid, triggering parse retries at runtime.
@@ -53,14 +53,14 @@ emit values that are schema-valid but Pydantic-invalid, triggering parse retries
   `action.crop.y = -22000` (`LLMParseError` after max retries).
 - `results/tcga-benchmark-20251227-084052.log:416`: example `action.crop.y = -12000` Pydantic failure.
 
-## Proposed Fix
+## Implemented Fix
 
 Tighten `step_response_json_schema_openai()` to encode the Pydantic constraints where JSON Schema
 can express them, while preserving the “flattened union” shape (OpenAI limitation: no `oneOf`).
 
-### Schema Changes (Target)
+### Schema Changes (Implemented)
 
-In `src/giant/llm/schemas.py:90-151`:
+In `src/giant/llm/schemas.py:90-158`:
 
 - `reasoning`: add `minLength: 1`
 - `x`, `y`: add `minimum: 0` (still allow `null` for non-crop actions)
@@ -110,15 +110,8 @@ def step_response_json_schema_openai() -> dict[str, Any]:
 
 ### Unit Tests (schema-level)
 
-Add assertions to ensure OpenAI schema matches Pydantic constraints:
-- `tests/unit/llm/test_openai.py::TestBuildJsonSchema`
-  - Assert `schema["schema"]["properties"]["reasoning"]["minLength"] == 1`
-  - Assert `schema["schema"]["properties"]["action"]["properties"]["x"]["minimum"] == 0`
-  - Assert `...["y"]["minimum"] == 0`
-  - Assert `...["width"]["exclusiveMinimum"] == 0`
-  - Assert `...["height"]["exclusiveMinimum"] == 0`
-  - Assert `...["answer_text"]["minLength"] == 1`
-  - Assert `...["hypotheses"]["minItems"] == 1`
+Added assertions to ensure OpenAI schema matches Pydantic constraints:
+- `tests/unit/llm/test_openai.py::TestBuildJsonSchema::test_schema_enforces_pydantic_field_constraints`
 
 ### Regression Coverage (behavior)
 

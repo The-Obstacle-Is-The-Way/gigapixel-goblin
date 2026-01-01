@@ -98,6 +98,28 @@ class TestBuildJsonSchema:
         assert "answer_text" in props
         assert "hypotheses" in props
 
+    def test_schema_enforces_pydantic_field_constraints(self) -> None:
+        """Schema should prevent values that would fail Pydantic validation.
+
+        Keep this aligned with `giant.llm.protocol.StepResponse` and action models.
+        """
+        schema = _build_json_schema()
+        root_props = schema["schema"]["properties"]
+
+        assert root_props["reasoning"]["minLength"] == 1
+
+        action_props = root_props["action"]["properties"]
+        assert action_props["x"]["minimum"] == 0
+        assert action_props["y"]["minimum"] == 0
+        assert action_props["width"]["exclusiveMinimum"] == 0
+        assert action_props["height"]["exclusiveMinimum"] == 0
+
+        assert action_props["answer_text"]["minLength"] == 1
+
+        hypotheses_schema = action_props["hypotheses"]
+        assert hypotheses_schema["minItems"] == 1
+        assert hypotheses_schema["items"]["minLength"] == 1
+
 
 class TestNormalizeOpenAIResponse:
     """Tests for _normalize_openai_response helper."""

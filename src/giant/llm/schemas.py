@@ -93,6 +93,7 @@ def step_response_json_schema_openai() -> dict[str, Any]:
         "properties": {
             "reasoning": {
                 "type": "string",
+                "minLength": 1,
                 "description": "Concise reasoning for the action",
             },
             "action": {
@@ -110,26 +111,32 @@ def step_response_json_schema_openai() -> dict[str, Any]:
                     },
                     "x": {
                         "type": ["integer", "null"],
+                        "minimum": 0,
                         "description": "X coord (crop only, null for answer)",
                     },
                     "y": {
                         "type": ["integer", "null"],
+                        "minimum": 0,
                         "description": "Y coord (crop only, null for answer)",
                     },
                     "width": {
                         "type": ["integer", "null"],
+                        "exclusiveMinimum": 0,
                         "description": "Width (crop only, null for answer)",
                     },
                     "height": {
                         "type": ["integer", "null"],
+                        "exclusiveMinimum": 0,
                         "description": "Height (crop only, null for answer)",
                     },
                     "answer_text": {
                         "type": ["string", "null"],
+                        "minLength": 1,
                         "description": "Final answer (answer only, null for crop)",
                     },
                     "hypotheses": {
                         "type": ["array", "null"],
+                        "minItems": 1,
                         "description": (
                             "Text hypotheses to score (conch only, null otherwise)"
                         ),

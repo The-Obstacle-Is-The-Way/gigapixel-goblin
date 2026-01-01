@@ -4,7 +4,7 @@ This directory contains active implementation/change specs and checkpoint report
 
 ## Active Specs
 
-- `BUG-040-P1-2-openai-stepresponse-schema-hardening.md` (DRAFT)
+- `BUG-040-P1-2-openai-stepresponse-schema-hardening.md` (IMPLEMENTED)
 
 ## Archived Specs
 

@@ -2,7 +2,7 @@
 
 **Date**: 2026-01-01
 **Auditors**: 13-agent swarm (8 codebase + 5 paper review)
-**Status**: AUDITED - Findings validated, fixes spec'd (no code changes yet)
+**Status**: AUDITED - Findings validated; P1-2 fixed; benchmark rerun pending
 
 ## Executive Summary
 
@@ -80,7 +80,7 @@ Accuracy: 61/221 = 27.6%
 
 **Verdict**: NOT A BUG.
 
-### P1-2: OpenAI Schema Missing Constraints ✅ CONFIRMED
+### P1-2: OpenAI Schema Missing Constraints ✅ FIXED
 
 **Location**: `src/giant/llm/schemas.py` (`step_response_json_schema_openai`)
 
@@ -93,9 +93,13 @@ Accuracy: 61/221 = 27.6%
 **Evidence**:
 - `results/tcga_slidebench_giant_openai_gpt-5.2_results.json` item `572`: `action.crop.y = -22000` caused `LLMParseError` after max retries.
 
-**Spec**: `docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md`
+**Spec**: `docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md` (IMPLEMENTED)
 
-**Verdict**: REAL BUG. Needs schema hardening + unit tests.
+**Fix implemented**:
+- Hardened OpenAI schema constraints in `src/giant/llm/schemas.py` (aligns with Pydantic `StepResponse` + action models).
+- Added unit coverage: `tests/unit/llm/test_openai.py::TestBuildJsonSchema::test_schema_enforces_pydantic_field_constraints`.
+
+**Verdict**: ✅ FIXED (was a confirmed code bug).
 
 ### P1-3: Agent Orchestration Step Counting Issues ⚠️ ALREADY FIXED (BUG-038)
 
@@ -187,7 +191,7 @@ Accuracy: 61/221 = 27.6%
 
 ### Immediate Actions
 
-1. **Harden OpenAI `StepResponse` schema** - implement `docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md`
+1. **Harden OpenAI `StepResponse` schema** - ✅ implemented (`docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md`)
 2. **Re-run benchmarks with BUG-038 fixes** - remove pre-fix `"Extra data"` failures and re-measure against paper baselines
 3. **Investigate PANDA benign bias** - prompt/model work (confirmed model limitation)
 4. **Paper prompt reproduction** - consider adding verbatim provider-specific system prompts once Supplementary Material is available (Gap-2)
@@ -225,7 +229,7 @@ Accuracy: 61/221 = 27.6%
 | P0-4 | Truth label parsing ambiguity | ❌ FALSE POSITIVE | None |
 | P0-5 | OpenAI NULL handling | ❌ FALSE POSITIVE | None (see P1-2) |
 | P1-1 | Coordinate truncation | ❌ FALSE POSITIVE | None |
-| P1-2 | OpenAI schema constraint mismatch | ✅ CONFIRMED | Implement `docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md` |
+| P1-2 | OpenAI schema constraint mismatch | ✅ CONFIRMED (fixed) | Rerun benchmarks to quantify impact |
 | P1-3 | Agent step/retry issues | ⚠️ ALREADY FIXED | None |
 | P1-4 | Subsequent prompts omit instructions | ❌ FALSE POSITIVE | None |
 | P1-5 | Truncated TCGA file | ❌ FALSE POSITIVE | None |
@@ -236,4 +240,4 @@ Accuracy: 61/221 = 27.6%
 | P2-2 | PANDA fallback chain implicit | ⚠️ ALREADY FIXED | None |
 | P2-3 | TCGA singleton classes | ✅ CONFIRMED (data limitation) | None |
 
-**Conclusion**: Benchmark underperformance is still primarily due to **model reasoning limitations**, but the saved benchmark artifacts also include **pre-BUG-038** OpenAI parse failures. The only confirmed code change pending from this audit is OpenAI schema hardening (P1-2); several previously listed “bugs” were false positives or already fixed in BUG-038.
+**Conclusion**: Benchmark underperformance is still primarily due to **model reasoning limitations**, but the saved benchmark artifacts also include **pre-BUG-038** OpenAI parse failures. The only confirmed code change from this audit was OpenAI schema hardening (P1-2), now implemented; several previously listed “bugs” were false positives or already fixed in BUG-038.
