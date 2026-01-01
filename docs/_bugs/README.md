@@ -14,7 +14,7 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
-| (none) | - | - | - |
+| BUG-040 | P0-P2 | [Benchmark Underperformance Audit](BUG-040-benchmark-underperformance-audit.md) | LOCAL |
 
 ## Local Audit Findings (Not Yet Filed)
 
