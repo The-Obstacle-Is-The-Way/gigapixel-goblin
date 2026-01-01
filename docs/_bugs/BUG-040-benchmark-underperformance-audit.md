@@ -2,7 +2,7 @@
 
 **Date**: 2026-01-01
 **Auditors**: 13-agent swarm (8 codebase + 5 paper review)
-**Status**: IN PROGRESS - Findings documented, fixes pending
+**Status**: AUDITED - Findings validated, fixes spec'd (no code changes yet)
 
 ## Executive Summary
 
@@ -15,17 +15,13 @@ Launched comprehensive swarm audit to investigate why SlideBench (51.8%), TCGA (
 ### P0-1: GTEx Data Downloaded from Wrong Source ❌ FALSE POSITIVE
 
 **Location**: `data/wsi/gtex/`
-**Evidence**: Download logs show files came from IDC with `.dcm` extension instead of GTEx Portal `.tiff`
-**Verification**:
-```
-$ file data/wsi/gtex/GTEX-111VG-1226/*.dcm
-Big TIFF image data, little-endian
-```
-The files have `.dcm` extension but contain Big TIFF data internally. OpenSlide reads content, not extension.
-**GTEx benchmark result**: 130/191 correct (68.1%) - **benchmark runs successfully**
-**Status**: NOT A BUG - files work correctly despite wrong extension
+**Reality check**:
+- The GTEx slides are valid **DICOM WSI** (VL Whole Slide Microscopy Image Storage). `file(1)` reports “Big TIFF”, but `pydicom.dcmread(...).SOPClassUID` confirms DICOM WSI.
+- Our resolver explicitly supports IDC-style GTEx layouts (`gtex/<GTEX-ID>/*.dcm`) via `WSIPathResolver._try_resolve_dicom_directory` in `src/giant/eval/wsi_resolver.py:111-175`.
 
-### P0-2: PANDA Class Collapse to Label 0 ✅ VERIFIED
+**Verdict**: NOT A BUG. Source/extension mismatch does not break GTEx loading.
+
+### P0-2: PANDA Class Collapse to Label 0 ✅ CONFIRMED (MODEL LIMITATION)
 
 **Location**: `results/panda_giant_openai_gpt-5.2_results.json`
 **Evidence**:
@@ -35,10 +31,11 @@ Truth:     Label 0 = 27.4% (54/197)
 Gap:       +50.8 percentage points over-prediction of benign
 ```
 **Impact**: Model is systematically biased toward benign diagnosis - calling 78% of cases "no cancer" when only 27% are actually benign
-**Root Cause**: Model sees tissue and defaults to "I don't identify unequivocal carcinoma" even when cancer is present. This is a reasoning limitation, not a bug.
-**Status**: VERIFIED - This is a model capability issue, not code bug
+**Additional note**: 115/154 label-0 predictions are emitted as `"isup_grade": null` and mapped to grade 0 by our extractor (intentional BUG-038 B1 behavior in `src/giant/eval/answer_extraction.py:45-67`).
 
-### P0-3: TCGA Label Bias (Labels 5, 19 Dominate) ✅ VERIFIED
+**Verdict**: Not a code bug; underperformance is primarily model/prompt behavior.
+
+### P0-3: TCGA Label Bias (Labels 5, 19 Dominate) ✅ CONFIRMED (MODEL LIMITATION)
 
 **Location**: `results/tcga_giant_openai_gpt-5.2_results.json`
 **Evidence**:
@@ -52,126 +49,122 @@ Total: 35.3% of predictions go to just 2 labels
 Accuracy: 61/221 = 27.6%
 ```
 **Impact**: Model over-predicts certain cancer types, 30-way classification is very hard
-**Root Cause**: Model capability issue - 30-way cancer classification from histology is challenging
-**Status**: VERIFIED - This is a model capability issue, not code bug
+**Verdict**: Not a code bug; this reflects task/model difficulty.
 
-### P0-4: Truth Label Parsing Ambiguity (SlideBench/ExpertVQA) ✅ VERIFIED
+### P0-4: Truth Label Parsing Ambiguity (SlideBench/ExpertVQA) ❌ FALSE POSITIVE
 
-**Location**: `src/giant/eval/loader.py` lines 123-168
-**Evidence**: Parser tries `int(answer)` FIRST, only does string matching if int fails:
-```python
-try:
-    label = int(answer)  # Returns immediately if numeric
-except ValueError:
-    label = None
-# String matching only happens if above fails
-```
-**Ambiguity Example**:
-- Options: `["Low", "3 high", "Medium"]`
-- Answer: `"3"`
-- Current: Returns 3 (meaning "Medium") - WRONG if answer meant "3 high"
-**Impact**: P1 - unlikely to affect current benchmarks but dangerous if options are numeric
-**Status**: VERIFIED BUG - needs test coverage for numeric answer/option combinations
+**Code**: `src/giant/eval/loader.py:123-168` parses `answer` as `int` before label matching.
 
-### P0-5: OpenAI NULL Value Handling
+**Why it’s not a bug (for MultiPathQA)**:
+- MultiPathQA explicitly defines `answer` for `tcga`, `tcga_slidebench`, and `tcga_expert_vqa` as a **1-based index into `options`** (`data/multipathqa/DATASET_CARD.md:183`), so integer-first parsing is correct for the benchmark this repo targets.
 
-**Location**: `src/giant/llm/openai_client.py`
-**Evidence**: When model outputs null for optional fields, normalization passes NULL through to pydantic
-**Impact**: Can cause validation failures or unexpected behavior
-**Status**: NEEDS CODE REVIEW
+**Verdict**: NOT A BUG in the current benchmark contract.
+
+### P0-5: OpenAI NULL Value Handling ❌ FALSE POSITIVE (reframed)
+
+**Reality check**:
+- `_normalize_openai_response()` already drops irrelevant nullable fields (e.g., `answer_text=None` on crop) and is regression-tested in `tests/unit/llm/test_openai.py`.
+- The real OpenAI reliability gap is **schema permissiveness vs Pydantic constraints** (see P1-2).
+
+**Verdict**: Not a bug as stated; superseded by P1-2.
 
 ## High Priority Findings (P1)
 
-### P1-1: Coordinate Truncation in Transforms ✅ VERIFIED
+### P1-1: Coordinate Truncation in Transforms ❌ FALSE POSITIVE (expected behavior)
 
-**Location**: `src/giant/wsi/types.py` lines 181, 202, 225, 246
-**Evidence**: 4 functions use `int()` truncation:
-```python
-# level0_to_level() line 181
-return (int(x / downsample), int(y / downsample))  # TRUNCATES
+**Code**: `src/giant/wsi/types.py:163-246` uses truncation for coordinate/size transforms.
 
-# level_to_level0() line 202
-return (int(x * downsample), int(y * downsample))  # TRUNCATES
-```
-**Also in**: `src/giant/vision/sampler.py` (lines 85-86, 101-102), `src/giant/geometry/overlay.py` (lines 138, 160)
-**Test Evidence**: Tests explicitly accept `2 * downsample` error bound - acknowledges issue
-**Impact**: Level 1 (4x): up to 8px error; Level 2 (16x): up to 32px error
-**Status**: VERIFIED BUG - use `round()` instead (crop_engine.py already does this correctly)
+**Why it’s not a bug**:
+- Unit tests explicitly codify truncation + round-trip error tolerance (`tests/unit/wsi/test_types.py:117-157`).
+- Changing to `round()` would be a behavior change requiring a dedicated design decision + benchmark justification.
 
-### P1-2: OpenAI Schema Missing minLength on Reasoning
+**Verdict**: NOT A BUG.
 
-**Location**: `src/giant/llm/schemas.py`
-**Evidence**: `reasoning` field has no minimum length constraint
-**Impact**: Model can output empty or minimal reasoning, reducing quality
-**Status**: NEEDS FIX
+### P1-2: OpenAI Schema Missing Constraints ✅ CONFIRMED
 
-### P1-3: Agent Orchestration Step Counting Issues
+**Location**: `src/giant/llm/schemas.py` (`step_response_json_schema_openai`)
 
-**Location**: `src/giant/agent/runner.py`
-**Evidence**: Multiple issues identified:
-- Step counter may not increment correctly in retry scenarios
-- Observation summaries may be truncated
-- Error counter reset behavior inconsistent
-**Impact**: Navigation may terminate early or late
-**Status**: NEEDS CODE REVIEW
+**Issue**: OpenAI schema is looser than `src/giant/llm/protocol.py`, allowing values that later fail Pydantic validation:
+- `reasoning` missing `minLength: 1`
+- `x/y` allow negatives (missing `minimum: 0`)
+- `width/height` allow 0/negatives (missing `exclusiveMinimum: 0`)
+- `hypotheses` allows empty arrays (missing `minItems: 1`)
 
-### P1-4: Prompt Instructions Removed on Subsequent Steps
+**Evidence**:
+- `results/tcga_slidebench_giant_openai_gpt-5.2_results.json` item `572`: `action.crop.y = -22000` caused `LLMParseError` after max retries.
+
+**Spec**: `docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md`
+
+**Verdict**: REAL BUG. Needs schema hardening + unit tests.
+
+### P1-3: Agent Orchestration Step Counting Issues ⚠️ ALREADY FIXED (BUG-038)
+
+**Audit**:
+- Current step counting (`ContextManager.current_step = len(turns) + 1`) is consistent with message construction and max-step enforcement (`src/giant/agent/context.py:67-197`, `src/giant/agent/runner.py:316-355`).
+- Retry-counter reset + iterative invalid-region recovery were fixed in BUG-038 (see `docs/_archive/bugs/BUG-038-B7-retry-counter-logic.md` and BUG-038 notes).
+
+**Verdict**: No remaining issue found.
+
+### P1-4: Prompt Instructions Removed on Subsequent Steps ❌ FALSE POSITIVE
 
 **Location**: `src/giant/prompts/templates.py`
-**Evidence**: INITIAL prompt includes full instructions, SUBSEQUENT prompts omit them
-**Impact**: Model loses context on navigation rules after first step
-**Status**: NEEDS VERIFICATION (may be intentional for token efficiency)
+**Audit**:
+- The system prompt is included every step (`ContextManager.get_messages` always emits it).
+- Subsequent user prompts still contain an instructions block (`src/giant/prompts/templates.py:83-95`).
 
-### P1-5: One TCGA File Truncated During Download
+**Verdict**: NOT A BUG.
+
+### P1-5: One TCGA File Truncated During Download ❌ FALSE POSITIVE (no evidence)
 
 **Location**: `data/wsi/tcga/` (specific file TBD)
-**Evidence**: Download logs show one file with incomplete transfer
-**Impact**: One TCGA question may have corrupted slide
-**Status**: NEEDS VERIFICATION
+**Audit**:
+- No TCGA benchmark failures indicate WSI corruption; TCGA failures in saved artifacts are OpenAI parse failures (`results/tcga_giant_openai_gpt-5.2_results.json`).
 
-### P1-6: PANDA Benchmark Errors (13 JSON + 8 Invalid Crop)
+**Verdict**: Unsubstantiated in this repo.
 
-**Location**: Benchmark logs
-**Evidence**:
-- 13 JSON parsing failures in PANDA results
-- 8 invalid crop region errors
-**Impact**: ~10% of PANDA items may have execution failures
-**Status**: NEEDS LOG ANALYSIS
+### P1-6: PANDA Benchmark Errors (JSON parse / invalid crops) ⚠️ ALREADY FIXED (BUG-038)
 
-### P1-7: Overlay Coordinate Label Double-Truncation
+**Audit**:
+- The dominant `"Extra data"` JSON parse failure mode is fixed by BUG-038 B2 (`src/giant/llm/openai_client.py:268-279`), but the saved benchmark artifacts were generated pre-fix and still contain those failures.
+- Invalid crop regions appear frequently in logs but are generally recovered via the agent’s invalid-region loop; they do not appear as item-level errors in `results/panda_giant_openai_gpt-5.2_results.json`.
+
+**Verdict**: Fixed in code; rerun benchmarks to remove pre-fix artifact failures.
+
+### P1-7: Overlay Coordinate Label Double-Truncation ❌ FALSE POSITIVE
 
 **Location**: `src/giant/geometry/overlay.py`
-**Evidence**: Coordinate labels truncated twice (once in calculation, once in formatting)
-**Impact**: Axis guide labels may be slightly inaccurate
-**Status**: NEEDS CODE REVIEW
+**Audit**:
+- Guide placement + label coordinate computation use integer pixel alignment (`int(...)`), and label formatting is `str(coord)` (no additional truncation pass).
 
-### P1-8: size_at_level Minimum Clamping
+**Verdict**: NOT A BUG (at most a minor precision enhancement).
+
+### P1-8: size_at_level Minimum Clamping ❌ FALSE POSITIVE
 
 **Location**: `src/giant/wsi/types.py` or related
-**Evidence**: Size calculations may clamp to minimum value incorrectly
-**Impact**: Very small regions at high magnification may be handled incorrectly
-**Status**: NEEDS CODE REVIEW
+**Audit**:
+- `size_at_level()` explicitly clamps each dimension to `>= 1` to avoid zero-sized OpenSlide reads (`src/giant/wsi/types.py:205-226`) and has unit coverage (`tests/unit/wsi/test_types.py:153-157`).
+
+**Verdict**: NOT A BUG.
 
 ## Medium Priority Findings (P2)
 
-### P2-1: Prompt Formatting Inconsistencies
+### P2-1: Prompt Formatting Inconsistencies ❌ FALSE POSITIVE
 
 **Location**: `src/giant/prompts/`
-**Evidence**: Various inconsistencies between prompt templates
-**Status**: LOW IMPACT - document for cleanup
+**Audit**: Only two prompt template files exist (`templates.py`, `builder.py`); no functional inconsistency found.
 
-### P2-2: PANDA Fallback Extraction Chain Implicit
+### P2-2: PANDA Fallback Extraction Chain Implicit ⚠️ ALREADY FIXED (BUG-038)
 
 **Location**: `src/giant/eval/answer_extraction.py`
-**Evidence**: Fallback logic for PANDA grade extraction is complex and implicit
-**Status**: Already fixed in BUG-038, but document for future reference
+**Audit**:
+- PANDA null-handling + fallback behavior are explicit and regression-tested (`tests/unit/eval/test_answer_extraction.py`).
 
-### P2-3: TCGA Single-Sample Classes
+### P2-3: TCGA Single-Sample Classes ✅ CONFIRMED (DATA LIMITATION)
 
 **Location**: `data/multipathqa/MultiPathQA.csv`
 **Evidence**: Some TCGA classes have only 1 sample
 **Impact**: Balanced accuracy penalizes these classes heavily
-**Status**: DATA LIMITATION - not a bug
+**Verdict**: Not a code bug; a dataset property.
 
 ## Paper Implementation Gap Analysis
 
@@ -194,23 +187,19 @@ return (int(x * downsample), int(y * downsample))  # TRUNCATES
 
 ### Immediate Actions
 
-1. **Verify GTEx file format** - run `file data/wsi/gtex/*.dcm` to confirm format
-2. **Investigate class collapse** - analyze PANDA prompts for bias toward benign
-3. **Review truth label parsing** - add unit tests for numeric answer disambiguation
-4. **Fix coordinate truncation** - change `int()` to `round()` in transforms
+1. **Harden OpenAI `StepResponse` schema** - implement `docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md`
+2. **Re-run benchmarks with BUG-038 fixes** - remove pre-fix `"Extra data"` failures and re-measure against paper baselines
+3. **Investigate PANDA benign bias** - prompt/model work (confirmed model limitation)
+4. **Paper prompt reproduction** - consider adding verbatim provider-specific system prompts once Supplementary Material is available (Gap-2)
 
 ### Before Next Benchmark Run
 
-1. Re-download truncated TCGA file
-2. Add minLength constraint to reasoning field
-3. Review step counting logic in agent runner
-4. Document prompt instruction strategy (intentional or bug?)
+1. Ensure runs use post-BUG-038 code paths (notably OpenAI trailing-text JSON parsing + PANDA null handling).
+2. Decide whether to keep/remove 2025 prompt enhancements for strict paper reproduction (Gap-2).
 
 ### Low Priority Cleanup
 
-1. Standardize prompt formatting
-2. Add explicit documentation for fallback chains
-3. Consider handling single-sample classes differently in metrics
+1. Document dataset limitations (e.g., TCGA singleton classes) alongside balanced-accuracy reporting.
 
 ## Appendix: Agent Results Summary
 
@@ -218,22 +207,33 @@ return (int(x * downsample), int(y * downsample))  # TRUNCATES
 |-------|------------|----|----|----|-|----------|
 | 1 | Data Integrity | 1 | 2 | 0 | GTEx format | ❌ False positive |
 | 2 | CSV Schema | 0 | 1 | 1 | TCGA single-sample | ⚠️ Data limitation |
-| 3 | Agent Orchestration | 0 | 3 | 0 | Step counting | ❓ Needs review |
-| 4 | LLM Parsing | 1 | 2 | 0 | NULL handling | ❓ Needs review |
-| 5 | Benchmark Eval | 1 | 0 | 0 | Truth label parsing | ✅ Real bug |
-| 6 | WSI Processing | 0 | 3 | 0 | Coordinate truncation | ✅ Real bug |
-| 7 | Prompt Engineering | 0 | 1 | 2 | Instructions removed | ❓ Needs review |
+| 3 | Agent Orchestration | 0 | 3 | 0 | Retry/step logic | ⚠️ Already fixed (BUG-038) |
+| 4 | LLM Parsing | 0 | 1 | 0 | OpenAI schema constraints | ✅ Confirmed |
+| 5 | Benchmark Eval | 1 | 0 | 0 | Truth label parsing ambiguity | ❌ False positive |
+| 6 | WSI Processing | 0 | 3 | 0 | Coordinate truncation | ❌ False positive |
+| 7 | Prompt Engineering | 0 | 1 | 2 | Instructions removed | ❌ False positive |
 | 8 | Results Analysis | 2 | 0 | 0 | Class collapse/bias | ✅ Model limitation |
 | 9-13 | Paper Review | 0 | 0 | 3 | Minor gaps | ⚠️ Known |
 
-## Verified Findings Summary
+## Validated Findings Summary
 
-| ID | Issue | Status | Action Required |
+| ID | Issue | Verdict | Action Required |
 |----|-------|--------|-----------------|
-| P0-1 | GTEx wrong format | ❌ FALSE POSITIVE | None - files work |
-| P0-2 | PANDA class collapse | ✅ MODEL LIMITATION | Better prompts needed |
-| P0-3 | TCGA label bias | ✅ MODEL LIMITATION | 30-way is hard |
-| P0-4 | Truth label parsing | ✅ REAL BUG | Add test coverage |
-| P1-1 | Coordinate truncation | ✅ REAL BUG | Change int() to round() |
+| P0-1 | GTEx “wrong source/extension” | ❌ FALSE POSITIVE | None |
+| P0-2 | PANDA label-0 collapse | ✅ CONFIRMED (model limitation) | Prompt/model work |
+| P0-3 | TCGA label bias | ✅ CONFIRMED (model limitation) | Prompt/model work |
+| P0-4 | Truth label parsing ambiguity | ❌ FALSE POSITIVE | None |
+| P0-5 | OpenAI NULL handling | ❌ FALSE POSITIVE | None (see P1-2) |
+| P1-1 | Coordinate truncation | ❌ FALSE POSITIVE | None |
+| P1-2 | OpenAI schema constraint mismatch | ✅ CONFIRMED | Implement `docs/_specs/BUG-040-P1-2-openai-stepresponse-schema-hardening.md` |
+| P1-3 | Agent step/retry issues | ⚠️ ALREADY FIXED | None |
+| P1-4 | Subsequent prompts omit instructions | ❌ FALSE POSITIVE | None |
+| P1-5 | Truncated TCGA file | ❌ FALSE POSITIVE | None |
+| P1-6 | PANDA parse/crop “errors” | ⚠️ ALREADY FIXED | Rerun benchmarks to clear pre-fix artifacts |
+| P1-7 | Overlay double truncation | ❌ FALSE POSITIVE | None |
+| P1-8 | `size_at_level` min clamp | ❌ FALSE POSITIVE | None |
+| P2-1 | Prompt formatting | ❌ FALSE POSITIVE | None |
+| P2-2 | PANDA fallback chain implicit | ⚠️ ALREADY FIXED | None |
+| P2-3 | TCGA singleton classes | ✅ CONFIRMED (data limitation) | None |
 
-**Conclusion**: Benchmark underperformance is primarily due to **model reasoning limitations**, not code bugs. The verified code bugs (P0-4, P1-1) are unlikely to significantly impact accuracy.
+**Conclusion**: Benchmark underperformance is still primarily due to **model reasoning limitations**, but the saved benchmark artifacts also include **pre-BUG-038** OpenAI parse failures. The only confirmed code change pending from this audit is OpenAI schema hardening (P1-2); several previously listed “bugs” were false positives or already fixed in BUG-038.
