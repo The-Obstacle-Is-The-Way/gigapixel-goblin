@@ -11,16 +11,17 @@ intervals and labeling them with their corresponding Level-0 coordinates.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from PIL import Image, ImageDraw, ImageFont
 
+from giant.utils.logging import get_logger
+
 if TYPE_CHECKING:
     from giant.wsi.types import WSIMetadata
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 @dataclass(frozen=True)

@@ -14,13 +14,9 @@ Per Spec-06:
 from __future__ import annotations
 
 import json
-import logging
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    pass
+from typing import Any
 
 from aiolimiter import AsyncLimiter
 from openai import APIConnectionError, AsyncOpenAI, RateLimitError
@@ -50,8 +46,9 @@ from giant.llm.protocol import (
     TokenUsage,
 )
 from giant.llm.schemas import step_response_json_schema_openai
+from giant.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _build_json_schema() -> dict[str, Any]:
@@ -143,7 +140,7 @@ class OpenAIProvider:
     # Internal state (initialized in __post_init__)
     _client: AsyncOpenAI = field(init=False, repr=False)
     _limiter: AsyncLimiter = field(init=False, repr=False)
-    _circuit_breaker: CircuitBreaker[Any] = field(init=False, repr=False)
+    _circuit_breaker: CircuitBreaker = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Initialize the OpenAI client and rate limiter."""
@@ -165,6 +162,9 @@ class OpenAIProvider:
     def get_model_name(self) -> str:
         """Get the model identifier."""
         return self.model
+
+    def get_provider_name(self) -> str | None:
+        return "openai"
 
     def get_target_size(self) -> int:
         """Get the target image size for OpenAI (1000px per paper)."""
@@ -204,6 +204,11 @@ class OpenAIProvider:
         # propagate without tripping circuit breaker - only transient/remote
         # errors should affect circuit breaker state.
 
+    # Retry configuration tuned for OpenAI API rate limits:
+    # - min=1s wait prevents hammering on transient errors
+    # - max=60s caps backoff to avoid long hangs
+    # - 6 attempts provides ~2-3 min total with exponential backoff
+    # These values match production recommendations; do not configure.
     @retry(
         wait=wait_random_exponential(min=1, max=60),
         stop=stop_after_attempt(6),

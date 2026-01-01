@@ -6,6 +6,7 @@ import pytest
 from openai import APIConnectionError
 
 from giant.config import Settings
+from giant.llm.circuit_breaker import CircuitBreakerConfig
 from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 from giant.llm.openai_client import (
     OpenAIProvider,
@@ -475,7 +476,7 @@ class TestOpenAIProviderCircuitBreaker:
         """
         # Set low threshold for testing
         provider = OpenAIProvider(settings=test_settings)
-        provider._circuit_breaker.config.failure_threshold = 2
+        provider._circuit_breaker.config = CircuitBreakerConfig(failure_threshold=2)
 
         with patch.object(
             provider._client.responses, "create", new_callable=AsyncMock

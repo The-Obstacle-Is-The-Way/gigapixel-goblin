@@ -3,8 +3,8 @@
 **Date:** 2025-12-31
 **Auditor:** Claude Code
 **Scope:** Full codebase review for anti-patterns, SOLID violations, DRY violations, potential bugs, and bad practices
-**Validation Status:** ✅ Triple-checked with adversarial validation + senior review (2025-12-31)
-**Last Updated:** 2025-12-31 (post-fix validation)
+**Validation Status:** ✅ Verified post-refactor + test run (2026-01-01)
+**Last Updated:** 2026-01-01 (post-refactor completion)
 
 ---
 
@@ -19,11 +19,11 @@ This audit found mostly **code quality issues**, not correctness bugs. The origi
 | Priority | Fixed | Deferred | Closed | Notes |
 |----------|-------|----------|--------|-------|
 | **P0 (Critical)** | 0 | 0 | **1** | P0-1 false positive; P0-2 reclassified as P3-1 |
-| **P1 (High)** | 1 | **1** | **1** | P1-1 fixed, P1-2 deferred; P1-4 false positive |
-| **P2 (Medium)** | 4 | **4** | **1** | P2-3/5/6/9 fixed; P2-1/2/4/7 deferred; P2-8 false positive |
-| **P3 (Low)** | 2 | **13** | 0 | Includes P0-2 reclassified as P3-1 |
+| **P1 (High)** | 2 | 0 | **1** | P1-1 and P1-2 fixed; P1-4 false positive |
+| **P2 (Medium)** | 8 | 0 | **1** | P2-1/2/4/7 implemented; P2-3/5/6/9 already fixed; P2-8 false positive |
+| **P3 (Low)** | 15 | 0 | 0 | All P3 items implemented |
 | **P4 (Cosmetic)** | 0 | **6** | 0 | Low value, not prioritized |
-| **TOTAL** | 7 | **24** | **3** | All correctness-affecting issues found here fixed |
+| **TOTAL** | 25 | **6** | **3** | All correctness-affecting issues found here fixed |
 
 ### Benchmark Results: VALID ✅
 
@@ -81,45 +81,46 @@ All correctness-affecting issues identified in this audit have been fixed. The P
 
 ---
 
-### P1-2: Single Responsibility Violation - BenchmarkRunner ⏳ DEFERRED
+### P1-2: Single Responsibility Violation - BenchmarkRunner ✅ FIXED
 
-**File:** `src/giant/eval/runner.py` (1064 lines)
+**Files:**
+- `src/giant/eval/runner.py` (orchestration only; `EvaluationOrchestrator`)
+- `src/giant/eval/loader.py` (`BenchmarkItemLoader`)
+- `src/giant/eval/executor.py` (`ItemExecutor`)
+- `src/giant/eval/persistence.py` (`ResultsPersistence`)
 
-The class handles too many responsibilities:
-- CSV loading and parsing
-- WSI path resolution
-- Running agent on items
-- Metrics computation
-- Saving results/trajectories
-- Checkpoint management
+The original `BenchmarkRunner` mixed CSV parsing, execution, persistence, and
+orchestration. This has been split into focused components.
 
-**Impact:** Hard to test individual components, complex to maintain.
+**API compatibility:** `BenchmarkRunner` remains as an alias of
+`EvaluationOrchestrator` (import path preserved).
 
-**Why deferred:** Large architectural refactor (2-4 days), requires careful test migration, would break API. Logic is correct and well-tested.
-
-**Detailed spec:** See `TECH_DEBT_P1.md` for full implementation plan.
+**Detailed record:** See `TECH_DEBT_P1.md`.
 
 ---
 
 ## P2 - Medium Priority Issues
 
-### P2-1: Inconsistent Frozen Dataclass Usage ⏳ DEFERRED
+### P2-1: Inconsistent Frozen Dataclass Usage ✅ FIXED
 
 Some dataclasses use `frozen=True`, others don't. No clear pattern.
 
-**Fix:** Document policy and apply consistently.
+**Fix applied:**
+- Documented an immutability policy in `docs/development/contributing.md`
+- Made config dataclasses `frozen=True` (`AgentConfig`, `CircuitBreakerConfig`)
+- Made protocol value-object models immutable (`BaseModel, frozen=True`) in `src/giant/llm/protocol.py`
 
 **Detailed spec:** See `TECH_DEBT_P2.md`
 
 ---
 
-### P2-2: Test Fixture Using Old API Response Structure ⏳ DEFERRED
+### P2-2: Test Fixture Using Old API Response Structure ✅ FIXED
 
-**File:** `tests/conftest.py:40-71`
+**File:** `tests/conftest.py` (fixture removed)
 
-The `mock_api_responses` fixture uses old Chat Completions API format, but code uses Responses API.
+The `mock_api_responses` fixture used an obsolete response shape and was unused.
 
-**Fix:** Update to match Responses API or remove if unused.
+**Fix applied:** Removed the unused fixture.
 
 **Detailed spec:** See `TECH_DEBT_P2.md`
 
@@ -127,7 +128,7 @@ The `mock_api_responses` fixture uses old Chat Completions API format, but code 
 
 ### P2-3: Hardcoded JPEG Quality Throughout ✅ FIXED
 
-**Files:** `src/giant/core/crop_engine.py:159`, `src/giant/agent/runner.py:865`
+**Files:** `src/giant/core/crop_engine.py:159`, `src/giant/agent/runner.py:876`
 
 **Original issue:** JPEG quality `85` hardcoded instead of using `settings.JPEG_QUALITY`.
 
@@ -137,11 +138,11 @@ The `mock_api_responses` fixture uses old Chat Completions API format, but code 
 
 ---
 
-### P2-4: Inconsistent Logging Patterns ⏳ DEFERRED
+### P2-4: Inconsistent Logging Patterns ✅ FIXED
 
 Some files use structured logging (`wsi=str(wsi_path)`), others use format strings (`"Message: %s", value`).
 
-**Fix:** Standardize on structured logging.
+**Fix applied:** Standardized logger initialization on `from giant.utils.logging import get_logger` across the codebase.
 
 **Detailed spec:** See `TECH_DEBT_P2.md`
 
@@ -165,7 +166,7 @@ if TYPE_CHECKING:
 
 ### P2-6: Missing Validation for num_guides = 0 ✅ FIXED
 
-**File:** `src/giant/geometry/overlay.py:48-51`
+**File:** `src/giant/geometry/overlay.py:49-52`
 
 **Original issue:** If `num_guides=0`, no guides are drawn (unexpected but not a crash).
 
@@ -176,9 +177,9 @@ if TYPE_CHECKING:
 
 ---
 
-### P2-7: Retry Logic Uses Hardcoded Parameters ⏳ DEFERRED
+### P2-7: Retry Logic Uses Hardcoded Parameters ✅ FIXED
 
-**Files:** `src/giant/llm/openai_client.py:207-212`, `src/giant/llm/anthropic_client.py:192-197`
+**Files:** `src/giant/llm/openai_client.py:207-212`, `src/giant/llm/anthropic_client.py:195-200`
 
 ```python
 @retry(
@@ -188,7 +189,7 @@ if TYPE_CHECKING:
 )
 ```
 
-**Fix:** Make configurable via settings or document why fixed.
+**Fix applied:** Documented the rationale directly above each `@retry(...)` decorator.
 
 **Detailed spec:** See `TECH_DEBT_P2.md`
 
@@ -196,7 +197,7 @@ if TYPE_CHECKING:
 
 ### P2-9: Voting Logic Bug - None Participates in Label Voting ✅ FIXED
 
-**File:** `src/giant/eval/runner.py:951-967`
+**File:** `src/giant/eval/executor.py:307-336`
 
 **Original bug:** When `runs_per_item > 1` and some runs fail to parse labels (returning `None`), `None` could participate in voting and win ties.
 
@@ -222,23 +223,21 @@ counts = Counter(valid_labels)  # {1: 2} - Only valid labels vote
 
 ## P3 - Low Priority Issues
 
-### P3-1: Circuit Breaker State Property Mutates (Demoted from P0) ⏳ DEFERRED
+### P3-1: Circuit Breaker State Property Mutates (Demoted from P0) ✅ FIXED
 
-The `state` property can mutate internal state during reads. In async contexts with high concurrency, this could cause minor inconsistencies (off-by-one counts). Not a correctness issue.
-
----
-
-### P3-2: CONCH Disabled Feedback Missing (Demoted from P1) ⏳ DEFERRED
-
-When CONCH is disabled and model requests it, no feedback is provided. Model wastes API calls retrying. Edge case since enable_conch defaults to False.
+`CircuitBreaker.state` is now a pure read; the cooldown transition logic is handled by an explicit `refresh_state()` call (invoked by `check()`), eliminating side effects on reads.
 
 ---
 
-### P3-3: Magic Sentinel Value -1 (Demoted from P1) ⏳ DEFERRED
+### P3-2: CONCH Disabled Feedback Missing (Demoted from P1) ✅ FIXED
 
-`_MISSING_LABEL_SENTINEL = -1` is safe for current benchmarks (PANDA 0-5, options 1-based) but fragile if formats change.
+When CONCH is disabled and the model requests it, the attempted turn is now recorded and the next prompt includes explicit "CONCH is disabled" guidance so the conversation advances deterministically.
 
-**Fix:** Use `None` with explicit handling or a dedicated `MissingLabel` class.
+---
+
+### P3-3: Magic Sentinel Value -1 (Demoted from P1) ✅ FIXED
+
+`_MISSING_LABEL_SENTINEL = -1` remains the paper-faithful scoring approach, but metrics computation now guards against truth-label collisions and fails loudly if any benchmark truth label equals the sentinel.
 
 ---
 
@@ -261,29 +260,29 @@ if not isinstance(action, FinalAnswerAction):
 
 ---
 
-### P3-5: Unused TYPE_CHECKING Import ⏳ DEFERRED
+### P3-5: PIL Import Duplication (Typing + Runtime) ✅ FIXED
 
-**File:** `src/giant/agent/runner.py:54-55`
+**File:** `src/giant/agent/runner.py`
 
-PIL.Image is imported at runtime in line 508, making TYPE_CHECKING import redundant.
+Consolidated to a single module-level `from PIL import Image` import; removed the typing-only import block and the nested runtime import.
 
 ---
 
-### P3-6: Nested Import Anti-Pattern ⏳ DEFERRED
+### P3-6: Nested Import Anti-Pattern ✅ FIXED
 
-**File:** `src/giant/agent/runner.py:508`
+**File:** `src/giant/agent/runner.py`
 
 ```python
 from PIL import Image  # noqa: PLC0415
 ```
 
-Import inside method.
+Removed the nested import; PIL is imported at module scope.
 
 ---
 
-### P3-7: Missing Validation for Negative Budget ⏳ DEFERRED
+### P3-7: Missing Validation for Negative Budget ✅ FIXED
 
-`AgentConfig.budget_usd` accepts negative values. If -10.0 is passed, `_total_cost >= -10.0` is immediately True. Unlikely in practice.
+`AgentConfig.__post_init__` now validates `budget_usd` is non-negative when provided.
 
 ---
 
@@ -306,63 +305,60 @@ engine = MagicMock(spec=CropEngine)
 
 ---
 
-### P3-9: Unused Generic Type Parameter ⏳ DEFERRED
+### P3-9: Unused Generic Type Parameter ✅ FIXED
 
-**File:** `src/giant/llm/circuit_breaker.py:59`
+**File:** `src/giant/llm/circuit_breaker.py`
 
-```python
-class CircuitBreaker(Generic[T]):  # T is never used
-```
+Removed the unused `Generic[T]` parameterization from `CircuitBreaker`.
 
 ---
 
-### P3-10: Confusing Variable Naming ⏳ DEFERRED
+### P3-10: Confusing Variable Naming ✅ FIXED
 
-**File:** `src/giant/eval/runner.py:581`
+**File:** `src/giant/eval/runner.py`
 
-```python
-budget_state = {"total_cost": ...}  # Dict as mutable container for closures
-```
+Renamed `budget_state` → `budget_tracker` for clarity (no behavioral change).
 
 ---
 
-### P3-11: Exception Chaining Inconsistent ⏳ DEFERRED
+### P3-11: Exception Chaining Inconsistent ✅ FIXED
 
-Some places use `from e`, some use `from None`.
+Added an explicit exception chaining guideline in `docs/development/contributing.md`.
 
 ---
 
-### P3-12: Heuristic Provider Detection ⏳ DEFERRED
+### P3-12: Heuristic Provider Detection ✅ FIXED
 
-**File:** `src/giant/agent/runner.py:282-288`
+**File:** `src/giant/agent/runner.py`
 
 ```python
 if "openai" in name:  # Matches "MyOpenAIWrapper"
 ```
 
-**Fix:** Add `get_provider_name()` to `LLMProvider` protocol.
+**Fix applied:** Added `get_provider_name()` to `LLMProvider` and used it in provider selection (with fallback).
 
 ---
 
-### P3-13: Message Content Mutation ⏳ DEFERRED
+### P3-13: Message Content Mutation ✅ FIXED
 
-**File:** `src/giant/agent/context.py:281-282`
+**File:** `src/giant/agent/context.py`
 
-Mutates `MessageContent.text` instead of creating new object. If immutability is expected, this is unexpected.
-
----
-
-### P3-14: Path Traversal Check Not Consolidated ⏳ DEFERRED
-
-`run_id` validation and `_safe_filename_component` use different approaches.
-
-**Fix:** Consolidate into single utility.
+Removed in-place mutation; `_build_user_message_for_conch_turn` now builds a new message/content list (compatible with immutable protocol models).
 
 ---
 
-### P3-15: Long Method in BenchmarkRunner ⏳ DEFERRED
+### P3-14: Path Traversal Check Not Consolidated ✅ FIXED
 
-`run_benchmark` is 83 lines. Could be further decomposed.
+`run_id` validation and filename sanitization are now centralized in
+`src/giant/eval/persistence.py` (`ResultsPersistence.validate_run_id` and
+`ResultsPersistence.safe_filename_component`).
+
+---
+
+### P3-15: Long Method in BenchmarkRunner ✅ FIXED
+
+`run_benchmark` orchestration is now slimmer and delegates work to composed
+components (`BenchmarkItemLoader`, `ItemExecutor`, `ResultsPersistence`).
 
 ---
 
@@ -396,7 +392,7 @@ Long import lists in `__init__.py` could use grouping.
 | P0-1: Image pixel exception | ❌ False Positive | Exceptions properly caught and wrapped |
 | P0-2: Circuit breaker race | ⬇️ Demoted to P3 | Cooperative async, minimal impact |
 | P1-1: DRY violation | ✅ Confirmed | 100% duplicate code |
-| P1-2: SRP violation | ✅ Confirmed | 1064-line class |
+| P1-2: SRP violation | ✅ Confirmed | 1000+ line orchestration class |
 | P1-3: Magic sentinel | ⬇️ Demoted to P3 | Safe by design |
 | P1-4: Infinite loop | ❌ False Positive | Code handles correctly |
 | P1-5: CONCH feedback | ⬇️ Demoted to P3 | Edge case only |
@@ -421,17 +417,17 @@ All correctness-affecting bugs have been fixed. The core paths are sound:
 - **Answer extraction** (`answer_extraction.py`): Well-tested with edge cases
 - **Metrics computation** (`metrics.py`): Correct balanced accuracy and bootstrap
 - **Label handling**: Sentinel -1 never collides with valid labels (0-5 or 1-based)
-- **Voting logic** (`runner.py`): ✅ Fixed - None no longer participates in voting
+- **Voting logic** (`src/giant/eval/executor.py`): ✅ Fixed - None no longer participates in voting
 
 ### What This Audit Found
 
 Mostly **maintainability issues**, not bugs:
 - Duplicate code that should be consolidated → ✅ FIXED (P1-1)
-- Large class that should be split → ⏳ DEFERRED (P1-2, see `TECH_DEBT_P1.md`)
-- Inconsistent patterns across similar code → ⏳ DEFERRED (see `TECH_DEBT_P2.md`)
+- Large class that should be split → ✅ FIXED (P1-2, see `TECH_DEBT_P1.md`)
+- Inconsistent patterns across similar code → ✅ FIXED (P2 items implemented; see `TECH_DEBT_P2.md`)
 - Missing validations for edge cases → ✅ FIXED (P2-6, P3-4)
 
-### Fixes Completed (7 total)
+### Initial Fix Checklist (7) ✅
 
 | Issue | Fix |
 |-------|-----|
@@ -445,10 +441,7 @@ Mostly **maintainability issues**, not bugs:
 
 ### Remaining Work
 
-For detailed implementation specs, see:
-- **`TECH_DEBT_P1.md`** - BenchmarkRunner refactor (large, 2-4 days)
-- **`TECH_DEBT_P2.md`** - Medium priority items (4 remaining, actionable)
-- **`TECH_DEBT_P3.md`** - Low priority items (13 remaining, skip most)
+Only P4 cosmetic items remain (see backlog table below). No correctness risks.
 
 ---
 
@@ -466,40 +459,17 @@ For detailed implementation specs, see:
 | **P3-4** | Replaced `assert isinstance(...)` with explicit `TypeError` raise | `d2783cf` | Existing tests pass |
 | **P3-8** | Added `spec=WSIReader` and `spec=CropEngine` to MagicMock in test_runner.py | `d2783cf` | Test quality improvement |
 
+### ✅ FIXED (Follow-up - 2025-12-31 to 2026-01-01)
+
+Additional items from the deferred backlog were implemented after the audit write-up:
+
+- P2-1, P2-2, P2-4, P2-7
+- P3-1, P3-2, P3-3, P3-5, P3-6, P3-7, P3-9, P3-10, P3-11, P3-12, P3-13
+- P1-2, P3-14, P3-15 (evaluation refactor; see `TECH_DEBT_P1.md`)
+
 ### ⏳ DEFERRED - Technical Debt Backlog
 
-#### High Priority (P1) - Significant Refactoring Required
-
-| Issue | Description | Effort | Why Deferred |
-|-------|-------------|--------|--------------|
-| **P1-2** | **BenchmarkRunner SRP violation** (1064 lines) - Split into `BenchmarkItemLoader`, `ItemExecutor`, `ResultsPersistence` (metrics stay in `src/giant/eval/metrics.py`) | **Large** (2-4 days) | Architectural refactor, requires careful test migration, breaks API |
-
-#### Medium Priority (P2) - Should Fix Before Next Major Release
-
-| Issue | Description | Effort | Why Deferred |
-|-------|-------------|--------|--------------|
-| **P2-1** | Inconsistent frozen dataclass usage | Small | Needs policy decision first |
-| **P2-2** | Test fixture uses old API response structure | Small | Low impact, tests still pass |
-| **P2-4** | Inconsistent logging patterns (structured vs format strings) | Medium | Cross-cutting, many files |
-| **P2-7** | Hardcoded retry parameters (should be configurable) | Small | Needs design decision |
-
-#### Low Priority (P3) - Nice to Have
-
-| Issue | Description | Effort |
-|-------|-------------|--------|
-| **P3-1** | Circuit breaker state property mutates on read | Small |
-| **P3-2** | No feedback when CONCH is disabled but requested | Small |
-| **P3-3** | Magic sentinel -1 (fragile if formats change) | Medium |
-| **P3-5** | Unused TYPE_CHECKING import in agent/runner.py | Trivial |
-| **P3-6** | Nested import anti-pattern (PIL inside method) | Trivial |
-| **P3-7** | No validation for negative budget | Trivial |
-| **P3-9** | Unused Generic[T] type parameter in CircuitBreaker | Trivial |
-| **P3-10** | Confusing `budget_state` dict naming | Trivial |
-| **P3-11** | Inconsistent exception chaining (`from e` vs `from None`) | Small |
-| **P3-12** | Heuristic provider detection (`if "openai" in name`) | Small |
-| **P3-13** | Message content mutation (immutability unclear) | Small |
-| **P3-14** | Path traversal checks not consolidated | Small |
-| **P3-15** | Long `run_benchmark` method (83 lines) | Small |
+All P0–P3 items are now implemented; no remaining deferred items at those levels.
 
 #### Cosmetic (P4) - Low Value
 
@@ -511,30 +481,6 @@ For detailed implementation specs, see:
 | **P4-4** | Mix of `#` and `# ` comment styles |
 | **P4-5** | Missing type hints in test fixtures |
 | **P4-6** | Verbose import lists in `__init__.py` |
-
----
-
-## Risk Assessment of Deferred Items
-
-### BenchmarkRunner - The 1064-Line Elephant
-
-**Current Risk:** LOW for correctness, MEDIUM for maintainability
-
-**Why it's not urgent:**
-- All public methods have test coverage
-- Logic is correct (verified in BUG-039 swarm audit)
-- Class is stable, rarely modified
-
-**When to fix:**
-- Before adding new evaluation modes
-- If onboarding new developers who need to understand it
-- If test coverage drops below 90%
-
-**Recommended approach:**
-1. Extract `ResultsPersistence` first (lowest coupling)
-2. Extract `BenchmarkItemLoader` (CSV loading + WSI resolution)
-3. Extract `ItemExecutor` (per-item execution + voting)
-4. Rename remaining class to `EvaluationOrchestrator`
 
 ---
 

@@ -17,17 +17,14 @@ Per Spec-06, this is used by all LLM providers.
 
 from __future__ import annotations
 
-import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Generic, TypeVar
 
 from giant.llm.protocol import CircuitBreakerOpenError
+from giant.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
-
-T = TypeVar("T")
+logger = get_logger(__name__)
 
 
 class CircuitState(Enum):
@@ -38,7 +35,7 @@ class CircuitState(Enum):
     HALF_OPEN = "half_open"
 
 
-@dataclass
+@dataclass(frozen=True)
 class CircuitBreakerConfig:
     """Configuration for the circuit breaker.
 
@@ -56,7 +53,7 @@ class CircuitBreakerConfig:
 
 
 @dataclass
-class CircuitBreaker(Generic[T]):
+class CircuitBreaker:
     """Circuit breaker for protecting LLM API calls.
 
     Usage:
@@ -85,14 +82,21 @@ class CircuitBreaker(Generic[T]):
 
     @property
     def state(self) -> CircuitState:
-        """Get current circuit state, checking for timeout transitions."""
-        if self._state == CircuitState.OPEN:
-            # Check if cooldown has elapsed
-            if self._last_failure_time is not None:
-                elapsed = time.monotonic() - self._last_failure_time
-                if elapsed >= self.config.cooldown_seconds:
-                    self._transition_to_half_open()
         return self._state
+
+    def refresh_state(self, now: float | None = None) -> None:
+        """Refresh time-based state transitions.
+
+        Transitions from OPEN -> HALF_OPEN once the configured cooldown has elapsed.
+        """
+        if self._state != CircuitState.OPEN or self._last_failure_time is None:
+            return
+
+        if now is None:
+            now = time.monotonic()
+        elapsed = now - self._last_failure_time
+        if elapsed >= self.config.cooldown_seconds:
+            self._transition_to_half_open()
 
     @property
     def is_closed(self) -> bool:
@@ -107,8 +111,7 @@ class CircuitBreaker(Generic[T]):
     def _transition_to_half_open(self) -> None:
         """Transition from OPEN to HALF_OPEN state."""
         logger.info(
-            "Circuit breaker transitioning to half-open",
-            extra={"provider": self.provider_name},
+            "Circuit breaker transitioning to half-open", provider=self.provider_name
         )
         self._state = CircuitState.HALF_OPEN
         self._half_open_call_count = 0
@@ -117,19 +120,16 @@ class CircuitBreaker(Generic[T]):
     def _transition_to_open(self) -> None:
         """Transition to OPEN state."""
         logger.warning(
-            "Circuit breaker opening after %d failures",
-            self._failure_count,
-            extra={"provider": self.provider_name},
+            "Circuit breaker opening after failures",
+            provider=self.provider_name,
+            failure_count=self._failure_count,
         )
         self._state = CircuitState.OPEN
         self._last_failure_time = time.monotonic()
 
     def _transition_to_closed(self) -> None:
         """Transition to CLOSED state (recovered)."""
-        logger.info(
-            "Circuit breaker closing (recovered)",
-            extra={"provider": self.provider_name},
-        )
+        logger.info("Circuit breaker closing (recovered)", provider=self.provider_name)
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._success_count = 0
@@ -141,6 +141,7 @@ class CircuitBreaker(Generic[T]):
         Raises:
             CircuitBreakerOpenError: If circuit is open.
         """
+        self.refresh_state()
         current_state = self.state
 
         if current_state == CircuitState.OPEN:
@@ -183,7 +184,7 @@ class CircuitBreaker(Generic[T]):
             # Any failure in half-open reopens the circuit
             logger.warning(
                 "Failure in half-open state, reopening circuit",
-                extra={"provider": self.provider_name},
+                provider=self.provider_name,
             )
             self._transition_to_open()
         elif self._state == CircuitState.CLOSED:
@@ -201,7 +202,4 @@ class CircuitBreaker(Generic[T]):
         self._success_count = 0
         self._last_failure_time = None
         self._half_open_call_count = 0
-        logger.info(
-            "Circuit breaker reset",
-            extra={"provider": self.provider_name},
-        )
+        logger.info("Circuit breaker reset", provider=self.provider_name)

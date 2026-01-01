@@ -9,15 +9,15 @@ Provides functionality to:
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from giant.data.schemas import BenchmarkResult
+from giant.utils.logging import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 _DEFAULT_LIKE_VALUES: tuple[object, ...] = (
     None,

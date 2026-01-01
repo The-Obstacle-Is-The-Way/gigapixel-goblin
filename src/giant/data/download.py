@@ -10,7 +10,6 @@ This module is intentionally minimal for Spec-01:
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download
@@ -18,7 +17,7 @@ from huggingface_hub import hf_hub_download
 from giant.config import settings
 from giant.utils.logging import configure_logging, get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 MULTIPATHQA_REPO_ID = "tbuckley/MultiPathQA"
 MULTIPATHQA_CSV_FILENAME = "MultiPathQA.csv"

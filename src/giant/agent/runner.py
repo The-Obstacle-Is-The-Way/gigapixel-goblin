@@ -17,12 +17,11 @@ and ContextManager to autonomously explore a slide and answer a question.
 from __future__ import annotations
 
 import base64
-import logging
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING
 
+from PIL import Image
 from pydantic import BaseModel, Field
 
 from giant.agent.context import ContextManager
@@ -44,6 +43,7 @@ from giant.llm.protocol import (
     MessageContent,
     StepResponse,
 )
+from giant.utils.logging import get_logger
 from giant.vision.conch import (
     ConchScorer,
     ConchUnavailableError,
@@ -51,10 +51,7 @@ from giant.vision.conch import (
 )
 from giant.wsi.reader import WSIReader
 
-if TYPE_CHECKING:
-    from PIL import Image
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # =============================================================================
@@ -127,7 +124,7 @@ class _StepDecision:
 # =============================================================================
 
 
-@dataclass
+@dataclass(frozen=True)
 class AgentConfig:
     """Configuration for GIANTAgent behavior.
 
@@ -152,6 +149,10 @@ class AgentConfig:
     enable_conch: bool = False
     conch_scorer: ConchScorer | None = None
     system_prompt: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.budget_usd is not None and self.budget_usd < 0.0:
+            raise ValueError("budget_usd must be non-negative")
 
 
 # =============================================================================
@@ -280,6 +281,12 @@ class GIANTAgent:
             )
 
     def _infer_provider_name(self) -> str | None:
+        get_provider_name = getattr(self.llm_provider, "get_provider_name", None)
+        if callable(get_provider_name):
+            provider_name = get_provider_name()
+            if isinstance(provider_name, str):
+                return provider_name
+
         name = type(self.llm_provider).__name__.lower()
         if "openai" in name:
             return "openai"
@@ -418,9 +425,16 @@ class GIANTAgent:
             )
 
         if not self.config.enable_conch:
+            observation_image, observation_region = self._get_current_observation()
+            self._context.add_turn(
+                image_base64=observation_image,
+                response=step_response,
+                region=observation_region,
+                conch_scores=None,
+            )
             logger.warning(
                 "Model requested CONCH but enable_conch is False (step %d).",
-                self._context.current_step,
+                self._context.current_step - 1,
             )
             self._consecutive_errors += 1
             if self._consecutive_errors >= self.config.max_retries:
@@ -435,6 +449,15 @@ class GIANTAgent:
         if result is not None:
             return _StepDecision(run_result=result)
         return _StepDecision()
+
+    def _get_current_observation(self) -> tuple[str, Region | None]:
+        observation_image = self._thumbnail_base64
+        observation_region = None
+        if self._context.trajectory.turns:
+            last_turn = self._context.trajectory.turns[-1]
+            observation_image = last_turn.image_base64
+            observation_region = last_turn.region
+        return observation_image, observation_region
 
     async def _handle_crop(
         self,
@@ -498,14 +521,7 @@ class GIANTAgent:
         action: ConchAction,
     ) -> RunResult | None:
         """Handle a CONCH action by scoring hypotheses against current view."""
-        observation_image = self._thumbnail_base64
-        observation_region = None
-        if self._context.trajectory.turns:
-            last_turn = self._context.trajectory.turns[-1]
-            observation_image = last_turn.image_base64
-            observation_region = last_turn.region
-
-        from PIL import Image  # noqa: PLC0415
+        observation_image, observation_region = self._get_current_observation()
 
         try:
             image_bytes = base64.b64decode(observation_image)
@@ -679,12 +695,7 @@ class GIANTAgent:
             raise TypeError(f"Expected FinalAnswerAction, got {type(action).__name__}")
 
         # Record the answer turn with the current observation image
-        observation_image = self._thumbnail_base64
-        observation_region = None
-        if self._context.trajectory.turns:
-            last_turn = self._context.trajectory.turns[-1]
-            observation_image = last_turn.image_base64
-            observation_region = last_turn.region
+        observation_image, observation_region = self._get_current_observation()
 
         self._context.add_turn(
             image_base64=observation_image,

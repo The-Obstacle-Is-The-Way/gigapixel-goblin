@@ -9,6 +9,9 @@ from pathlib import Path
 import pytest
 
 from giant.data.schemas import BenchmarkResult
+from giant.eval.executor import ItemExecutor
+from giant.eval.loader import BenchmarkItemLoader
+from giant.eval.persistence import ResultsPersistence
 from giant.eval.runner import BenchmarkRunner, EvaluationConfig
 
 
@@ -206,40 +209,43 @@ class TestResolveWsiPath:
 
 class TestTruthLabelParsing:
     def test_parses_integer_label(self, runner: BenchmarkRunner) -> None:
-        assert runner._parse_truth_label(" 2 ", "tcga", None) == 2
+        assert BenchmarkItemLoader.parse_truth_label(" 2 ", "tcga", None) == 2
 
     def test_rejects_zero_label_with_options(self, runner: BenchmarkRunner) -> None:
         """Truth labels for multiple-choice tasks are 1-based."""
         with pytest.raises(ValueError, match="out of range"):
-            runner._parse_truth_label("0", "tcga", ["A", "B"])
+            BenchmarkItemLoader.parse_truth_label("0", "tcga", ["A", "B"])
 
     def test_rejects_out_of_range_label_with_options(
         self, runner: BenchmarkRunner
     ) -> None:
         with pytest.raises(ValueError, match="out of range"):
-            runner._parse_truth_label("3", "tcga", ["A", "B"])
+            BenchmarkItemLoader.parse_truth_label("3", "tcga", ["A", "B"])
 
     def test_rejects_out_of_range_panda_grade(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="ISUP"):
-            runner._parse_truth_label("6", "panda", None)
+            BenchmarkItemLoader.parse_truth_label("6", "panda", None)
 
     def test_parses_string_label_case_insensitive(
         self, runner: BenchmarkRunner
     ) -> None:
-        assert runner._parse_truth_label("LiVeR", "gtex", ["heart", "liver"]) == 2
+        assert (
+            BenchmarkItemLoader.parse_truth_label("LiVeR", "gtex", ["heart", "liver"])
+            == 2
+        )
 
     def test_rejects_empty_label(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="Empty truth label"):
-            runner._parse_truth_label("  ", "tcga", None)
+            BenchmarkItemLoader.parse_truth_label("  ", "tcga", None)
 
     def test_rejects_unparseable_label(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="Could not parse truth label"):
-            runner._parse_truth_label("???", "tcga", None)
+            BenchmarkItemLoader.parse_truth_label("???", "tcga", None)
 
 
 class TestMajorityVote:
     def test_votes_on_labels_when_available(self, runner: BenchmarkRunner) -> None:
-        pred, label = runner._select_majority_prediction(
+        pred, label = ItemExecutor._select_majority_prediction(
             predictions=["A", "1", "B"],
             labels=[1, 1, 2],
         )
@@ -249,7 +255,7 @@ class TestMajorityVote:
     def test_falls_back_to_string_vote_when_all_labels_none(
         self, runner: BenchmarkRunner
     ) -> None:
-        pred, label = runner._select_majority_prediction(
+        pred, label = ItemExecutor._select_majority_prediction(
             predictions=["foo", "bar", "bar"],
             labels=[None, None, None],
         )
@@ -267,7 +273,7 @@ class TestMajorityVote:
         # Scenario: 2 None labels, 2 valid labels with value 1
         # Before fix: None and 1 tie, None wins because it appears first
         # After fix: Only valid labels counted, 1 wins
-        pred, label = runner._select_majority_prediction(
+        pred, label = ItemExecutor._select_majority_prediction(
             predictions=["failed", "answer_1", "failed2", "answer_1b"],
             labels=[None, 1, None, 1],
         )
@@ -278,7 +284,7 @@ class TestMajorityVote:
         self, runner: BenchmarkRunner
     ) -> None:
         """Even one valid label should win over any number of Nones."""
-        pred, label = runner._select_majority_prediction(
+        pred, label = ItemExecutor._select_majority_prediction(
             predictions=["failed", "failed", "failed", "success"],
             labels=[None, None, None, 5],
         )
@@ -700,30 +706,30 @@ class TestLoadBenchmarkItems:
 class TestValidateRunId:
     def test_rejects_absolute_path_run_id(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="Invalid run_id"):
-            runner._validate_run_id("/etc/passwd")
+            ResultsPersistence.validate_run_id("/etc/passwd")
 
     def test_rejects_path_traversal_run_id(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="Invalid run_id"):
-            runner._validate_run_id("../escape")
+            ResultsPersistence.validate_run_id("../escape")
 
     def test_rejects_subdir_run_id(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="Invalid run_id"):
-            runner._validate_run_id("subdir/runid")
+            ResultsPersistence.validate_run_id("subdir/runid")
 
     def test_accepts_valid_run_id(self, runner: BenchmarkRunner) -> None:
         # Should not raise
-        runner._validate_run_id("valid-run-id_2024")
+        ResultsPersistence.validate_run_id("valid-run-id_2024")
 
 
 class TestSafeFilenameComponent:
     def test_sanitizes_special_chars(self, runner: BenchmarkRunner) -> None:
-        result = runner._safe_filename_component("item/with:special*chars")
+        result = ResultsPersistence.safe_filename_component("item/with:special*chars")
         assert "/" not in result
         assert ":" not in result
         assert "*" not in result
 
     def test_preserves_safe_chars(self, runner: BenchmarkRunner) -> None:
-        result = runner._safe_filename_component("item_123.test-run")
+        result = ResultsPersistence.safe_filename_component("item_123.test-run")
         assert result == "item_123.test-run"
 
 
@@ -737,20 +743,20 @@ class TestWsiNotFound:
 class TestSelectMajorityPrediction:
     def test_raises_on_length_mismatch(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="must have the same length"):
-            runner._select_majority_prediction(
+            ItemExecutor._select_majority_prediction(
                 predictions=["a", "b"],
                 labels=[1],
             )
 
     def test_raises_on_empty_predictions(self, runner: BenchmarkRunner) -> None:
         with pytest.raises(ValueError, match="must not be empty"):
-            runner._select_majority_prediction(
+            ItemExecutor._select_majority_prediction(
                 predictions=[],
                 labels=[],
             )
 
     def test_single_prediction_returns_as_is(self, runner: BenchmarkRunner) -> None:
-        pred, label = runner._select_majority_prediction(
+        pred, label = ItemExecutor._select_majority_prediction(
             predictions=["only one"],
             labels=[42],
         )
@@ -759,7 +765,7 @@ class TestSelectMajorityPrediction:
 
     def test_deterministic_tiebreak(self, runner: BenchmarkRunner) -> None:
         # Labels 1 and 2 each appear once - tie
-        pred, label = runner._select_majority_prediction(
+        pred, label = ItemExecutor._select_majority_prediction(
             predictions=["first", "second"],
             labels=[1, 2],
         )
