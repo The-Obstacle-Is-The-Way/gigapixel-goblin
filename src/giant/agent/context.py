@@ -253,16 +253,25 @@ class ContextManager:
 
     def _build_user_message_for_conch_turn(self, turn: Turn, step: int) -> Message:
         action = turn.response.action
-        assert isinstance(action, ConchAction)
+        if not isinstance(action, ConchAction):
+            raise TypeError(f"Expected ConchAction, got {type(action).__name__}")
 
-        conch_scores = turn.conch_scores
-        if conch_scores is None or len(conch_scores) != len(action.hypotheses):
-            conch_summary = "CONCH scores unavailable."
+        if not self.enable_conch:
+            conch_summary = (
+                "CONCH is disabled for this run. Do not request conch; choose "
+                "crop(...) or answer(...)."
+            )
         else:
-            lines = ["CONCH similarity scores (higher = more similar):"]
-            for hypothesis, score in zip(action.hypotheses, conch_scores, strict=True):
-                lines.append(f"- {hypothesis}: {score:.4f}")
-            conch_summary = "\n".join(lines)
+            conch_scores = turn.conch_scores
+            if conch_scores is None or len(conch_scores) != len(action.hypotheses):
+                conch_summary = "CONCH scores unavailable."
+            else:
+                lines = ["CONCH similarity scores (higher = more similar):"]
+                for hypothesis, score in zip(
+                    action.hypotheses, conch_scores, strict=True
+                ):
+                    lines.append(f"- {hypothesis}: {score:.4f}")
+                conch_summary = "\n".join(lines)
 
         last_region = None
         if turn.region is not None:
@@ -277,10 +286,20 @@ class ContextManager:
             last_region=last_region,
         )
 
-        text_content = next((c for c in msg.content if c.type == "text"), None)
-        if text_content is not None and text_content.text is not None:
-            text_content.text = f"{conch_summary}\n\n{text_content.text}"
-        return msg
+        if (
+            not msg.content
+            or msg.content[0].type != "text"
+            or msg.content[0].text is None
+        ):
+            raise ValueError("Expected user message to start with text content")
+        new_content: list[MessageContent] = [
+            MessageContent(
+                type="text",
+                text=f"{conch_summary}\n\n{msg.content[0].text}",
+            ),
+            *msg.content[1:],
+        ]
+        return Message(role=msg.role, content=new_content)
 
     def _apply_image_pruning(
         self,

@@ -14,6 +14,7 @@ from giant.llm.anthropic_client import (
     _build_submit_step_tool,
     _parse_tool_use_to_step_response,
 )
+from giant.llm.circuit_breaker import CircuitBreakerConfig
 from giant.llm.model_registry import DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL
 from giant.llm.protocol import (
     BoundingBoxAction,
@@ -387,7 +388,7 @@ class TestAnthropicProviderCircuitBreaker:
         trip the circuit breaker - not application bugs.
         """
         provider = AnthropicProvider(settings=test_settings)
-        provider._circuit_breaker.config.failure_threshold = 2
+        provider._circuit_breaker.config = CircuitBreakerConfig(failure_threshold=2)
 
         with patch.object(
             provider._client.messages, "create", new_callable=AsyncMock

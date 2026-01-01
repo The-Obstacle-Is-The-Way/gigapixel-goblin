@@ -228,6 +228,7 @@ class TestContextManagerGetMessages:
             wsi_path="/slide.svs",
             question="Q?",
             max_steps=5,
+            enable_conch=True,
         )
         response = StepResponse(
             reasoning="Score hypotheses with CONCH",
