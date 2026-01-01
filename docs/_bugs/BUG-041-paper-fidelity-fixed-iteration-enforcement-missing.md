@@ -22,7 +22,10 @@ The paper explicitly describes fixed-step enforcement:
 
 - “The model is instructed to produce its final response after **20 iterations** …” (`_literature/markdown/giant/giant.md:126`)
 - “We use a **system prompt to enforce** that the model provide its final response after a specific number of iterations, **marking a trial incorrect** if the model exceeds this limit after **3 retries**.” (`_literature/markdown/giant/giant.md:200`)
-- The core loop in Algorithm 1 specifies `for t ← 1 to T−1 do …` (crop actions) (`_literature/markdown/giant/giant.md:158-160`), consistent with “T−1 crops, then final answer”.
+- Algorithm 1's structure (`_literature/markdown/giant/giant.md:151-161`) is explicit:
+  - Loop body: `for t ← 1 to T−1 do … (rt, at) ← LLM(C)` where `at = (x, y, w, h)` — **crop coordinates only**
+  - After loop: `ŷ ← LLM(C)` — **answer extracted only after loop terminates**
+  - This enforces "T−1 crops, then final answer" with **no early-answer option** in the loop.
 - The paper notes that for TCGA/PANDA, accuracy “continues to increase up to **20 iterations**” and the best configuration used `T=20` (`_literature/markdown/giant/giant.md:214-215`).
 
 ---
