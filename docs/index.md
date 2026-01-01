@@ -115,7 +115,7 @@ giant benchmark gtex --provider openai
 
 - [Contributing](development/contributing.md) - How to contribute
 - [Testing](development/testing.md) - Testing practices
-- [Specifications](specs/README.md) - Implementation specs (Spec-01 to Spec-12)
+- [Specifications](_specs/README.md) - Implementation specs (Spec-01 to Spec-12)
 
 ## Data Requirements
 
@@ -125,7 +125,7 @@ The MultiPathQA benchmark requires **862 unique WSI files** (~500+ GiB):
 - **GTEx**: 191 `.tiff` files
 - **PANDA**: 197 `.tiff` files
 
-See [Data Acquisition](data-acquisition.md) for download instructions.
+See [Data Acquisition](data/data-acquisition.md) for download instructions.
 
 ## Links
 

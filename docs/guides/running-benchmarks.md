@@ -6,7 +6,7 @@ This guide covers running GIANT on the MultiPathQA benchmark suite.
 
 1. [Installation](../getting-started/installation.md) completed
 2. API key configured in `.env`
-3. WSI files downloaded (see [Data Acquisition](../data-acquisition.md))
+3. WSI files downloaded (see [Data Acquisition](../data/data-acquisition.md))
 4. MultiPathQA metadata downloaded:
    ```bash
    giant download multipathqa
@@ -246,7 +246,7 @@ Check data availability:
 giant check-data gtex -v
 ```
 
-See [Data Acquisition](../data-acquisition.md) for download instructions.
+See [Data Acquisition](../data/data-acquisition.md) for download instructions.
 
 ### Rate Limits
 

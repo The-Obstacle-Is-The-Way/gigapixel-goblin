@@ -25,10 +25,11 @@ theme:
 plugins:
   - search
 
-# Keep archived bug reports in the build but hide from nav.
+# Keep archived content in the build but hide from nav.
 not_in_nav: |
-  archive/**
-  bugs/BUG-*.md
+  _archive/**
+  _bugs/**
+  _specs/**
   data/dataset-card.md
 
 # Enable link/anchor validation (pair with `mkdocs build --strict` in CI).
@@ -75,7 +76,7 @@ nav:
       - Running Benchmarks: guides/running-benchmarks.md
       - Configuring Providers: guides/configuring-providers.md
       - Visualizing Trajectories: guides/visualizing-trajectories.md
-      - Data Acquisition: data-acquisition.md
+      - Data Acquisition: data/data-acquisition.md
 
   # Reference (Information-oriented)
   - Reference:
@@ -88,18 +89,8 @@ nav:
   # Results
   - Results:
       - Benchmark Results: results/benchmark-results.md
-      - E2E Validation Report: validation/e2e-validation-2025-12-20.md
 
   # Development
   - Development:
       - Contributing: development/contributing.md
       - Testing: development/testing.md
-
-  # Specifications (Implementation details)
-  - Specifications:
-      - Overview: specs/README.md
-
-  # Bugs & Research
-  - Bugs: bugs/README.md
-  - Research:
-      - Agent SDKs vs Raw API: brainstorming/research-agent-sdks-vs-raw-api.md

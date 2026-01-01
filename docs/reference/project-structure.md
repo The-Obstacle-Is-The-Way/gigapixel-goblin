@@ -184,13 +184,13 @@ docs/
 ├── guides/                 # How-to guides
 ├── reference/              # Reference docs
 ├── development/            # Contributing
-├── specs/                  # Implementation specs
+├── _specs/                  # Implementation specs
 ├── models/                 # Model registry
 ├── prompts/                # Prompt design
 ├── results/                # Benchmark results
 ├── validation/             # Validation reports
-├── bugs/                   # Bug tracking
-├── archive/                # Archived bugs
+├── _bugs/                   # Bug tracking
+├── _archive/                # Archived bugs
 ├── brainstorming/          # Research notes
 └── data-acquisition.md     # Data download guide
 ```

@@ -4,7 +4,7 @@
 
 This directory tracks bugs discovered during integration checkpoint audits.
 
-**Archive**: Fixed bugs are moved to `../archive/bugs/` to keep the active list clean.
+**Archive**: Fixed bugs are moved to `../_archive/bugs/` to keep the active list clean.
 
 ## Active Bugs
 
@@ -29,7 +29,7 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 | **MEDIUM** | 4 | ~~Retry counter~~ ✅ FIXED, ~~base64~~ ✅ FIXED, ~~recursion~~ ✅ FIXED, ~~action types~~ ✅ FIXED |
 | **LOW** | 2 | ~~Comments~~ ✅ FIXED, ~~validation~~ ✅ FIXED |
 
-Note: One originally-reported medium finding (step guard) was retracted after review in `docs/archive/bugs/BUG-038-comprehensive-audit.md`.
+Note: One originally-reported medium finding (step guard) was retracted after review in `do../_archive/bugs/BUG-038-comprehensive-audit.md`.
 
 **Primary Impact**:
 - PANDA improved from **9.7% → 20.3% balanced accuracy** on scored items only (excluding the 6 pre-fix OpenAI parse failures); no new LLM calls were needed to rescore the saved artifacts after BUG-038 fixes
@@ -39,8 +39,8 @@ Note: One originally-reported medium finding (step guard) was retracted after re
 
 **Status**: COMPLETED & ARCHIVED — 11 bug fixes landed (B1–B5, B7–B12) and 1 false-positive retracted (B6).
 
-See [BUG-038-comprehensive-audit.md](../archive/bugs/BUG-038-comprehensive-audit.md) for full analysis (archived).
-See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-extraction.md) for original PANDA analysis.
+See [BUG-038-comprehensive-audit.md](../_archive/bugs/BUG-038-comprehensive-audit.md) for full analysis (archived).
+See [BUG-038-panda-answer-extraction.md](../_archive/bugs/BUG-038-panda-answer-extraction.md) for original PANDA analysis.
 
 ### Comprehensive Swarm Audit (2025-12-30)
 
@@ -54,12 +54,12 @@ See [BUG-038-panda-answer-extraction.md](../archive/bugs/BUG-038-panda-answer-ex
 | Low | 12 | 1 | 0 | 11 |
 
 **Status**: COMPLETED & ARCHIVED
-- Critical + High: See [BUG-039-comprehensive-swarm-audit.md](../archive/bugs/BUG-039-comprehensive-swarm-audit.md)
-- Medium + Low: See [BUG-039-backlog.md](../archive/bugs/BUG-039-backlog.md) (all validated, 3 fixed, 31 not bugs)
+- Critical + High: See [BUG-039-comprehensive-swarm-audit.md](../_archive/bugs/BUG-039-comprehensive-swarm-audit.md)
+- Medium + Low: See [BUG-039-backlog.md](../_archive/bugs/BUG-039-backlog.md) (all validated, 3 fixed, 31 not bugs)
 
 ## Archived (Fixed) Bugs
 
-See `../archive/bugs/` for historical bugs that have been resolved:
+See `../_archive/bugs/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|

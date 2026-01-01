@@ -6,7 +6,7 @@ Run GIANT on the MultiPathQA benchmark to reproduce paper results.
 
 - [Installation](installation.md) completed
 - API key configured
-- WSI files downloaded (see [Data Acquisition](../data-acquisition.md))
+- WSI files downloaded (see [Data Acquisition](../data/data-acquisition.md))
 
 ## Download Benchmark Metadata
 
@@ -114,7 +114,7 @@ Costs depend on provider/model, prompt length, and how many steps each item take
 giant check-data gtex -v
 ```
 
-See [Data Acquisition](../data-acquisition.md) for download instructions.
+See [Data Acquisition](../data/data-acquisition.md) for download instructions.
 
 ### API Rate Limits
 

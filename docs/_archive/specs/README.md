@@ -12,7 +12,7 @@ This directory contains the detailed technical specifications for implementing t
 > - **GTEx:** 191 `.tiff` files (organ classification)
 > - **PANDA:** 197 `.tiff` files (prostate grading)
 >
-> **See: [data-acquisition.md](../../data-acquisition.md)** for download instructions and file lists.
+> **See: [data-acquisition.md](../../data/data-acquisition.md)** for download instructions and file lists.
 
 ## Specification Index
 

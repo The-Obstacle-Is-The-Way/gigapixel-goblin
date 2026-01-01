@@ -13,7 +13,7 @@ This is a **mandatory checkpoint** before proceeding to Spec-12 (CLI & API Surfa
 - [Spec-09: GIANT Agent Core Loop](./spec-09-giant-agent.md) - Agent must be functional
 - [Spec-10: Evaluation & Benchmarking](./spec-10-evaluation.md) - Metrics and runner implemented
 - [Spec-11: CLAM Integration](./spec-11-clam-integration.md) - Tissue segmentation for baseline
-- [data-acquisition.md](../../data-acquisition.md) - WSIs must be downloaded
+- [data-acquisition.md](../../data/data-acquisition.md) - WSIs must be downloaded
 
 ## MultiPathQA Benchmark Summary
 

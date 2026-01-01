@@ -244,5 +244,5 @@ When Supplementary Material becomes available:
   - Figure 5 caption (step enforcement): line 200
   - Baseline thumbnail size: line 183
 - Current implementation: `src/giant/prompts/templates.py`
-- Bug tracking: `docs/bugs/BUG-020-placeholder-prompts.md`
+- Bug tracking: `docs/_bugs/BUG-020-placeholder-prompts.md`
 - 2025 Literature: Web search "whole slide image LLM prompting 2025"

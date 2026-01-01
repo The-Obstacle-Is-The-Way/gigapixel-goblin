@@ -82,5 +82,5 @@ See [Configuring Providers](../guides/configuring-providers.md) for detailed set
 ## Next Steps
 
 - [Quickstart](quickstart.md) - Run your first inference
-- [Data Acquisition](../data-acquisition.md) - Download WSI files for benchmarks
+- [Data Acquisition](../data/data-acquisition.md) - Download WSI files for benchmarks
 - [Configuring Providers](../guides/configuring-providers.md) - Set up OpenAI/Anthropic
