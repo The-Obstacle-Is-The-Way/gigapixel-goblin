@@ -15,6 +15,8 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
 | BUG-040 | P0-P2 | [Benchmark Underperformance Audit](BUG-040-benchmark-underperformance-audit.md) | LOCAL |
+| BUG-041 | P1 | [Paper-Fidelity Gap — Fixed Iteration Enforcement Missing](BUG-041-paper-fidelity-fixed-iteration-enforcement-missing.md) | LOCAL |
+| BUG-042 | P2 | [Paper-Fidelity Gap — Patch Baseline Not Majority Vote](BUG-042-paper-fidelity-patch-baseline-not-majority-vote.md) | LOCAL |
 
 ## Local Audit Findings (Not Yet Filed)
 
