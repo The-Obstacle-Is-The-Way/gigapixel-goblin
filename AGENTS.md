@@ -4,7 +4,7 @@
 
 - `src/giant/`: Python package (agent loop, WSI handling, LLM providers, CLI, eval, prompts, geometry, vision).
 - `tests/unit/`: fast tests (mocked I/O). `tests/integration/`: live API and real-WSI checks (often skipped).
-- `docs/`: specs (`docs/specs/`), bug reports (`docs/bugs/`), model registry (`docs/models/`), and data notes (`docs/data-acquisition.md`).
+- `docs/`: specs (`docs/_specs/`), bug reports (`docs/_bugs/`), model registry (`docs/models/`), and data notes (`docs/data/data-acquisition.md`).
 - `data/`: local datasets/metadata. `results/`: benchmark outputs and reports.
 
 ## Build, Test, and Development Commands

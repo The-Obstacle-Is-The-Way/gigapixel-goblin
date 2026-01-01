@@ -47,7 +47,7 @@ export OPENAI_API_KEY=sk-...
 # Run on a slide
 giant run /path/to/slide.svs -q "What type of tissue is this?"
 
-# Run benchmark (requires MultiPathQA CSV + WSI files; see docs/data-acquisition.md)
+# Run benchmark (requires MultiPathQA CSV + WSI files; see docs/data/data-acquisition.md)
 giant benchmark gtex --provider openai -v
 ```
 
@@ -94,7 +94,7 @@ All 5 MultiPathQA benchmarks complete. See `docs/results/benchmark-results.md` f
 | [**Algorithm**](docs/concepts/algorithm.md) | Navigation loop explained |
 | [**Running Benchmarks**](docs/guides/running-benchmarks.md) | Reproduce paper results |
 | [**Configuring Providers**](docs/guides/configuring-providers.md) | API key setup |
-| [**Data Acquisition**](docs/data-acquisition.md) | Download WSI files (~500 GiB) |
+| [**Data Acquisition**](docs/data/data-acquisition.md) | Download WSI files (~500 GiB) |
 | [**CLI Reference**](docs/reference/cli.md) | Command-line options |
 
 ---

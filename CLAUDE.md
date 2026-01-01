@@ -115,4 +115,4 @@ MultiPathQA benchmark requires ~862 WSI files (~500+ GiB):
 - GTEx: 191 `.tiff` files
 - PANDA: 197 `.tiff` files
 
-See `docs/data-acquisition.md` for download instructions.
+See `docs/data/data-acquisition.md` for download instructions.
