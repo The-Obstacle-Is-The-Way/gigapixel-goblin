@@ -59,6 +59,15 @@ class TestSettings:
         assert settings.LOG_LEVEL == "DEBUG"
         assert settings.MAX_ITERATIONS == 30
 
+    def test_wsi_long_side_target_overrides_provider_sizes(self) -> None:
+        """WSI_LONG_SIDE_TARGET should act as a paper-parameter alias."""
+        settings = Settings(
+            WSI_LONG_SIDE_TARGET=777,
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        assert settings.IMAGE_SIZE_OPENAI == 777
+        assert settings.IMAGE_SIZE_ANTHROPIC == 777
+
     def test_log_level_default(self) -> None:
         """Test that LOG_LEVEL defaults to INFO."""
         settings = Settings(

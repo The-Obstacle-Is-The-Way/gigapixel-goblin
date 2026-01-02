@@ -20,6 +20,7 @@ from giant.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from giant.cli.main import Mode, Provider
+    from giant.geometry.primitives import Region
 
 
 @dataclass
@@ -360,6 +361,7 @@ def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
     budget_usd: float,
 ) -> InferenceResult:
     """Run CLAM-style random patch baseline."""
+    from giant.config import settings  # noqa: PLC0415
     from giant.core.baselines import (  # noqa: PLC0415
         BaselineRequest,
         encode_image_to_base64,
@@ -368,8 +370,6 @@ def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
     )
     from giant.llm import create_provider  # noqa: PLC0415
     from giant.vision import (  # noqa: PLC0415
-        N_PATCHES,
-        PATCH_SIZE,
         TissueSegmentor,
         sample_patches,
     )
@@ -377,41 +377,49 @@ def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
 
     llm = create_provider(provider.value, model=model)
 
+    patch_count = settings.PATCH_COUNT
+    patch_size = settings.PATCH_SIZE
+    base_seed = 42
+
+    requests: list[BaselineRequest] = []
     with WSIReader(wsi_path) as reader:
         meta = reader.get_metadata()
         thumbnail = reader.get_thumbnail((2048, 2048))
 
-        segmentor = TissueSegmentor()
-        mask = segmentor.segment(thumbnail)
-        regions = sample_patches(
-            mask,
-            meta,
-            n_patches=N_PATCHES,
-            patch_size=PATCH_SIZE,
-        )
+        mask = TissueSegmentor().segment(thumbnail)
 
-        patch_images = [
-            reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
-        ]
-
-    collage = make_patch_collage(patch_images, patch_size=PATCH_SIZE)
-    image_b64, media_type = encode_image_to_base64(collage)
-    request = BaselineRequest(
-        wsi_path=wsi_path,
-        question=question,
-        image_base64=image_b64,
-        media_type=media_type,
-        context_note=(
-            f"This image is a montage of {N_PATCHES} random {PATCH_SIZE}x{PATCH_SIZE} "
-            "tissue patches sampled from the slide."
-        ),
-    )
+        for run_idx in range(runs):
+            regions = sample_patches(
+                mask,
+                meta,
+                n_patches=patch_count,
+                patch_size=patch_size,
+                seed=base_seed + run_idx,
+            )
+            patch_images = [
+                reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
+            ]
+            collage = make_patch_collage(patch_images, patch_size=patch_size)
+            image_b64, media_type = encode_image_to_base64(collage)
+            requests.append(
+                BaselineRequest(
+                    wsi_path=wsi_path,
+                    question=question,
+                    image_base64=image_b64,
+                    media_type=media_type,
+                    context_note=(
+                        f"This image is a montage of {patch_count} random "
+                        f"{patch_size}x{patch_size} tissue patches sampled from "
+                        "the slide."
+                    ),
+                )
+            )
 
     async def run_all() -> list[Any]:
         results: list[Any] = []
         total = 0.0
 
-        for _i in range(runs):
+        for request in requests:
             if budget_usd > 0 and total >= budget_usd:
                 break
 
@@ -435,7 +443,7 @@ def _run_patch_mode(  # pragma: no cover  # noqa: PLR0913
     )
 
 
-def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913
+def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913, PLR0915
     *,
     wsi_path: Path,
     question: str,
@@ -447,6 +455,7 @@ def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913
     """Run paper-fidelity patch baseline (30 independent calls + vote)."""
     from giant.agent.runner import RunResult  # noqa: PLC0415
     from giant.agent.trajectory import Trajectory, Turn  # noqa: PLC0415
+    from giant.config import settings  # noqa: PLC0415
     from giant.core.baselines import (  # noqa: PLC0415
         BaselineRequest,
         encode_image_to_base64,
@@ -454,8 +463,6 @@ def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913
     )
     from giant.llm import create_provider  # noqa: PLC0415
     from giant.vision import (  # noqa: PLC0415
-        N_PATCHES,
-        PATCH_SIZE,
         TissueSegmentor,
         aggregate_predictions,
         sample_patches,
@@ -464,44 +471,54 @@ def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913
 
     llm = create_provider(provider.value, model=model)
 
+    patch_count = settings.PATCH_COUNT
+    patch_size = settings.PATCH_SIZE
+    base_seed = 42
+
+    prepared_runs: list[tuple[list[Region], list[tuple[int, BaselineRequest]]]] = []
     with WSIReader(wsi_path) as reader:
         meta = reader.get_metadata()
         thumbnail = reader.get_thumbnail((2048, 2048))
 
-        segmentor = TissueSegmentor()
-        mask = segmentor.segment(thumbnail)
-        regions = sample_patches(
-            mask,
-            meta,
-            n_patches=N_PATCHES,
-            patch_size=PATCH_SIZE,
-        )
+        mask = TissueSegmentor().segment(thumbnail)
 
-        patch_images = [
-            reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
-        ]
-
-    patch_requests: list[tuple[int, BaselineRequest]] = []
-    for patch_idx, patch in enumerate(patch_images):
-        image_b64, media_type = encode_image_to_base64(patch)
-        patch_requests.append(
-            (
-                patch_idx,
-                BaselineRequest(
-                    wsi_path=wsi_path,
-                    question=question,
-                    image_base64=image_b64,
-                    media_type=media_type,
-                    context_note=(
-                        f"This image is patch {patch_idx + 1} of {N_PATCHES} random "
-                        f"{PATCH_SIZE}x{PATCH_SIZE} tissue patches sampled from "
-                        "the slide."
-                    ),
-                ),
+        for run_idx in range(runs):
+            regions = sample_patches(
+                mask,
+                meta,
+                n_patches=patch_count,
+                patch_size=patch_size,
+                seed=base_seed + run_idx,
             )
-        )
+            patch_images = [
+                reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
+            ]
 
-    async def run_once() -> RunResult:
+            patch_requests: list[tuple[int, BaselineRequest]] = []
+            for patch_idx, patch in enumerate(patch_images):
+                image_b64, media_type = encode_image_to_base64(patch)
+                patch_requests.append(
+                    (
+                        patch_idx,
+                        BaselineRequest(
+                            wsi_path=wsi_path,
+                            question=question,
+                            image_base64=image_b64,
+                            media_type=media_type,
+                            context_note=(
+                                f"This image is patch {patch_idx + 1} of "
+                                f"{patch_count} random {patch_size}x{patch_size} "
+                                "tissue patches sampled from the slide."
+                            ),
+                        ),
+                    )
+                )
+
+            prepared_runs.append((regions, patch_requests))
+
+    async def run_once(
+        *, regions: list[Region], patch_requests: list[tuple[int, BaselineRequest]]
+    ) -> RunResult:
         patch_predictions: list[str] = []
         patch_turns: list[Turn] = []
         total_tokens = 0
@@ -550,11 +567,11 @@ def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913
         results: list[Any] = []
         total = 0.0
 
-        for _i in range(runs):
+        for regions, patch_requests in prepared_runs:
             if budget_usd > 0 and total >= budget_usd:
                 break
 
-            result = await run_once()
+            result = await run_once(regions=regions, patch_requests=patch_requests)
             results.append(result)
             total += result.total_cost
 

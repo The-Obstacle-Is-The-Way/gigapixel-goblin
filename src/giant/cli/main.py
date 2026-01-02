@@ -14,6 +14,7 @@ from typing import Annotated
 import typer
 
 from giant import __version__
+from giant.config import settings
 from giant.llm.model_registry import DEFAULT_OPENAI_MODEL
 from giant.utils.logging import configure_logging, get_logger
 
@@ -84,7 +85,7 @@ def run(  # noqa: PLR0913
     ] = DEFAULT_OPENAI_MODEL,
     max_steps: Annotated[
         int, typer.Option("--max-steps", "-T", help="Max navigation steps")
-    ] = 20,
+    ] = settings.MAX_ITERATIONS,
     strict_font_check: Annotated[
         bool,
         typer.Option(
@@ -230,7 +231,7 @@ def benchmark(  # noqa: PLR0913
     ] = DEFAULT_OPENAI_MODEL,
     max_steps: Annotated[
         int, typer.Option("--max-steps", "-T", help="Max navigation steps")
-    ] = 20,
+    ] = settings.MAX_ITERATIONS,
     strict_font_check: Annotated[
         bool,
         typer.Option(

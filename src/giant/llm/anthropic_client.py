@@ -175,8 +175,7 @@ class AnthropicProvider:
         self._circuit_breaker.check()
 
         try:
-            async with self._limiter:
-                return await self._call_with_retry(messages)
+            return await self._call_with_retry(messages)
         except LLMParseError:
             # Schema/prompt mismatch: don't treat as provider outage.
             raise
@@ -212,22 +211,22 @@ class AnthropicProvider:
         Returns:
             LLMResponse with parsed output.
         """
-        start_time = time.perf_counter()
-
         try:
             # Build request
             system_prompt = get_system_prompt_for_anthropic(messages)
             anthropic_messages = messages_to_anthropic(messages)
 
             # Make API call with forced tool use
-            response = await self._client.messages.create(  # type: ignore[call-overload]
-                model=self.model,
-                max_tokens=4096,
-                system=system_prompt or "",
-                messages=anthropic_messages,
-                tools=[_build_submit_step_tool()],
-                tool_choice={"type": "tool", "name": "submit_step"},
-            )
+            async with self._limiter:
+                start_time = time.perf_counter()
+                response = await self._client.messages.create(  # type: ignore[call-overload]
+                    model=self.model,
+                    max_tokens=4096,
+                    system=system_prompt or "",
+                    messages=anthropic_messages,
+                    tools=[_build_submit_step_tool()],
+                    tool_choice={"type": "tool", "name": "submit_step"},
+                )
 
             latency_ms = (time.perf_counter() - start_time) * 1000
 
