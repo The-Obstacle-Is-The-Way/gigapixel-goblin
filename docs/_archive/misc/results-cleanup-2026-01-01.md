@@ -1,7 +1,7 @@
 # Results Directory Cleanup & Reorganization Plan
 
 **Date**: 2026-01-01
-**Status**: PENDING REVIEW - Requires senior approval before execution
+**Status**: EXECUTED (archived to `results/_archive/pre-2026-01-01-fixes-20260101_192426/`)
 
 ## Executive Summary
 
@@ -12,13 +12,13 @@ The `results/` directory is cluttered with:
 - Empty/incomplete smoke test directories
 - Legacy e2e validation outputs from Dec 18
 
-**Recommended action**: Archive all existing results, then rerun benchmarks with the consolidated BUG-038/040/041/042 fixes to get clean baseline measurements.
+**Action taken**: Archived all existing artifacts (including `e2e_validation/`) and deleted `.bak` + `smoke-*` noise. Ready for fresh reruns with BUG-038/040/041/042 fixes.
 
 ---
 
 ## Current Directory Inventory
 
-**Validated via**: `stat` (bytes + mtime) and `du -sh` on 2026-01-01.
+**Validated via**: `stat` (bytes + mtime) and `du -sh` on 2026-01-01 (pre-cleanup inventory).
 
 ### Root Level Files (`results/`)
 
@@ -55,7 +55,7 @@ The `results/` directory is cluttered with:
 |-----------|----------|-----------------|---------|
 | `checkpoints/` | 6 checkpoint files (resume state) | 476K | **ARCHIVE** |
 | `trajectories/` | 918 trajectory JSON files | 1.7G | **ARCHIVE** |
-| `e2e_validation/` | Dec 18 dev validation outputs | 1.8M | **KEEP** (local reference) |
+| `e2e_validation/` | Dec 18 dev validation outputs | 1.8M | **ARCHIVE** |
 | `smoke-20251230-153836/` | Empty directory | 0B | **DELETE** |
 | `smoke-20251230-154052/` | 1 result + 1 trajectory + 1 checkpoint | 332K | **DELETE** |
 
@@ -127,6 +127,7 @@ echo mv results/*_results.json "$ARCHIVE_DIR/"
 echo mv results/*.log "$ARCHIVE_DIR/"
 echo mv results/checkpoints "$ARCHIVE_DIR/"
 echo mv results/trajectories "$ARCHIVE_DIR/"
+echo mv results/e2e_validation "$ARCHIVE_DIR/"
 echo rm -f results/*.bak
 echo rm -rf results/smoke-*
 ```
@@ -145,6 +146,7 @@ mv results/*_results.json "$ARCHIVE_DIR/"
 mv results/*.log "$ARCHIVE_DIR/"
 mv results/checkpoints "$ARCHIVE_DIR/"
 mv results/trajectories "$ARCHIVE_DIR/"
+mv results/e2e_validation "$ARCHIVE_DIR/" 2>/dev/null || true
 
 # Create archive manifest
 echo "Pre-2026-01-01 fixes results archive" > "$ARCHIVE_DIR/README.md"
@@ -179,16 +181,14 @@ results/
 │       ├── tcga_expert_vqa_giant_openai_gpt-5.2_results.json
 │       ├── tcga_slidebench_giant_openai_gpt-5.2_results.json
 │       ├── *.log
+│       ├── e2e_validation/
+│       │   ├── e2e_*_results.json
+│       │   ├── checkpoints/
+│       │   └── trajectories/
 │       ├── checkpoints/
 │       │   └── *.checkpoint.json
 │       └── trajectories/
 │           └── *.json (918 files)
-└── e2e_validation/   # Keep for local reference
-    ├── e2e_tcga_results.json
-    ├── e2e_tcga_expert_vqa_results.json
-    ├── e2e_tcga_slidebench_results.json
-    ├── checkpoints/
-    └── trajectories/
 ```
 
 ---
@@ -231,9 +231,10 @@ uv run giant benchmark panda --mode patch_vote --skip-missing
 | Trajectory files (`results/trajectories/`) | 1.7G | Archived |
 | Checkpoint files (`results/checkpoints/`) | 476K | Archived |
 | Logs (`results/*.log`) | 488K | Archived |
+| E2E validation (`results/e2e_validation/`) | 1.8M | Archived |
 | Backups (`results/*.bak`) | 360K | Deleted |
 | Smoke tests (`results/smoke-*`) | 332K | Deleted |
-| **Total archived (approx)** | 1.7G | Moved under `_archive/` |
+| **Total archived (approx)** | 1.7G (+ 1.8M) | Moved under `_archive/` |
 | **Total deleted (freed)** | 692K | Freed |
 
 ---
@@ -245,8 +246,7 @@ uv run giant benchmark panda --mode patch_vote --skip-missing
    - Delete: Saves ~1.7 GB, but loses provenance
 
 2. **Keep e2e_validation?**
-   - Yes: Useful as a local smoke-test reference (note: `results/` is gitignored)
-   - No: Rerun with post-fix code for consistency
+   - Resolved: archived under `results/_archive/pre-2026-01-01-fixes-20260101_192426/e2e_validation/`
 
 3. **Run ID convention going forward?**
    - Current: `{benchmark}_{mode}_{provider}_{model}` (human-readable)
