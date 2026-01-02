@@ -14,7 +14,7 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 
 | ID | Severity | Title | GitHub Issue |
 |----|----------|-------|--------------|
-| (none) | - | - | - |
+| BUG-040 | P0-P2 | [Benchmark Underperformance Audit](BUG-040-benchmark-underperformance-audit.md) | LOCAL |
 
 ## Local Audit Findings (Not Yet Filed)
 
@@ -63,6 +63,8 @@ See `../_archive/bugs/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-042 | Paper-Fidelity Gap — Patch Baseline Not Majority Vote | Fixed (added `patch_vote` mode) |
+| BUG-041 | Paper-Fidelity Gap — Fixed Iteration Enforcement Missing | Fixed (added `enforce_fixed_iterations` paper-fidelity mode) |
 | BUG-039 | Comprehensive Swarm Audit | Critical + high issues fixed; false positives retracted |
 | BUG-038 | Comprehensive E2E Bug Audit | 11 fixes landed; 1 false-positive retracted (B6) |
 | BUG-037 | Data acquisition verification requires `pandas` | Fixed (use `giant check-data` CLI instead) |

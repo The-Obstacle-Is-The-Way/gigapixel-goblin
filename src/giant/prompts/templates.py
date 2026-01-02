@@ -62,6 +62,10 @@ SYSTEM_PROMPT_CONSTRAINTS = """CONSTRAINTS:
 - The thumbnail is low-resolution. You MUST zoom in to see cellular-level detail.
 - On your FINAL step, you MUST use the answer action."""
 
+SYSTEM_PROMPT_FIXED_ITERATIONS_CONSTRAINTS = """FIXED-ITERATION ENFORCEMENT:
+- You MUST NOT use the answer action until the FINAL step.
+- For non-final steps, choose only crop(...) (and conch(...) if enabled)."""
+
 SYSTEM_PROMPT = (
     f"{SYSTEM_PROMPT_PAPER}\n\n"
     f"{SYSTEM_PROMPT_2025_ENHANCEMENTS}\n\n"
@@ -92,6 +96,17 @@ Instructions:
 - Analyze the new high-resolution details in this crop.
 - Confirm or refute your previous hypothesis based on cellular evidence.
 - Continue exploring or answer if you have sufficient evidence."""
+
+SUBSEQUENT_USER_PROMPT_FIXED_ITERATIONS = """Navigation Budget: Step {step} of {max_steps}. {remaining_crops} crops remaining.
+
+Previous Action: Cropped region {last_region}.
+
+Question: {question}
+
+Instructions:
+- Analyze the new high-resolution details in this crop.
+- Confirm or refute your previous hypothesis based on cellular evidence.
+- Continue exploring. Do NOT answer until the final step."""
 
 # Final step prompt
 # Paper evidence: Fig 5 caption line 200 - "enforce that the model provide its final response"

@@ -238,6 +238,75 @@ class TestGIANTAgentHappyPath:
         assert len(result.trajectory.turns) == 1
 
     @pytest.mark.asyncio
+    async def test_early_answer_rejected_when_fixed_iterations_enforced(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        """Early answers are rejected in fixed-iteration mode (BUG-041)."""
+        mock_llm_provider.generate_response.side_effect = [
+            make_answer_response("Too early", "Clear from thumbnail"),
+            make_crop_response(1000, 2000, 500, 500, "Navigate first"),
+            make_answer_response("Final answer", "Now answer"),
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(max_steps=2, enforce_fixed_iterations=True),
+                )
+
+                result = await agent.run()
+
+        assert result.success is True
+        assert result.answer == "Final answer"
+        assert len(result.trajectory.turns) == 2
+        assert isinstance(result.trajectory.turns[0].response.action, BoundingBoxAction)
+        assert isinstance(result.trajectory.turns[1].response.action, FinalAnswerAction)
+        assert mock_llm_provider.generate_response.await_count == 3
+
+    @pytest.mark.asyncio
+    async def test_early_answer_retry_exhaustion_fails_in_fixed_iteration_mode(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        """After max retries, repeated early answers mark the run incorrect."""
+        mock_llm_provider.generate_response.side_effect = [
+            make_answer_response("Too early", "Clear from thumbnail"),
+            make_answer_response("Still too early"),
+            make_answer_response("Again"),
+            make_answer_response("Nope"),
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(
+                        max_steps=2,
+                        max_retries=3,
+                        enforce_fixed_iterations=True,
+                    ),
+                )
+
+                result = await agent.run()
+
+        assert result.success is False
+        assert result.answer == ""
+        assert len(result.trajectory.turns) == 0
+        assert result.error_message is not None
+        assert "early" in result.error_message.lower()
+        assert mock_llm_provider.generate_response.await_count == 4
+
+    @pytest.mark.asyncio
     async def test_crop_conch_answer(
         self,
         mock_wsi_reader: MagicMock,

@@ -31,6 +31,7 @@ class Mode(str, Enum):
     giant = "giant"  # Full agentic navigation
     thumbnail = "thumbnail"  # Single thumbnail baseline
     patch = "patch"  # Random patch sampling baseline (CLAM)
+    patch_vote = "patch_vote"  # Paper-fidelity patch baseline (30 calls + vote)
 
 
 class Provider(str, Enum):
@@ -91,6 +92,13 @@ def run(  # noqa: PLR0913
             help="Fail if TrueType fonts are unavailable for axis labels",
         ),
     ] = False,
+    enforce_fixed_iterations: Annotated[
+        bool,
+        typer.Option(
+            "--enforce-fixed-iterations/--no-enforce-fixed-iterations",
+            help="Reject early answers (paper-fidelity fixed-iteration mode)",
+        ),
+    ] = False,
     runs: Annotated[
         int, typer.Option("--runs", "-r", help="Number of runs for majority voting")
     ] = 1,
@@ -134,6 +142,7 @@ def run(  # noqa: PLR0913
             model=model,
             max_steps=max_steps,
             strict_font_check=strict_font_check,
+            enforce_fixed_iterations=enforce_fixed_iterations,
             runs=runs,
             budget_usd=budget_usd,
             verbose=verbose,
@@ -229,6 +238,13 @@ def benchmark(  # noqa: PLR0913
             help="Fail if TrueType fonts are unavailable for axis labels",
         ),
     ] = False,
+    enforce_fixed_iterations: Annotated[
+        bool,
+        typer.Option(
+            "--enforce-fixed-iterations/--no-enforce-fixed-iterations",
+            help="Reject early answers (paper-fidelity fixed-iteration mode)",
+        ),
+    ] = False,
     runs: Annotated[
         int, typer.Option("--runs", "-r", help="Runs per item for majority voting")
     ] = 1,
@@ -294,6 +310,7 @@ def benchmark(  # noqa: PLR0913
             model=model,
             max_steps=max_steps,
             strict_font_check=strict_font_check,
+            enforce_fixed_iterations=enforce_fixed_iterations,
             runs=runs,
             concurrency=concurrency,
             budget_usd=budget_usd,

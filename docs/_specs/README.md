@@ -1,8 +1,16 @@
-# Specs - Archived
+# Specs
 
-All 15 specs have been completed and archived.
+This directory contains active implementation/change specs and checkpoint reports.
 
-**Location:** [do../_archive/specs/README.md](../_archive/specs/README.md)
+## Active Specs
+
+- `BUG-040-P1-2-openai-stepresponse-schema-hardening.md` (IMPLEMENTED)
+
+## Archived Specs
+
+All original GIANT implementation specs (Spec-01 → Spec-12 + checkpoints) are archived.
+
+**Location:** `docs/_archive/specs/README.md`
 
 ## Summary
 

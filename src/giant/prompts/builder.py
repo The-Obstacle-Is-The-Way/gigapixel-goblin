@@ -10,7 +10,9 @@ from giant.prompts.templates import (
     FINAL_STEP_PROMPT,
     INITIAL_USER_PROMPT,
     SUBSEQUENT_USER_PROMPT,
+    SUBSEQUENT_USER_PROMPT_FIXED_ITERATIONS,
     SYSTEM_PROMPT,
+    SYSTEM_PROMPT_FIXED_ITERATIONS_CONSTRAINTS,
 )
 
 
@@ -33,8 +35,14 @@ class PromptBuilder:
         )
     """
 
+    def __init__(self, *, enforce_fixed_iterations: bool = False) -> None:
+        self._enforce_fixed_iterations = enforce_fixed_iterations
+
     def build_system_message(
-        self, *, system_prompt: str | None = None, enable_conch: bool = False
+        self,
+        *,
+        system_prompt: str | None = None,
+        enable_conch: bool = False,
     ) -> Message:
         """Build the system message with navigation instructions.
 
@@ -42,6 +50,8 @@ class PromptBuilder:
             Message with role='system' containing the GIANT system prompt.
         """
         prompt = system_prompt or SYSTEM_PROMPT
+        if self._enforce_fixed_iterations:
+            prompt = f"{prompt}\n\n{SYSTEM_PROMPT_FIXED_ITERATIONS_CONSTRAINTS}"
         if enable_conch:
             prompt = f"{prompt}\n\n{CONCH_ACTION_PROMPT}"
 
@@ -139,15 +149,26 @@ class PromptBuilder:
 
         # Initial step (step 1)
         if step == 1:
-            return INITIAL_USER_PROMPT.format(
+            text = INITIAL_USER_PROMPT.format(
                 question=question,
                 step=step,
                 max_steps=max_steps,
                 remaining_crops=remaining_crops,
             )
+            if self._enforce_fixed_iterations:
+                text += (
+                    "\n\nIMPORTANT: Do NOT answer yet. You must answer only on the "
+                    "final step."
+                )
+            return text
 
         # Subsequent steps (2 to max_steps-1)
-        return SUBSEQUENT_USER_PROMPT.format(
+        template = (
+            SUBSEQUENT_USER_PROMPT_FIXED_ITERATIONS
+            if self._enforce_fixed_iterations
+            else SUBSEQUENT_USER_PROMPT
+        )
+        return template.format(
             question=question,
             step=step,
             max_steps=max_steps,
