@@ -260,9 +260,10 @@ Once approved, execute the cleanup:
 
 ```bash
 #!/bin/bash
+# Run this script from the repository root directory
 set -euo pipefail
 
-cd /Users/ray/Desktop/CLARITY-DIGITAL-TWIN/gigapixel-goblin
+cd "$(git rev-parse --show-toplevel)" || { echo "Not in a git repository"; exit 1; }
 
 # Phase 1: Archive
 ARCHIVE_DIR="results/_archive/pre-2026-01-01-fixes-$(date +%Y%m%d_%H%M%S)"
