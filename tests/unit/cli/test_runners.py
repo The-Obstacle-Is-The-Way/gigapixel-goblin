@@ -243,7 +243,7 @@ class TestRunSingleInference:
                 "giant.core.baselines.run_baseline_answer",
                 new_callable=AsyncMock,
                 side_effect=[baseline_result, baseline_result],
-            ),
+            ) as mock_baseline,
         ):
             run_single_inference(
                 wsi_path=mock_wsi,
@@ -259,6 +259,8 @@ class TestRunSingleInference:
 
         assert mock_sample.call_count == 2
         assert [call.kwargs["seed"] for call in mock_sample.call_args_list] == [42, 43]
+        # Patch mode runs baseline once per run (collage of all patches)
+        assert mock_baseline.await_count == 2
 
     def test_patch_vote_resamples_patches_across_runs(self, mock_wsi: Path) -> None:
         from giant.cli.main import Mode, Provider

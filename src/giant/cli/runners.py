@@ -20,6 +20,7 @@ from giant.utils.logging import get_logger
 
 if TYPE_CHECKING:
     from giant.cli.main import Mode, Provider
+    from giant.geometry.primitives import Region
 
 
 @dataclass
@@ -474,7 +475,7 @@ def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913, PLR0915
     patch_size = settings.PATCH_SIZE
     base_seed = 42
 
-    prepared_runs: list[tuple[list[Any], list[tuple[int, BaselineRequest]]]] = []
+    prepared_runs: list[tuple[list[Region], list[tuple[int, BaselineRequest]]]] = []
     with WSIReader(wsi_path) as reader:
         meta = reader.get_metadata()
         thumbnail = reader.get_thumbnail((2048, 2048))
@@ -516,7 +517,7 @@ def _run_patch_vote_mode(  # pragma: no cover  # noqa: PLR0913, PLR0915
             prepared_runs.append((regions, patch_requests))
 
     async def run_once(
-        *, regions: list[Any], patch_requests: list[tuple[int, BaselineRequest]]
+        *, regions: list[Region], patch_requests: list[tuple[int, BaselineRequest]]
     ) -> RunResult:
         patch_predictions: list[str] = []
         patch_turns: list[Turn] = []
