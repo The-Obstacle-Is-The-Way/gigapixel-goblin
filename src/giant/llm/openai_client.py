@@ -187,8 +187,7 @@ class OpenAIProvider:
         self._circuit_breaker.check()
 
         try:
-            async with self._limiter:
-                return await self._call_with_retry(messages)
+            return await self._call_with_retry(messages)
         except LLMParseError:
             # Schema/prompt mismatch: don't treat as provider outage.
             raise
@@ -224,8 +223,6 @@ class OpenAIProvider:
         Returns:
             LLMResponse with parsed output.
         """
-        start_time = time.perf_counter()
-
         try:
             # Build request
             system_prompt = get_system_prompt_for_openai(messages)
@@ -233,19 +230,21 @@ class OpenAIProvider:
 
             # Make API call using responses.create for structured output
             json_schema = _build_json_schema()
-            response = await self._client.responses.create(  # type: ignore[call-overload]
-                model=self.model,
-                input=input_messages,
-                instructions=system_prompt,
-                text={
-                    "format": {
-                        "type": "json_schema",
-                        "name": json_schema["name"],
-                        "schema": json_schema["schema"],
-                        "strict": json_schema.get("strict", True),
-                    }
-                },
-            )
+            async with self._limiter:
+                start_time = time.perf_counter()
+                response = await self._client.responses.create(  # type: ignore[call-overload]
+                    model=self.model,
+                    input=input_messages,
+                    instructions=system_prompt,
+                    text={
+                        "format": {
+                            "type": "json_schema",
+                            "name": json_schema["name"],
+                            "schema": json_schema["schema"],
+                            "strict": json_schema.get("strict", True),
+                        }
+                    },
+                )
 
             latency_ms = (time.perf_counter() - start_time) * 1000
 

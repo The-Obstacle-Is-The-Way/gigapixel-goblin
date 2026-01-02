@@ -216,6 +216,7 @@ class ItemExecutor:
         return self._build_item_result(item=item, state=state)
 
     async def _run_item_patch(self, item: BenchmarkItem) -> BenchmarkResult:
+        from giant.config import settings  # noqa: PLC0415
         from giant.core.baselines import (  # noqa: PLC0415
             BaselineRequest,
             encode_image_to_base64,
@@ -223,41 +224,49 @@ class ItemExecutor:
             run_baseline_answer,
         )
         from giant.vision import (  # noqa: PLC0415
-            N_PATCHES,
-            PATCH_SIZE,
             TissueSegmentor,
             sample_patches,
         )
         from giant.wsi.reader import WSIReader  # noqa: PLC0415
 
+        patch_count = settings.PATCH_COUNT
+        patch_size = settings.PATCH_SIZE
+        base_seed = 42
+
+        requests: list[BaselineRequest] = []
         with WSIReader(item.wsi_path) as reader:
             meta = reader.get_metadata()
             thumbnail = reader.get_thumbnail((2048, 2048))
 
-            segmentor = TissueSegmentor()
-            mask = segmentor.segment(thumbnail)
-            regions = sample_patches(
-                mask,
-                meta,
-                n_patches=N_PATCHES,
-                patch_size=PATCH_SIZE,
-            )
-            patch_images = [
-                reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
-            ]
+            mask = TissueSegmentor().segment(thumbnail)
 
-        collage = make_patch_collage(patch_images, patch_size=PATCH_SIZE)
-        image_b64, media_type = encode_image_to_base64(collage)
-        request = BaselineRequest(
-            wsi_path=Path(item.wsi_path),
-            question=item.prompt,
-            image_base64=image_b64,
-            media_type=media_type,
-            context_note=(
-                "This image is a montage of 30 random 224x224 tissue patches sampled "
-                "from the slide."
-            ),
-        )
+            for run_idx in range(self.config.runs_per_item):
+                regions = sample_patches(
+                    mask,
+                    meta,
+                    n_patches=patch_count,
+                    patch_size=patch_size,
+                    seed=base_seed + run_idx,
+                )
+                patch_images = [
+                    reader.read_region((r.x, r.y), 0, (r.width, r.height))
+                    for r in regions
+                ]
+                collage = make_patch_collage(patch_images, patch_size=patch_size)
+                image_b64, media_type = encode_image_to_base64(collage)
+                requests.append(
+                    BaselineRequest(
+                        wsi_path=Path(item.wsi_path),
+                        question=item.prompt,
+                        image_base64=image_b64,
+                        media_type=media_type,
+                        context_note=(
+                            f"This image is a montage of {patch_count} random "
+                            f"{patch_size}x{patch_size} tissue patches sampled from "
+                            "the slide."
+                        ),
+                    )
+                )
 
         predictions: list[str] = []
         labels: list[int | None] = []
@@ -266,7 +275,7 @@ class ItemExecutor:
         total_tokens = 0
         last_trajectory_path = ""
 
-        for run_idx in range(self.config.runs_per_item):
+        for run_idx, request in enumerate(requests):
             run_result: RunResult = await run_baseline_answer(
                 llm_provider=self.llm_provider,
                 request=request,
@@ -303,55 +312,6 @@ class ItemExecutor:
             per_run_errors=per_run_errors,
         )
         return self._build_item_result(item=item, state=state)
-
-    def _prepare_patch_vote_requests(
-        self, item: BenchmarkItem
-    ) -> tuple[list[Region], list[BaselineRequest]]:
-        from giant.core.baselines import (  # noqa: PLC0415
-            BaselineRequest,
-            encode_image_to_base64,
-        )
-        from giant.vision import (  # noqa: PLC0415
-            N_PATCHES,
-            PATCH_SIZE,
-            TissueSegmentor,
-            sample_patches,
-        )
-        from giant.wsi.reader import WSIReader  # noqa: PLC0415
-
-        with WSIReader(item.wsi_path) as reader:
-            meta = reader.get_metadata()
-            thumbnail = reader.get_thumbnail((2048, 2048))
-
-            mask = TissueSegmentor().segment(thumbnail)
-            regions = sample_patches(
-                mask,
-                meta,
-                n_patches=N_PATCHES,
-                patch_size=PATCH_SIZE,
-            )
-            patch_images = [
-                reader.read_region((r.x, r.y), 0, (r.width, r.height)) for r in regions
-            ]
-
-        patch_requests: list[BaselineRequest] = []
-        for patch_idx, patch in enumerate(patch_images):
-            image_b64, media_type = encode_image_to_base64(patch)
-            patch_requests.append(
-                BaselineRequest(
-                    wsi_path=Path(item.wsi_path),
-                    question=item.prompt,
-                    image_base64=image_b64,
-                    media_type=media_type,
-                    context_note=(
-                        f"This image is patch {patch_idx + 1} of {N_PATCHES} random "
-                        f"{PATCH_SIZE}x{PATCH_SIZE} tissue patches sampled from "
-                        "the slide."
-                    ),
-                )
-            )
-
-        return regions, patch_requests
 
     async def _run_patch_vote_single_run(
         self,
@@ -417,8 +377,59 @@ class ItemExecutor:
     async def _run_item_patch_vote(self, item: BenchmarkItem) -> BenchmarkResult:
         """Run patch baseline with per-patch majority vote (paper-fidelity)."""
         from giant.agent.trajectory import Trajectory  # noqa: PLC0415
+        from giant.config import settings  # noqa: PLC0415
+        from giant.core.baselines import (  # noqa: PLC0415
+            BaselineRequest,
+            encode_image_to_base64,
+        )
+        from giant.vision import (  # noqa: PLC0415
+            TissueSegmentor,
+            sample_patches,
+        )
+        from giant.wsi.reader import WSIReader  # noqa: PLC0415
 
-        regions, patch_requests = self._prepare_patch_vote_requests(item)
+        patch_count = settings.PATCH_COUNT
+        patch_size = settings.PATCH_SIZE
+        base_seed = 42
+
+        prepared_runs: list[tuple[list[Region], list[BaselineRequest]]] = []
+        with WSIReader(item.wsi_path) as reader:
+            meta = reader.get_metadata()
+            thumbnail = reader.get_thumbnail((2048, 2048))
+
+            mask = TissueSegmentor().segment(thumbnail)
+
+            for run_idx in range(self.config.runs_per_item):
+                regions = sample_patches(
+                    mask,
+                    meta,
+                    n_patches=patch_count,
+                    patch_size=patch_size,
+                    seed=base_seed + run_idx,
+                )
+                patch_images = [
+                    reader.read_region((r.x, r.y), 0, (r.width, r.height))
+                    for r in regions
+                ]
+
+                patch_requests: list[BaselineRequest] = []
+                for patch_idx, patch in enumerate(patch_images):
+                    image_b64, media_type = encode_image_to_base64(patch)
+                    patch_requests.append(
+                        BaselineRequest(
+                            wsi_path=Path(item.wsi_path),
+                            question=item.prompt,
+                            image_base64=image_b64,
+                            media_type=media_type,
+                            context_note=(
+                                f"This image is patch {patch_idx + 1} of "
+                                f"{patch_count} random {patch_size}x{patch_size} "
+                                "tissue patches sampled from the slide."
+                            ),
+                        )
+                    )
+
+                prepared_runs.append((regions, patch_requests))
 
         predictions: list[str] = []
         labels: list[int | None] = []
@@ -427,7 +438,7 @@ class ItemExecutor:
         total_tokens = 0
         last_trajectory_path = ""
 
-        for run_idx in range(self.config.runs_per_item):
+        for run_idx, (regions, patch_requests) in enumerate(prepared_runs):
             (
                 final_prediction,
                 final_label,

@@ -7,6 +7,7 @@ and .env files.
 from pathlib import Path
 from typing import TypeGuard
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _PLACEHOLDER_SECRET_MARKERS: tuple[str, ...] = (
@@ -101,6 +102,15 @@ class Settings(BaseSettings):
     GIANT_SYSTEM_PROMPT_OPENAI_PATH: str | None = None
     GIANT_SYSTEM_PROMPT_ANTHROPIC: str | None = None
     GIANT_SYSTEM_PROMPT_ANTHROPIC_PATH: str | None = None
+
+    @model_validator(mode="after")
+    def _apply_paper_parameter_overrides(self) -> "Settings":
+        if "WSI_LONG_SIDE_TARGET" in self.model_fields_set:
+            if "IMAGE_SIZE_OPENAI" not in self.model_fields_set:
+                self.IMAGE_SIZE_OPENAI = self.WSI_LONG_SIDE_TARGET
+            if "IMAGE_SIZE_ANTHROPIC" not in self.model_fields_set:
+                self.IMAGE_SIZE_ANTHROPIC = self.WSI_LONG_SIDE_TARGET
+        return self
 
     @staticmethod
     def _is_configured_secret(value: str | None) -> TypeGuard[str]:

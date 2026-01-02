@@ -150,10 +150,10 @@ class AgentConfig:
         enforce_fixed_iterations: If True, reject early answers before the final step.
     """
 
-    max_steps: int = 20  # T=20 per GIANT paper (accuracy improves up to 20 iterations)
+    max_steps: int = field(default_factory=lambda: settings.MAX_ITERATIONS)
     max_retries: int = 3
     budget_usd: float | None = None
-    thumbnail_size: int = 1024
+    thumbnail_size: int = field(default_factory=lambda: settings.THUMBNAIL_SIZE)
     force_answer_retries: int = 3
     strict_font_check: bool = False
     enable_conch: bool = False
@@ -370,6 +370,7 @@ class GIANTAgent:
     ) -> _StepDecision:
         action = step_response.action
 
+        decision: _StepDecision
         if isinstance(action, FinalAnswerAction):
             if self.config.enforce_fixed_iterations and not self._context.is_final_step:
                 logger.warning(
@@ -377,24 +378,89 @@ class GIANTAgent:
                     self._context.current_step,
                     self.config.max_steps,
                 )
-                return await self._handle_early_answer_before_final_step(messages)
-            logger.warning(
-                "Model returned answer at step %d/%d",
-                self._context.current_step,
-                self.config.max_steps,
+                decision = await self._handle_early_answer_before_final_step(messages)
+            else:
+                logger.warning(
+                    "Model returned answer at step %d/%d",
+                    self._context.current_step,
+                    self.config.max_steps,
+                )
+                decision = _StepDecision(run_result=self._handle_answer(step_response))
+        elif isinstance(action, BoundingBoxAction):
+            decision = await self._handle_crop_action(step_response, action, messages)
+        elif isinstance(action, ConchAction):
+            if self._context.is_final_step:
+                logger.warning(
+                    "Model returned conch at final step %d, forcing answer.",
+                    self._context.current_step,
+                )
+                forced_summary = self._build_forced_summary_for_final_step(
+                    "invoke CONCH"
+                )
+                decision = _StepDecision(
+                    forced_summary=forced_summary,
+                    break_to_force_answer=True,
+                )
+            elif not self.config.enable_conch:
+                decision = await self._handle_conch_disabled(messages)
+            else:
+                decision = await self._handle_conch_action(step_response, action)
+        elif self._context.is_final_step:
+            decision = _StepDecision(break_to_force_answer=True)
+        else:
+            decision = _StepDecision()
+
+        return decision
+
+    async def _handle_conch_disabled(self, messages: list[Message]) -> _StepDecision:
+        """Reject CONCH when disabled without consuming navigation steps."""
+        feedback_text = (
+            "CONCH is disabled for this run.\n"
+            "You MUST NOT use action_type='conch'.\n\n"
+            "Return a StepResponse with action_type='crop'. "
+            "Do not answer unless you are on the final step."
+        )
+        feedback_message = Message(
+            role="user",
+            content=[MessageContent(type="text", text=feedback_text)],
+        )
+
+        for attempt in range(self.config.max_retries):
+            messages_with_feedback = [*messages, feedback_message]
+
+            try:
+                response = await self.llm_provider.generate_response(
+                    messages_with_feedback
+                )
+                self._accumulate_usage(response)
+            except (LLMError, LLMParseError) as e:
+                logger.warning(
+                    "CONCH-disabled retry LLM call failed (attempt %d/%d): %s",
+                    attempt + 1,
+                    self.config.max_retries,
+                    e,
+                )
+                continue
+
+            step_response = response.step_response
+            action = step_response.action
+
+            if isinstance(action, ConchAction):
+                logger.warning(
+                    "Model requested CONCH but enable_conch is False (attempt %d/%d).",
+                    attempt + 1,
+                    self.config.max_retries,
+                )
+                continue
+
+            return await self._handle_step_action(step_response, messages_with_feedback)
+
+        return _StepDecision(
+            run_result=self._build_error_result(
+                "Model requested CONCH but tool is disabled "
+                f"after {self.config.max_retries} retries"
             )
-            return _StepDecision(run_result=self._handle_answer(step_response))
-
-        if isinstance(action, BoundingBoxAction):
-            return await self._handle_crop_action(step_response, action, messages)
-
-        if isinstance(action, ConchAction):
-            return await self._handle_conch_action(step_response, action)
-
-        if self._context.is_final_step:
-            return _StepDecision(break_to_force_answer=True)
-
-        return _StepDecision()
+        )
 
     async def _handle_early_answer_before_final_step(
         self, messages: list[Message]
@@ -439,20 +505,7 @@ class GIANTAgent:
                 )
                 continue
 
-            if isinstance(action, BoundingBoxAction):
-                return await self._handle_crop_action(
-                    step_response,
-                    action,
-                    messages_with_feedback,
-                )
-
-            if isinstance(action, ConchAction):
-                return await self._handle_conch_action(step_response, action)
-
-            if self._context.is_final_step:
-                return _StepDecision(break_to_force_answer=True)
-
-            return _StepDecision()
+            return await self._handle_step_action(step_response, messages_with_feedback)
 
         return _StepDecision(
             run_result=self._build_error_result(
@@ -497,38 +550,6 @@ class GIANTAgent:
         step_response: StepResponse,
         action: ConchAction,
     ) -> _StepDecision:
-        if self._context.is_final_step:
-            logger.warning(
-                "Model returned conch at final step %d, forcing answer.",
-                self._context.current_step,
-            )
-            forced_summary = self._build_forced_summary_for_final_step("invoke CONCH")
-            return _StepDecision(
-                forced_summary=forced_summary,
-                break_to_force_answer=True,
-            )
-
-        if not self.config.enable_conch:
-            observation_image, observation_region = self._get_current_observation()
-            self._context.add_turn(
-                image_base64=observation_image,
-                response=step_response,
-                region=observation_region,
-                conch_scores=None,
-            )
-            logger.warning(
-                "Model requested CONCH but enable_conch is False (step %d).",
-                self._context.current_step - 1,
-            )
-            self._consecutive_errors += 1
-            if self._consecutive_errors >= self.config.max_retries:
-                return _StepDecision(
-                    run_result=self._build_error_result(
-                        "Model requested CONCH but tool is disabled"
-                    )
-                )
-            return _StepDecision()
-
         result = await self._handle_conch(step_response, action)
         if result is not None:
             return _StepDecision(run_result=result)
@@ -576,7 +597,11 @@ class GIANTAgent:
         # Execute crop
         target_size = self.llm_provider.get_target_size()
         try:
-            cropped = self._crop_engine.crop(region, target_size=target_size)
+            cropped = self._crop_engine.crop(
+                region,
+                target_size=target_size,
+                bias=settings.OVERSAMPLING_BIAS,
+            )
         except ValueError as e:
             logger.warning("Crop failed: %s", e)
             return await self._handle_invalid_region(action, messages, str(e))
@@ -667,15 +692,7 @@ class GIANTAgent:
         current_action = action
         current_error = error_detail
 
-        while True:
-            self._consecutive_errors += 1
-
-            if self._consecutive_errors >= self.config.max_retries:
-                return self._build_error_result(
-                    f"Max retries ({self.config.max_retries}) on invalid coordinates"
-                )
-
-            # Build error feedback message
+        for attempt in range(self.config.max_retries):
             feedback = ERROR_FEEDBACK_TEMPLATE.format(
                 x=current_action.x,
                 y=current_action.y,
@@ -686,7 +703,6 @@ class GIANTAgent:
                 issues=current_error,
             )
 
-            # Add error feedback to original messages (not accumulating)
             error_message = Message(
                 role="user",
                 content=[MessageContent(type="text", text=feedback)],
@@ -699,15 +715,22 @@ class GIANTAgent:
                 )
                 self._accumulate_usage(response)
             except (LLMError, LLMParseError) as e:
-                logger.warning("Retry LLM call failed: %s", e)
-                self._consecutive_errors += 1
-                if self._consecutive_errors >= self.config.max_retries:
-                    return self._build_error_result(
-                        f"Max retries ({self.config.max_retries}) exceeded: {e}"
-                    )
-                return None
+                logger.warning(
+                    "Retry LLM call failed (attempt %d/%d): %s",
+                    attempt + 1,
+                    self.config.max_retries,
+                    e,
+                )
+                continue
 
             new_action = response.step_response.action
+
+            if isinstance(new_action, ConchAction):
+                current_error = (
+                    "CONCH is not allowed while correcting invalid crop coordinates. "
+                    "Provide corrected crop coordinates."
+                )
+                continue
 
             if isinstance(new_action, FinalAnswerAction):
                 if (
@@ -724,60 +747,65 @@ class GIANTAgent:
                         "You must not answer yet. Provide corrected crop coordinates."
                     )
                     continue
-                # Success: answer ends the run, reset error counter
                 self._consecutive_errors = 0
                 return self._handle_answer(response.step_response)
 
-            if isinstance(new_action, BoundingBoxAction):
-                # Validate the new crop coordinates
-                region = Region(
-                    x=new_action.x,
-                    y=new_action.y,
-                    width=new_action.width,
-                    height=new_action.height,
+            if not isinstance(new_action, BoundingBoxAction):
+                current_error = (
+                    "Unexpected action while correcting invalid crop coordinates. "
+                    "Provide corrected crop coordinates."
                 )
+                continue
 
-                try:
-                    self._validator.validate(region, self._slide_bounds, strict=True)
-                except ValidationError as e:
-                    # Invalid coordinates again, continue retry loop
-                    logger.warning("Retry crop still invalid: %s", e)
-                    current_action = new_action
-                    current_error = str(e)
-                    continue
+            region = Region(
+                x=new_action.x,
+                y=new_action.y,
+                width=new_action.width,
+                height=new_action.height,
+            )
 
-                # Execute the crop
-                target_size = self.llm_provider.get_target_size()
-                try:
-                    cropped = self._crop_engine.crop(region, target_size=target_size)
-                except ValueError as e:
-                    # Crop execution failed, continue retry loop
-                    logger.warning("Retry crop execution failed: %s", e)
-                    current_action = new_action
-                    current_error = str(e)
-                    continue
+            try:
+                self._validator.validate(region, self._slide_bounds, strict=True)
+            except ValidationError as e:
+                logger.warning("Retry crop still invalid: %s", e)
+                current_action = new_action
+                current_error = str(e)
+                continue
 
-                # Success! Record turn and reset error counter
-                self._context.add_turn(
-                    image_base64=cropped.base64_content,
-                    response=response.step_response,
-                    region=region,
+            target_size = self.llm_provider.get_target_size()
+            try:
+                cropped = self._crop_engine.crop(
+                    region,
+                    target_size=target_size,
+                    bias=settings.OVERSAMPLING_BIAS,
                 )
+            except ValueError as e:
+                logger.warning("Retry crop execution failed: %s", e)
+                current_action = new_action
+                current_error = str(e)
+                continue
 
-                logger.info(
-                    "Step %d: Cropped region (%d, %d, %d, %d) after retry",
-                    self._context.current_step - 1,
-                    region.x,
-                    region.y,
-                    region.width,
-                    region.height,
-                )
+            self._context.add_turn(
+                image_base64=cropped.base64_content,
+                response=response.step_response,
+                region=region,
+            )
 
-                self._consecutive_errors = 0
-                return None
+            logger.info(
+                "Step %d: Cropped region (%d, %d, %d, %d) after retry",
+                self._context.current_step - 1,
+                region.x,
+                region.y,
+                region.width,
+                region.height,
+            )
 
-            # Unexpected action type - treat as no-op
+            self._consecutive_errors = 0
             return None
+
+        return self._build_error_result(
+            f"Max retries ({self.config.max_retries}) on invalid coordinates"
+        )
 
     def _handle_answer(self, step_response: StepResponse) -> RunResult:
         """Handle a final answer action.

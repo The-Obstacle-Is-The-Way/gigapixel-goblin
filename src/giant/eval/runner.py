@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from giant.config import settings
 from giant.data.schemas import BENCHMARK_TASKS, BenchmarkItem, BenchmarkResult
 from giant.eval.executor import ItemExecutor
 from giant.eval.loader import BenchmarkItemLoader
@@ -58,10 +59,11 @@ class EvaluationConfig(BaseModel):
         enforce_fixed_iterations: If True, reject early answers before final step.
         save_trajectories: Whether to save full trajectories.
         checkpoint_interval: Save checkpoint every N items.
+        bootstrap_replicates: Number of bootstrap replicates for uncertainty.
     """
 
     mode: Literal["giant", "thumbnail", "patch", "patch_vote"] = Field(default="giant")
-    max_steps: int = Field(default=20, ge=1)
+    max_steps: int = Field(default_factory=lambda: settings.MAX_ITERATIONS, ge=1)
     runs_per_item: int = Field(default=1, ge=1)
     max_concurrent: int = Field(default=4, ge=1)
     max_items: int | None = Field(default=None)
@@ -71,6 +73,9 @@ class EvaluationConfig(BaseModel):
     enforce_fixed_iterations: bool = Field(default=False)
     save_trajectories: bool = True
     checkpoint_interval: int = Field(default=10, ge=1)
+    bootstrap_replicates: int = Field(
+        default_factory=lambda: settings.BOOTSTRAP_REPLICATES, ge=1
+    )
 
     @model_validator(mode="after")
     def _validate_budget_requires_single_worker(self) -> EvaluationConfig:
@@ -385,7 +390,12 @@ class EvaluationOrchestrator:
             point_estimate = accuracy(predictions, truths)
 
         # Compute bootstrap
-        bootstrap = bootstrap_metric(predictions, truths, metric_fn)
+        bootstrap = bootstrap_metric(
+            predictions,
+            truths,
+            metric_fn,
+            n_replicates=self.config.bootstrap_replicates,
+        )
 
         return {
             "metric_type": metric_type,

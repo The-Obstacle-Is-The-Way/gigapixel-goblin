@@ -502,6 +502,40 @@ class TestGIANTAgentErrorRecovery:
         assert result.answer == "Recovered"
 
     @pytest.mark.asyncio
+    async def test_invalid_region_retry_llm_error_then_recovers(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        """LLM errors during invalid-region correction should retry (BUG-043)."""
+        invalid_crop = make_crop_response(99000, 74000, 5000, 5000)
+        valid_crop = make_crop_response(1000, 1000, 500, 500)
+        answer = make_answer_response("Recovered", "After correction")
+
+        mock_llm_provider.generate_response.side_effect = [
+            invalid_crop,
+            LLMError("Rate limit", provider="mock"),
+            valid_crop,
+            answer,
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(max_steps=5, max_retries=3),
+                )
+                result = await agent.run()
+
+        assert result.success is True
+        assert result.answer == "Recovered"
+        assert len(result.trajectory.turns) == 2
+        assert mock_llm_provider.generate_response.call_count == 4
+
+    @pytest.mark.asyncio
     async def test_invalid_coordinates_recovery_resets_error_counter(
         self,
         mock_wsi_reader: MagicMock,
@@ -810,3 +844,33 @@ class TestGIANTAgentConchDisabled:
             for msg in second_messages
             for content in msg.content
         )
+
+    @pytest.mark.asyncio
+    async def test_conch_disabled_terminates_after_max_retries(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        mock_llm_provider.generate_response.side_effect = [
+            make_conch_response(["benign", "malignant"]),
+            make_conch_response(["benign", "malignant"]),
+            make_conch_response(["benign", "malignant"]),
+            make_conch_response(["benign", "malignant"]),
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(max_steps=5, enable_conch=False, max_retries=3),
+                )
+                result = await agent.run()
+
+        assert result.success is False
+        assert result.error_message is not None
+        assert "disabled" in result.error_message.lower()
+        assert len(result.trajectory.turns) == 0
+        assert mock_llm_provider.generate_response.call_count == 4

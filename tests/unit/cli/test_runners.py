@@ -201,6 +201,124 @@ class TestRunSingleInference:
             assert result.total_cost <= 1.0
             assert mock_agent.run.call_count <= 2
 
+    def test_patch_mode_resamples_patches_across_runs(self, mock_wsi: Path) -> None:
+        from giant.cli.main import Mode, Provider
+
+        reader = MagicMock()
+        reader.__enter__ = MagicMock(return_value=reader)
+        reader.__exit__ = MagicMock(return_value=None)
+        reader.get_metadata.return_value = MagicMock(width=1000, height=1000)
+        reader.get_thumbnail.return_value = MagicMock()
+        reader.read_region.return_value = MagicMock()
+
+        segmentor_instance = MagicMock()
+        segmentor_instance.segment.return_value = object()
+
+        region_a = MagicMock(x=0, y=0, width=224, height=224)
+        region_b = MagicMock(x=10, y=10, width=224, height=224)
+
+        baseline_result = MagicMock(
+            success=True,
+            answer="Cancer",
+            total_cost=0.10,
+            total_tokens=10,
+            error_message=None,
+            trajectory=MagicMock(turns=[]),
+        )
+
+        with (
+            patch("giant.llm.create_provider", return_value=MagicMock()),
+            patch("giant.wsi.WSIReader", return_value=reader),
+            patch("giant.vision.TissueSegmentor", return_value=segmentor_instance),
+            patch(
+                "giant.vision.sample_patches",
+                side_effect=[[region_a], [region_b]],
+            ) as mock_sample,
+            patch("giant.core.baselines.make_patch_collage", return_value=object()),
+            patch(
+                "giant.core.baselines.encode_image_to_base64",
+                return_value=("b64", "image/jpeg"),
+            ),
+            patch(
+                "giant.core.baselines.run_baseline_answer",
+                new_callable=AsyncMock,
+                side_effect=[baseline_result, baseline_result],
+            ),
+        ):
+            run_single_inference(
+                wsi_path=mock_wsi,
+                question="What?",
+                mode=Mode.patch,
+                provider=Provider.openai,
+                model="gpt-5.2",
+                max_steps=5,
+                runs=2,
+                budget_usd=0,
+                verbose=0,
+            )
+
+        assert mock_sample.call_count == 2
+        assert [call.kwargs["seed"] for call in mock_sample.call_args_list] == [42, 43]
+
+    def test_patch_vote_resamples_patches_across_runs(self, mock_wsi: Path) -> None:
+        from giant.cli.main import Mode, Provider
+
+        reader = MagicMock()
+        reader.__enter__ = MagicMock(return_value=reader)
+        reader.__exit__ = MagicMock(return_value=None)
+        reader.get_metadata.return_value = MagicMock(width=1000, height=1000)
+        reader.get_thumbnail.return_value = MagicMock()
+        reader.read_region.return_value = MagicMock()
+
+        segmentor_instance = MagicMock()
+        segmentor_instance.segment.return_value = object()
+
+        region_a = MagicMock(x=0, y=0, width=224, height=224)
+        region_b = MagicMock(x=10, y=10, width=224, height=224)
+
+        baseline_patch = MagicMock(
+            success=True,
+            answer="Cancer",
+            total_cost=0.01,
+            total_tokens=1,
+            error_message=None,
+            trajectory=MagicMock(turns=[]),
+        )
+
+        with (
+            patch("giant.llm.create_provider", return_value=MagicMock()),
+            patch("giant.wsi.WSIReader", return_value=reader),
+            patch("giant.vision.TissueSegmentor", return_value=segmentor_instance),
+            patch(
+                "giant.vision.sample_patches",
+                side_effect=[[region_a], [region_b]],
+            ) as mock_sample,
+            patch(
+                "giant.core.baselines.encode_image_to_base64",
+                return_value=("b64", "image/jpeg"),
+            ),
+            patch(
+                "giant.core.baselines.run_baseline_answer",
+                new_callable=AsyncMock,
+                return_value=baseline_patch,
+            ) as mock_run,
+        ):
+            run_single_inference(
+                wsi_path=mock_wsi,
+                question="What?",
+                mode=Mode.patch_vote,
+                provider=Provider.openai,
+                model="gpt-5.2",
+                max_steps=5,
+                runs=2,
+                budget_usd=0,
+                verbose=0,
+            )
+
+        assert mock_sample.call_count == 2
+        assert [call.kwargs["seed"] for call in mock_sample.call_args_list] == [42, 43]
+        assert mock_run.await_count == 2
+
 
 class TestDownloadDataset:
     """Tests for download_dataset function."""

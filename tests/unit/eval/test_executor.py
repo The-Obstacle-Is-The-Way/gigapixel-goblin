@@ -481,6 +481,132 @@ class TestRunItemPatchVote:
         assert result.predicted_label == 1
         assert result.correct is True
 
+    @pytest.mark.asyncio
+    async def test_patch_vote_resamples_regions_per_run(self, tmp_path: Path) -> None:
+        """Patch-vote baseline should resample patches across runs (BUG-046)."""
+        provider = MagicMock()
+        provider.get_model_name.return_value = "gpt-5.2"
+        provider.get_provider_name.return_value = "openai"
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        persistence = ResultsPersistence(output_dir=output_dir)
+        config = EvaluationConfig(
+            mode="patch_vote",
+            runs_per_item=2,
+            save_trajectories=False,
+        )
+        executor = ItemExecutor(
+            llm_provider=provider, config=config, persistence=persistence
+        )
+
+        item = _make_benchmark_item(truth_label=1)
+
+        regions_a = [Region(x=idx, y=idx, width=224, height=224) for idx in range(30)]
+        regions_b = [
+            Region(x=10_000 + idx, y=10_000 + idx, width=224, height=224)
+            for idx in range(30)
+        ]
+
+        reader = MagicMock()
+        reader.__enter__ = MagicMock(return_value=reader)
+        reader.__exit__ = MagicMock(return_value=None)
+        reader.get_metadata.return_value = MagicMock(width=1000, height=1000)
+        reader.get_thumbnail.return_value = MagicMock()
+
+        segmentor_instance = MagicMock()
+        segmentor_instance.segment.return_value = object()
+
+        run_result = _make_run_result(answer="Lung", success=True)
+
+        with (
+            patch("giant.wsi.reader.WSIReader", return_value=reader),
+            patch("giant.vision.TissueSegmentor", return_value=segmentor_instance),
+            patch(
+                "giant.vision.sample_patches",
+                side_effect=[regions_a, regions_b],
+            ) as mock_sample,
+            patch(
+                "giant.core.baselines.encode_image_to_base64",
+                return_value=("b64", "image/jpeg"),
+            ),
+            patch(
+                "giant.core.baselines.run_baseline_answer",
+                new_callable=AsyncMock,
+                return_value=run_result,
+            ) as mock_run,
+            patch("giant.eval.executor.extract_label", return_value=MagicMock(label=1)),
+        ):
+            result = await executor.run_single_item(item)
+
+        assert mock_sample.call_count == 2
+        assert [call.kwargs["seed"] for call in mock_sample.call_args_list] == [42, 43]
+        assert mock_run.await_count == 60
+        assert result.correct is True
+
+
+class TestRunItemPatch:
+    @pytest.mark.asyncio
+    async def test_patch_resamples_regions_per_run(self, tmp_path: Path) -> None:
+        """Patch baseline should resample patches across runs (BUG-046)."""
+        provider = MagicMock()
+        provider.get_model_name.return_value = "gpt-5.2"
+        provider.get_provider_name.return_value = "openai"
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        persistence = ResultsPersistence(output_dir=output_dir)
+        config = EvaluationConfig(
+            mode="patch", runs_per_item=2, save_trajectories=False
+        )
+        executor = ItemExecutor(
+            llm_provider=provider, config=config, persistence=persistence
+        )
+
+        item = _make_benchmark_item(truth_label=1)
+
+        regions_a = [Region(x=idx, y=idx, width=224, height=224) for idx in range(30)]
+        regions_b = [
+            Region(x=10_000 + idx, y=10_000 + idx, width=224, height=224)
+            for idx in range(30)
+        ]
+
+        reader = MagicMock()
+        reader.__enter__ = MagicMock(return_value=reader)
+        reader.__exit__ = MagicMock(return_value=None)
+        reader.get_metadata.return_value = MagicMock(width=1000, height=1000)
+        reader.get_thumbnail.return_value = MagicMock()
+
+        segmentor_instance = MagicMock()
+        segmentor_instance.segment.return_value = object()
+
+        run_result = _make_run_result(answer="Lung", success=True)
+
+        with (
+            patch("giant.wsi.reader.WSIReader", return_value=reader),
+            patch("giant.vision.TissueSegmentor", return_value=segmentor_instance),
+            patch(
+                "giant.vision.sample_patches",
+                side_effect=[regions_a, regions_b],
+            ) as mock_sample,
+            patch("giant.core.baselines.make_patch_collage", return_value=object()),
+            patch(
+                "giant.core.baselines.encode_image_to_base64",
+                return_value=("b64", "image/jpeg"),
+            ),
+            patch(
+                "giant.core.baselines.run_baseline_answer",
+                new_callable=AsyncMock,
+                side_effect=[run_result, run_result],
+            ),
+            patch("giant.eval.executor.extract_label", return_value=MagicMock(label=1)),
+        ):
+            result = await executor.run_single_item(item)
+
+        assert mock_sample.call_count == 2
+        assert [call.kwargs["seed"] for call in mock_sample.call_args_list] == [42, 43]
+        assert result.correct is True
+
 
 class TestMajorityVote:
     """Tests for ItemExecutor._majority_vote method."""

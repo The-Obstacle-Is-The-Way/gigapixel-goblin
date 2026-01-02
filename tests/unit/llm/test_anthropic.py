@@ -257,6 +257,64 @@ class TestAnthropicProviderGenerate:
             assert result.latency_ms > 0
 
     @pytest.mark.asyncio
+    async def test_rate_limiter_applied_per_retry_attempt(
+        self, test_settings: Settings, sample_messages: list[Message]
+    ) -> None:
+        """Retries should reacquire limiter budget (BUG-044)."""
+
+        class _DummyLimiter:
+            def __init__(self) -> None:
+                self.enter_count = 0
+
+            async def __aenter__(self) -> "_DummyLimiter":
+                self.enter_count += 1
+                return self
+
+            async def __aexit__(
+                self,
+                exc_type: type[BaseException] | None,
+                exc: BaseException | None,
+                tb: object | None,
+            ) -> bool:
+                return False
+
+        provider = AnthropicProvider(settings=test_settings)
+        limiter = _DummyLimiter()
+        provider._limiter = limiter  # type: ignore[assignment]
+
+        mock_tool_block = MagicMock()
+        mock_tool_block.type = "tool_use"
+        mock_tool_block.name = "submit_step"
+        mock_tool_block.input = {
+            "reasoning": "I see a suspicious region",
+            "action": {
+                "action_type": "crop",
+                "x": 100,
+                "y": 200,
+                "width": 300,
+                "height": 400,
+            },
+        }
+
+        mock_response = MagicMock()
+        mock_response.content = [mock_tool_block]
+        mock_response.usage = MagicMock(input_tokens=100, output_tokens=50)
+
+        with patch.object(
+            provider._client.messages, "create", new_callable=AsyncMock
+        ) as mock_create:
+            mock_create.side_effect = [
+                APIConnectionError(request=None),
+                APIConnectionError(request=None),
+                mock_response,
+            ]
+
+            await provider.generate_response(sample_messages)
+
+        assert limiter.enter_count == 3
+        assert mock_create.await_count == 3
+
+    @pytest.mark.asyncio
     async def test_successful_answer_response(
         self, test_settings: Settings, sample_messages: list[Message]
     ) -> None:

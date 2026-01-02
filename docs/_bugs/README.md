@@ -12,9 +12,7 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 
 - [GitHub Issues](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues)
 
-| ID | Severity | Title | GitHub Issue |
-|----|----------|-------|--------------|
-| BUG-040 | P0-P2 | [Benchmark Underperformance Audit](BUG-040-benchmark-underperformance-audit.md) | LOCAL |
+No active local bug docs. See `../_archive/bugs/`.
 
 ## Local Audit Findings (Not Yet Filed)
 
@@ -63,6 +61,12 @@ See `../_archive/bugs/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-047 | Unused “Paper Parameter” Settings | Fixed (wired Settings defaults + bootstrap config) |
+| BUG-046 | Patch Baselines Reuse Same Patches Across Runs | Fixed (resample per run) |
+| BUG-045 | CONCH Disabled Retry Guard Never Trips | Fixed (retry loop without step consumption) |
+| BUG-044 | Provider Rate Limiter Does Not Cover Tenacity Retries | Fixed (rate limit per retry attempt) |
+| BUG-043 | Invalid Region Retry Premature Exit | Fixed (bounded invalid-region correction loop) |
+| BUG-040 | Benchmark Underperformance Audit | Archived (audit completed; follow-ups addressed) |
 | BUG-042 | Paper-Fidelity Gap — Patch Baseline Not Majority Vote | Fixed (added `patch_vote` mode) |
 | BUG-041 | Paper-Fidelity Gap — Fixed Iteration Enforcement Missing | Fixed (added `enforce_fixed_iterations` paper-fidelity mode) |
 | BUG-039 | Comprehensive Swarm Audit | Critical + high issues fixed; false positives retracted |

@@ -141,13 +141,13 @@ case-sensitive.
 | `HUGGINGFACE_TOKEN` | (unset) | `src/giant/data/download.py` | Token for gated HuggingFace datasets |
 | `LOG_LEVEL` | `INFO` | `src/giant/utils/logging.py` | Default log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `LOG_FORMAT` | `console` | `src/giant/utils/logging.py` | Log format (`console`, `json`) |
-| `WSI_LONG_SIDE_TARGET` | `1000` | (unused) | Paper S parameter (crop target size). Current crop size comes from provider image size (`IMAGE_SIZE_OPENAI`/`IMAGE_SIZE_ANTHROPIC`). |
-| `MAX_ITERATIONS` | `20` | (unused) | Paper T parameter (max steps). CLI defaults come from `src/giant/cli/main.py`. |
-| `OVERSAMPLING_BIAS` | `0.85` | (unused) | Crop oversampling bias. `CropEngine.crop(..., bias=...)` currently uses its default. |
-| `THUMBNAIL_SIZE` | `1024` | (unused) | Thumbnail long side. Current thumbnail size comes from `AgentConfig.thumbnail_size`. |
-| `PATCH_SIZE` | `224` | (unused) | Patch size for baselines. Current baselines use `src/giant/vision/constants.py`. |
-| `PATCH_COUNT` | `30` | (unused) | Patch count for baselines. Current baselines use `src/giant/vision/constants.py`. |
-| `BOOTSTRAP_REPLICATES` | `1000` | (unused) | Bootstrap samples for uncertainty. Current bootstrap uses the default in `src/giant/eval/metrics.py`. |
+| `WSI_LONG_SIDE_TARGET` | `1000` | `src/giant/config.py` | Paper S parameter (crop target size). If set, overrides default `IMAGE_SIZE_OPENAI`/`IMAGE_SIZE_ANTHROPIC` unless provider-specific values are set. |
+| `MAX_ITERATIONS` | `20` | `src/giant/cli/main.py`, `src/giant/agent/runner.py`, `src/giant/eval/runner.py` | Paper T parameter (default max steps). Used when CLI/config does not specify `max_steps`. |
+| `OVERSAMPLING_BIAS` | `0.85` | `src/giant/agent/runner.py` | Crop oversampling bias passed into `CropEngine.crop(..., bias=...)`. |
+| `THUMBNAIL_SIZE` | `1024` | `src/giant/agent/runner.py` | Default thumbnail long side (`AgentConfig.thumbnail_size`). |
+| `PATCH_SIZE` | `224` | `src/giant/cli/runners.py`, `src/giant/eval/executor.py` | Patch size for baselines. |
+| `PATCH_COUNT` | `30` | `src/giant/cli/runners.py`, `src/giant/eval/executor.py` | Patch count for baselines. |
+| `BOOTSTRAP_REPLICATES` | `1000` | `src/giant/eval/runner.py` | Bootstrap samples for uncertainty reporting. |
 | `JPEG_QUALITY` | `85` | `src/giant/core/crop_engine.py` | JPEG quality (1–100) for encoded images |
 | `IMAGE_SIZE_OPENAI` | `1000` | `src/giant/llm/openai_client.py` | Target long-side for OpenAI images |
 | `IMAGE_SIZE_ANTHROPIC` | `500` | `src/giant/llm/anthropic_client.py` | Target long-side for Anthropic images (pricing) |
@@ -230,6 +230,7 @@ For batch evaluation:
 | `enforce_fixed_iterations` | `bool` | `False` | `--enforce-fixed-iterations/--no-enforce-fixed-iterations` | Reject early answers before the final step |
 | `save_trajectories` | `bool` | `True` | (none) | Persist trajectories to `output_dir` |
 | `checkpoint_interval` | `int` | `10` | (none) | Save checkpoint every N completed items |
+| `bootstrap_replicates` | `int` | `1000` | (none) | Bootstrap replicates for uncertainty reporting |
 
 ```python
 from giant.eval.runner import EvaluationConfig

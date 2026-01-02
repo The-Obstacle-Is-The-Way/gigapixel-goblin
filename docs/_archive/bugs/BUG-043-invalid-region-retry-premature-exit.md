@@ -2,16 +2,17 @@
 
 **Date**: 2026-01-02
 **Severity**: HIGH (blocks $265 benchmark run)
-**Status**: OPEN - Fix required before benchmark
+**Status**: ✅ FIXED (2026-01-02)
 **Discovered by**: Deep code audit before PANDA benchmark
 
 ## Summary
 
-When the LLM fails during invalid crop coordinate correction, the retry loop exits prematurely with a "success" signal instead of continuing to retry. This can cause infinite loops or premature failures during benchmark runs.
+When the LLM fails during invalid crop coordinate correction, `_handle_invalid_region()` could exit early with `None` (the function's “success” sentinel) instead of continuing retries. Because `ContextManager.current_step` is derived from the number of recorded turns, returning `None` without recording a turn could stall the step counter and trap the agent in an unbounded loop of repeated step-1 LLM calls.
 
 ## Location
 
-`src/giant/agent/runner.py` lines 701-708
+- Primary: `src/giant/agent/runner.py` (`GIANTAgent._handle_invalid_region()`)
+- Step counter coupling: `src/giant/agent/context.py` (`current_step = len(turns) + 1`)
 
 ## The Bug
 
@@ -35,6 +36,19 @@ except (LLMError, LLMParseError) as e:
 
 **The problem**: `return None` exits the `while True` retry loop immediately. Per the function's docstring, returning `None` means "success" (valid crop completed). But we haven't succeeded - the LLM call failed.
 
+### Additional (similar) bug in the same function
+
+At the bottom of `_handle_invalid_region()`, the code currently treats any unexpected action type as a no-op and returns `None`:
+
+```python
+# _handle_invalid_region()
+# ...
+# Unexpected action type - treat as no-op
+return None
+```
+
+In practice, the only “unexpected” `StepResponse.action` type here is `ConchAction` (since actions are a discriminated union of `crop` / `answer` / `conch`). Returning `None` here also signals “success” without recording a turn, which can stall the step counter and repeat the same step indefinitely.
+
 ## Impact
 
 ### What happens:
@@ -48,21 +62,33 @@ except (LLMError, LLMParseError) as e:
 7. Caller receives `None` = "success"
 8. But no valid crop was returned!
 
-### Caller behavior (`_handle_crop` at line ~553):
+### Caller behavior (why `None` is “success”)
 
 ```python
-result = await self._handle_invalid_region(action, messages, error_detail)
+# _handle_crop_action()
+result = await self._handle_crop(step_response, action, messages)
 if result is not None:
-    return result  # Only handles RunResult (error case)
-# Falls through - assumes success, but action is still invalid!
+    return _StepDecision(run_result=result)
+return _StepDecision()  # None => treat as success
 ```
 
 ### Consequences:
 
-1. **Potential infinite loop**: Caller may re-attempt the same invalid crop
+1. **Potential infinite loop / hang**: no turn is recorded, so `current_step` never advances
 2. **Token waste**: Repeated failed LLM calls accumulate cost
 3. **Benchmark hangs**: 1-5% of files may trigger this scenario
 4. **Budget overrun**: Runaway costs from loops
+
+### Why this can become unbounded (step counter stall)
+
+`ContextManager.current_step` is computed from the number of recorded turns:
+
+```python
+# src/giant/agent/context.py
+return len(self.trajectory.turns) + 1
+```
+
+If `_handle_invalid_region()` returns `None` without calling `self._context.add_turn(...)`, the agent re-enters the navigation loop at the same step with the same message history, repeatedly paying for a new LLM call but making no progress.
 
 ## Reproduction
 
@@ -72,25 +98,20 @@ if result is not None:
 
 ## Fix
 
-**One-line change** - line 708:
+Implemented in `src/giant/agent/runner.py` by converting invalid-region correction to a
+bounded retry loop that never returns “success” without recording a turn, and by
+treating `ConchAction`/unexpected actions as retryable invalid outputs during correction.
 
-```python
-# Before
-return None
-
-# After
-continue
-```
-
-This keeps the loop running for additional retry attempts until `max_retries` is exhausted.
-
-## Secondary Issue: Double Increment
+## Correctness Notes (retry counting)
 
 Lines 671 and 703 both increment `_consecutive_errors`:
 - Line 671: At start of each loop iteration
 - Line 703: Inside exception handler
 
-This causes double-counting on LLM failures. However, this is a minor issue since the fix (`continue`) will make the behavior more correct regardless.
+This causes double-counting on LLM failures and interacts poorly with `max_retries`. A robust fix should:
+
+- Use a local `attempt` counter (`for attempt in range(max_retries): ...`) instead of mutating `_consecutive_errors` twice.
+- Treat `ConchAction` during invalid-region correction as invalid and retry with explicit feedback.
 
 ## Testing
 
@@ -115,6 +136,8 @@ async def test_handle_invalid_region_llm_error_continues_retry(agent):
     assert agent.llm_provider.generate_response.call_count == 3
 ```
 
+Also add a regression test that a `ConchAction` returned during invalid-region correction does **not** return `None` (success), but instead retries until `max_retries` is exhausted.
+
 ## Risk Assessment
 
 | Scenario | Probability | Impact |
@@ -127,7 +150,9 @@ async def test_handle_invalid_region_llm_error_continues_retry(agent):
 
 **Fix this bug before the $265 PANDA benchmark run.**
 
-The change is surgical (one line), low-risk, and prevents potential infinite loops that could waste significant budget.
+The change is low-risk and prevents potential infinite loops that could waste significant budget.
+
+This also aligns our retry/termination guardrails with the paper’s described “3 retries then incorrect” behavior when enforcing iteration limits (`_literature/markdown/giant/giant.md:200`).
 
 ## Related
 
