@@ -370,6 +370,8 @@ class TestOpenAIProviderGenerate:
 
             assert exc_info.value.provider == "openai"
             assert exc_info.value.raw_output == "not valid json"
+            assert exc_info.value.usage is not None
+            assert exc_info.value.usage.total_tokens == 150
 
     # BUG-038 B2: JSON with trailing text should parse successfully
     @pytest.mark.asyncio

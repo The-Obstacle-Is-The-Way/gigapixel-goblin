@@ -122,6 +122,106 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _calculate_openai_usage_and_cost(
+    *,
+    response_usage: Any,
+    model: str,
+    messages: list[Message],
+) -> TokenUsage:
+    usage = response_usage
+    if usage is None:
+        raise LLMError(
+            "API response missing usage data - cannot track costs",
+            provider="openai",
+            model=model,
+        )
+    prompt_tokens = usage.input_tokens
+    completion_tokens = usage.output_tokens
+
+    if prompt_tokens is None or completion_tokens is None:
+        raise LLMError(
+            "API response has None token counts "
+            f"(input={prompt_tokens}, output={completion_tokens})",
+            provider="openai",
+            model=model,
+        )
+
+    total_tokens = prompt_tokens + completion_tokens
+
+    text_cost = calculate_cost(model, prompt_tokens, completion_tokens)
+    image_count = count_images_in_messages(messages)
+    image_cost = calculate_image_cost_openai(model, image_count)
+    total_cost = text_cost + image_cost
+
+    return TokenUsage(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        cost_usd=total_cost,
+    )
+
+
+def _parse_openai_step_response(
+    *,
+    output_text: str | None,
+    model: str,
+    token_usage: TokenUsage,
+) -> StepResponse:
+    if output_text is None:
+        raise LLMParseError(
+            "No output text in response",
+            provider="openai",
+            model=model,
+            usage=token_usage,
+        )
+    if not output_text.strip():
+        raise LLMParseError(
+            "Empty output text in response",
+            raw_output=output_text,
+            provider="openai",
+            model=model,
+            usage=token_usage,
+        )
+
+    try:
+        # Parse JSON using raw_decode to handle trailing text (BUG-038 B2)
+        # LLMs sometimes append explanatory text after the JSON object
+        decoder = json.JSONDecoder()
+        leading_ws = len(output_text) - len(output_text.lstrip())
+        raw_data, end_idx = decoder.raw_decode(output_text, idx=leading_ws)
+        if end_idx < len(output_text.rstrip()):
+            logger.debug(
+                "Ignored trailing text after JSON: %s",
+                output_text[end_idx:].strip()[:50],
+            )
+        normalized_data = _normalize_openai_response(raw_data)
+        return StepResponse.model_validate(normalized_data)
+    except json.JSONDecodeError as e:
+        raise LLMParseError(
+            f"Failed to parse JSON: {e}",
+            raw_output=output_text,
+            provider="openai",
+            model=model,
+            usage=token_usage,
+        ) from e
+    except ValidationError as e:
+        raise LLMParseError(
+            f"Failed to parse StepResponse: {e}",
+            raw_output=output_text,
+            provider="openai",
+            model=model,
+            usage=token_usage,
+        ) from e
+    except LLMParseError as e:
+        raise LLMParseError(
+            str(e),
+            raw_output=e.raw_output,
+            provider=e.provider or "openai",
+            model=e.model or model,
+            usage=token_usage,
+        ) from e
+
+
 @dataclass
 class OpenAIProvider:
     """OpenAI LLM provider implementation.
@@ -249,81 +349,16 @@ class OpenAIProvider:
 
             latency_ms = (time.perf_counter() - start_time) * 1000
 
-            # Parse response
-            output_text = response.output_text
-            if output_text is None:
-                raise LLMParseError(
-                    "No output text in response",
-                    provider="openai",
-                    model=self.model,
-                )
-            if not output_text.strip():
-                raise LLMParseError(
-                    "Empty output text in response",
-                    raw_output=output_text,
-                    provider="openai",
-                    model=self.model,
-                )
-
-            try:
-                # Parse JSON using raw_decode to handle trailing text (BUG-038 B2)
-                # LLMs sometimes append explanatory text after the JSON object
-                decoder = json.JSONDecoder()
-                leading_ws = len(output_text) - len(output_text.lstrip())
-                raw_data, end_idx = decoder.raw_decode(output_text, idx=leading_ws)
-                if end_idx < len(output_text.rstrip()):
-                    logger.debug(
-                        "Ignored trailing text after JSON: %s",
-                        output_text[end_idx:].strip()[:50],
-                    )
-                normalized_data = _normalize_openai_response(raw_data)
-                step_response = StepResponse.model_validate(normalized_data)
-            except json.JSONDecodeError as e:
-                raise LLMParseError(
-                    f"Failed to parse JSON: {e}",
-                    raw_output=output_text,
-                    provider="openai",
-                ) from e
-            except ValidationError as e:
-                raise LLMParseError(
-                    f"Failed to parse StepResponse: {e}",
-                    raw_output=output_text,
-                    provider="openai",
-                    model=self.model,
-                ) from e
-
-            # Calculate usage and cost
-            usage = response.usage
-            if usage is None:
-                raise LLMError(
-                    "API response missing usage data - cannot track costs",
-                    provider="openai",
-                    model=self.model,
-                )
-            prompt_tokens = usage.input_tokens
-            completion_tokens = usage.output_tokens
-
-            if prompt_tokens is None or completion_tokens is None:
-                raise LLMError(
-                    "API response has None token counts "
-                    f"(input={prompt_tokens}, output={completion_tokens})",
-                    provider="openai",
-                    model=self.model,
-                )
-
-            total_tokens = prompt_tokens + completion_tokens
-
-            # Calculate cost (text + images)
-            text_cost = calculate_cost(self.model, prompt_tokens, completion_tokens)
-            image_count = count_images_in_messages(messages)
-            image_cost = calculate_image_cost_openai(self.model, image_count)
-            total_cost = text_cost + image_cost
-
-            token_usage = TokenUsage(
-                prompt_tokens=prompt_tokens,
-                completion_tokens=completion_tokens,
-                total_tokens=total_tokens,
-                cost_usd=total_cost,
+            # Calculate usage and cost early so parse failures still record usage.
+            token_usage = _calculate_openai_usage_and_cost(
+                response_usage=response.usage,
+                model=self.model,
+                messages=messages,
+            )
+            step_response = _parse_openai_step_response(
+                output_text=response.output_text,
+                model=self.model,
+                token_usage=token_usage,
             )
 
             self._circuit_breaker.record_success()

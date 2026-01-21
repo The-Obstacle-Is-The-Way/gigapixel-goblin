@@ -231,33 +231,7 @@ class AnthropicProvider:
 
             latency_ms = (time.perf_counter() - start_time) * 1000
 
-            # Find tool use in response
-            tool_use_block = None
-            for block in response.content:
-                if block.type == "tool_use" and block.name == "submit_step":
-                    tool_use_block = block
-                    break
-
-            if tool_use_block is None:
-                raise LLMParseError(
-                    "No submit_step tool use in response",
-                    raw_output=str(response.content),
-                    provider="anthropic",
-                    model=self.model,
-                )
-
-            tool_input = tool_use_block.input
-            if not isinstance(tool_input, dict):
-                raise LLMParseError(
-                    "submit_step tool input missing or not an object",
-                    raw_output=str(tool_input),
-                    provider="anthropic",
-                    model=self.model,
-                )
-
-            step_response = _parse_tool_use_to_step_response(tool_input)
-
-            # Calculate usage and cost (defensive None check for SDK edge cases)
+            # Calculate usage and cost early so parse failures still record usage.
             usage = response.usage
             if usage is None:
                 raise LLMError(
@@ -289,6 +263,43 @@ class AnthropicProvider:
                 total_tokens=total_tokens,
                 cost_usd=total_cost,
             )
+
+            # Find tool use in response
+            tool_use_block = None
+            for block in response.content:
+                if block.type == "tool_use" and block.name == "submit_step":
+                    tool_use_block = block
+                    break
+
+            if tool_use_block is None:
+                raise LLMParseError(
+                    "No submit_step tool use in response",
+                    raw_output=str(response.content),
+                    provider="anthropic",
+                    model=self.model,
+                    usage=token_usage,
+                )
+
+            tool_input = tool_use_block.input
+            if not isinstance(tool_input, dict):
+                raise LLMParseError(
+                    "submit_step tool input missing or not an object",
+                    raw_output=str(tool_input),
+                    provider="anthropic",
+                    model=self.model,
+                    usage=token_usage,
+                )
+
+            try:
+                step_response = _parse_tool_use_to_step_response(tool_input)
+            except LLMParseError as e:
+                raise LLMParseError(
+                    str(e),
+                    raw_output=e.raw_output,
+                    provider=e.provider or "anthropic",
+                    model=e.model or self.model,
+                    usage=token_usage,
+                ) from e
 
             self._circuit_breaker.record_success()
 

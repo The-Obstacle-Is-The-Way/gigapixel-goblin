@@ -70,29 +70,14 @@ Total wasted cost for full re-runs: **~$20+** just to fix 18 items.
 ### Option A: `--recover-failures` flag
 
 ```python
-# In src/giant/cli/commands/benchmark.py
+# In src/giant/cli/main.py (benchmark command) + src/giant/cli/runners.py (run_benchmark)
 
-@benchmark_cmd.command()
-def run(
-    dataset: str,
-    recover_failures: bool = False,  # NEW
-    ...
-):
-    if recover_failures:
-        # Load existing results
-        results_path = f"results/{dataset}_giant_{provider}_{model}_results.json"
-        existing = load_results(results_path)
-
-        # Filter to failed items
-        failed_ids = {r.item_id for r in existing if r.error or r.predicted_label is None}
-
-        # Run only failed items
-        items = [i for i in all_items if i.item_id in failed_ids]
-
-        # Merge back
-        new_results = run_benchmark(items, ...)
-        merged = merge_results(existing, new_results)
-        save_results(merged, results_path)
+def benchmark(..., recover_failures: bool = False, ...):
+    # If recover_failures:
+    # 1) Load prior results/checkpoint state from output_dir/run_id
+    # 2) Identify failed items (error != null OR predicted_label is null)
+    # 3) Re-run only those items
+    # 4) Merge/overwrite failed entries and recompute metrics
 ```
 
 ### Option B: Standalone `recover` command
@@ -134,7 +119,7 @@ def recover(results_file: Path):
    the full (merged) result set.
 
 4. **Cost tracking**: The new cost should be added to the existing total (not
-   replaced).
+   replaced). (Parse failures now preserve usage; see BUG-049.)
 
 ## Acceptance Criteria
 

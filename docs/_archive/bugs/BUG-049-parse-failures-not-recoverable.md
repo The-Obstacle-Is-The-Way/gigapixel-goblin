@@ -1,19 +1,20 @@
 # BUG-049: Parse Failures Not Recoverable (Raw Responses Not Persisted)
 
 **Date**: 2026-01-21
-**Severity**: P2 (Medium) — affects evaluation completeness and reproducibility
-**Status**: OPEN
+**Severity**: P1 (High) — paid model outputs + usage can be lost on parse failure
+**Status**: ✅ FIXED (2026-01-21)
 **Discovered by**: Audit of GTEx 6 parse failures
 
 ## Summary
 
 When LLM parsing fails (e.g., JSON "Extra data" errors), the raw LLM response is
-**not persisted** before the exception is raised. This means:
+**not persisted** in evaluation artifacts. This means:
 
 1. Failed items cannot be recovered or re-scored without making new LLM calls
 2. The raw text that caused the failure is lost forever
 3. Debugging and root cause analysis is harder
 4. Users cannot manually extract answers from malformed responses
+5. Token usage/cost can be undercounted for those failed attempts
 
 ## Evidence
 
@@ -39,29 +40,30 @@ All 6 failed items have:
 - `prediction: ""` (empty string, not the raw response)
 - `cost_usd: 0.0` (API cost not tracked)
 - `total_tokens: 0` (token usage lost)
-- No trajectory file created
+- A trajectory file exists, but contains **0 turns** and no raw response text (nothing to recover)
 
 ### Root Cause
 
-In `src/giant/llm/openai_client.py`, the exception is raised BEFORE the raw
-response is captured:
+The providers raise `LLMParseError(raw_output=...)`, but callers discard it.
 
 ```python
-try:
-    decoder = json.JSONDecoder()
-    raw_data, end_idx = decoder.raw_decode(output_text, idx=leading_ws)
-    # ...
-except json.JSONDecodeError as e:
-    raise LLMParseError(  # <-- Raises immediately, loses output_text in caller
-        f"Failed to parse JSON: {e}",
-        raw_output=output_text,  # raw_output is in the exception but not persisted
-        provider="openai",
-        model=self.model,
-    )
+# src/giant/llm/openai_client.py
+raise LLMParseError(..., raw_output=output_text, provider="openai", model=self.model)
 ```
 
-The `LLMParseError` does contain `raw_output`, but the calling code in
-`agent/runner.py` does not persist this to the results file.
+The `LLMParseError` does contain `raw_output`, but the agent/baseline callers do not
+persist it anywhere:
+
+- `src/giant/agent/runner.py`: `_call_llm_step()` catches `LLMParseError` and only logs
+  `str(e)` (no raw output) before retrying or terminating.
+- `src/giant/core/baselines.py`: `run_baseline_answer()` catches `LLMParseError` and
+  retries, but does not persist raw output on failure.
+
+Additionally, both providers compute `TokenUsage` **after** parsing. When parsing fails,
+usage is never returned to the caller, so cost/tokens are undercounted:
+
+- `src/giant/llm/openai_client.py`: usage/cost calculated after `StepResponse.model_validate(...)`
+- `src/giant/llm/anthropic_client.py`: usage/cost calculated after tool input parsing
 
 ## Impact
 
@@ -86,48 +88,32 @@ The `LLMParseError` does contain `raw_output`, but the calling code in
 
 ## Proposed Fix
 
-### Option A: Persist raw response before parsing (Recommended)
+### Option A: Persist raw output + usage on parse failures (Recommended)
 
-Modify `ItemExecutor` to always save the raw LLM response to the trajectory,
-even when parsing fails:
+1. Attach token usage to `LLMParseError` (when available) so callers can still
+   accumulate cost/tokens.
+2. When a run terminates due to parse failures, persist the last `raw_output`
+   into the results artifact (e.g., store it in `BenchmarkResult.prediction` or
+   a dedicated `raw_output` field).
 
 ```python
-# In src/giant/eval/executor.py or agent/runner.py
+# In src/giant/llm/protocol.py
+class LLMParseError(LLMError):
+    def __init__(..., raw_output: str | None = None, usage: TokenUsage | None = None):
+        self.raw_output = raw_output
+        self.usage = usage
 
-try:
-    step_response = await provider.generate_response(...)
+# In src/giant/agent/runner.py and src/giant/core/baselines.py
 except LLMParseError as e:
-    # Save the raw response for debugging/recovery
-    trajectory.add_failed_step(
-        raw_response=e.raw_output,
-        error=str(e),
-        usage=e.usage if hasattr(e, 'usage') else None,
-    )
-    raise
+    if e.usage is not None:
+        accumulate(e.usage)  # cost/tokens still counted
+    last_raw_output = e.raw_output
 ```
 
-### Option B: Add retry-with-recovery mode
+### Option B: Rerun failed items only (separate backlog item)
 
-Add a `--recover-failures` flag to the benchmark CLI that:
-1. Loads the existing results file
-2. Identifies items with `error != null`
-3. Re-runs ONLY those items (with the now-fixed parser)
-4. Merges the new results back
-
-### Option C: Store all raw responses in a separate log
-
-Create a `raw_responses.jsonl` file that logs every LLM response immediately
-after receiving it, before any parsing:
-
-```python
-# At the start of _call_with_retry, after getting response
-with open("results/raw_responses.jsonl", "a") as f:
-    f.write(json.dumps({
-        "item_id": current_item_id,
-        "timestamp": datetime.utcnow().isoformat(),
-        "raw_response": output_text,
-    }) + "\n")
-```
+See **BUG-050** for a proposed `--recover-failures` workflow. This doc focuses on
+preserving raw outputs so recovery is possible without re-running paid calls.
 
 ## Best Practices (Industry Standard)
 
@@ -146,11 +132,22 @@ Per [Databricks LLM Evaluation](https://www.databricks.com/blog/best-practices-a
 
 ## Acceptance Criteria
 
-- [ ] Raw LLM responses are persisted BEFORE parsing (so failures are recoverable)
-- [ ] Failed items include the raw response text in results.json
-- [ ] Token usage is tracked even for parse failures
-- [ ] A `--recover-failures` CLI option exists to re-run only failed items
-- [ ] Documentation updated to explain recovery process
+- [x] When parsing fails, raw output is preserved somewhere in evaluation artifacts
+      (so failures are recoverable / manually scorable).
+- [x] Token usage/cost is accumulated even when parsing fails.
+- [x] Failed items contain the raw response text in the persisted results output.
+
+## Resolution
+
+Implemented:
+
+- Providers compute `TokenUsage` before parsing and attach it to `LLMParseError`:
+  - `src/giant/llm/openai_client.py`
+  - `src/giant/llm/anthropic_client.py`
+  - `src/giant/llm/protocol.py` (`LLMParseError.usage`)
+- Callers accumulate parse-failure usage and preserve the last `raw_output` on failure:
+  - `src/giant/agent/runner.py`
+  - `src/giant/core/baselines.py`
 
 ## Related
 

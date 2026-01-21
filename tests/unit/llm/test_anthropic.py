@@ -370,6 +370,8 @@ class TestAnthropicProviderGenerate:
                 await provider.generate_response(sample_messages)
 
             assert "No submit_step tool use" in str(exc_info.value)
+            assert exc_info.value.usage is not None
+            assert exc_info.value.usage.total_tokens == 150
 
     @pytest.mark.asyncio
     async def test_parse_error_on_none_tool_input(
