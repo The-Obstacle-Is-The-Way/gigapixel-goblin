@@ -153,6 +153,8 @@ case-sensitive.
 | `IMAGE_SIZE_ANTHROPIC` | `500` | `src/giant/llm/anthropic_client.py` | Target long-side for Anthropic images (pricing) |
 | `OPENAI_RPM` | `60` | `src/giant/llm/openai_client.py` | Rate limit (requests/min) |
 | `ANTHROPIC_RPM` | `60` | `src/giant/llm/anthropic_client.py` | Rate limit (requests/min) |
+| `OPENAI_TEMPERATURE` | `0.0` | `src/giant/llm/openai_client.py` | Sampling temperature (0 = deterministic; higher = more stochastic) |
+| `ANTHROPIC_TEMPERATURE` | `0.0` | `src/giant/llm/anthropic_client.py` | Sampling temperature (0 = deterministic; higher = more stochastic) |
 | `DEFAULT_BUDGET_USD` | `0.0` | (unused) | Default budget guardrail (0 = disabled). CLI defaults come from `src/giant/cli/main.py`. |
 | `GIANT_SYSTEM_PROMPT` | (unset) | `src/giant/config.py` | Global system prompt override (inline) |
 | `GIANT_SYSTEM_PROMPT_PATH` | (unset) | `src/giant/config.py` | Global system prompt override (file path) |

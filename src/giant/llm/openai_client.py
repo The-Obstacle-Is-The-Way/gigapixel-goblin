@@ -236,6 +236,7 @@ class OpenAIProvider:
                     model=self.model,
                     input=input_messages,
                     instructions=system_prompt,
+                    temperature=self.settings.OPENAI_TEMPERATURE,
                     text={
                         "format": {
                             "type": "json_schema",

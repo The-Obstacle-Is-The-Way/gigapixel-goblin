@@ -222,6 +222,7 @@ class AnthropicProvider:
                 response = await self._client.messages.create(  # type: ignore[call-overload]
                     model=self.model,
                     max_tokens=4096,
+                    temperature=self.settings.ANTHROPIC_TEMPERATURE,
                     system=system_prompt or "",
                     messages=anthropic_messages,
                     tools=[_build_submit_step_tool()],

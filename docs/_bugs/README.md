@@ -61,6 +61,7 @@ See `../_archive/bugs/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-048 | LLM Sampling Parameters Not Explicit (Temperature / Determinism) | Fixed (explicit temperature settings + provider wiring) |
 | BUG-047 | Unused “Paper Parameter” Settings | Fixed (wired Settings defaults + bootstrap config) |
 | BUG-046 | Patch Baselines Reuse Same Patches Across Runs | Fixed (resample per run) |
 | BUG-045 | CONCH Disabled Retry Guard Never Trips | Fixed (retry loop without step consumption) |

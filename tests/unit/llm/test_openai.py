@@ -268,6 +268,8 @@ class TestOpenAIProviderGenerate:
             assert result.usage.completion_tokens == 50
             assert result.model == DEFAULT_OPENAI_MODEL
             assert result.latency_ms > 0
+            call_kwargs = mock_create.call_args.kwargs
+            assert call_kwargs["temperature"] == test_settings.OPENAI_TEMPERATURE
 
     @pytest.mark.asyncio
     async def test_rate_limiter_applied_per_retry_attempt(
