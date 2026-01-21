@@ -12,7 +12,18 @@ Bugs are tracked in GitHub Issues when available (LOCAL items are not yet filed)
 
 - [GitHub Issues](https://github.com/The-Obstacle-Is-The-Way/gigapixel-goblin/issues)
 
-No active local bug docs. See `../_archive/bugs/`.
+### Parse Failure Recovery Audit (2026-01-21)
+
+**BUG-050**: No "rerun failed items only" capability.
+
+| Severity | Status | Impact |
+|----------|--------|--------|
+| **P3 (Low)** | OPEN | Must re-run entire benchmark (~$7) to recover 6 failed items (~$0.23) |
+
+**Root cause**: No CLI option to filter benchmark items to only those that failed.
+Full benchmark re-runs waste API costs on already-successful items.
+
+See [BUG-050-no-rerun-failed-items-capability.md](./BUG-050-no-rerun-failed-items-capability.md).
 
 ## Local Audit Findings (Not Yet Filed)
 
@@ -33,7 +44,7 @@ Note: One originally-reported medium finding (step guard) was retracted after re
 - PANDA improved from **9.7% → 20.3% balanced accuracy** on scored items only (excluding the 6 pre-fix OpenAI parse failures); no new LLM calls were needed to rescore the saved artifacts after BUG-038 fixes
 - PANDA outputs `"isup_grade": null` in **115/197** items; the pre-fix extractor turned many of these into extraction failures or bad integer fallbacks (fixed by B1)
 - OpenAI `"Extra data"` parsing caused **18/609 hard failures (3.0%)** across all benchmarks and triggered frequent retries (fixed by B2)
-- Reported run costs can still be a lower bound: if parsing fails for any reason, the current clients raise before usage is accumulated; B2 removes the common “trailing text” parse failures
+- Reported run costs used to be a lower bound when parsing failed; parse-failure usage is now preserved (see BUG-049)
 
 **Status**: COMPLETED & ARCHIVED — 11 bug fixes landed (B1–B5, B7–B12) and 1 false-positive retracted (B6).
 
@@ -61,6 +72,8 @@ See `../_archive/bugs/` for historical bugs that have been resolved:
 
 | ID | Title | Resolution |
 |----|-------|------------|
+| BUG-049 | Parse Failures Not Recoverable (Raw Responses Not Persisted) | Fixed (persist parse-failure raw_output + usage) |
+| BUG-048 | LLM Sampling Parameters Not Explicit (Temperature / Determinism) | Fixed (explicit temperature settings + provider wiring) |
 | BUG-047 | Unused “Paper Parameter” Settings | Fixed (wired Settings defaults + bootstrap config) |
 | BUG-046 | Patch Baselines Reuse Same Patches Across Runs | Fixed (resample per run) |
 | BUG-045 | CONCH Disabled Retry Guard Never Trips | Fixed (retry loop without step consumption) |

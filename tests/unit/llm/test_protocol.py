@@ -333,13 +333,21 @@ class TestLLMParseError:
 
     def test_parse_error(self) -> None:
         """Test creating a parse error."""
+        usage = TokenUsage(
+            prompt_tokens=1,
+            completion_tokens=2,
+            total_tokens=3,
+            cost_usd=0.01,
+        )
         error = LLMParseError(
             "Invalid JSON",
             raw_output="not json",
             provider="openai",
+            usage=usage,
         )
         assert "Invalid JSON" in str(error)
         assert error.raw_output == "not json"
+        assert error.usage == usage
 
 
 class TestCircuitBreakerOpenError:

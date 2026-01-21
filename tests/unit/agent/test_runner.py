@@ -25,6 +25,7 @@ from giant.llm.protocol import (
     ConchAction,
     FinalAnswerAction,
     LLMError,
+    LLMParseError,
     LLMResponse,
     StepResponse,
     TokenUsage,
@@ -634,6 +635,57 @@ class TestGIANTAgentErrorRecovery:
 
         assert result.success is True
         assert result.answer == "Recovered"
+
+    @pytest.mark.asyncio
+    async def test_parse_error_tracks_usage_and_preserves_raw_output_on_failure(
+        self,
+        mock_wsi_reader: MagicMock,
+        mock_crop_engine: MagicMock,
+        mock_llm_provider: MagicMock,
+    ) -> None:
+        """Parse failures should still count usage and persist the raw output."""
+        mock_llm_provider.generate_response.side_effect = [
+            LLMParseError(
+                "Failed to parse JSON",
+                raw_output="not json 1",
+                provider="mock",
+                usage=TokenUsage(
+                    prompt_tokens=100,
+                    completion_tokens=50,
+                    total_tokens=150,
+                    cost_usd=0.001,
+                ),
+            ),
+            LLMParseError(
+                "Failed to parse JSON",
+                raw_output="not json 2",
+                provider="mock",
+                usage=TokenUsage(
+                    prompt_tokens=100,
+                    completion_tokens=50,
+                    total_tokens=150,
+                    cost_usd=0.001,
+                ),
+            ),
+        ]
+
+        with patch("giant.agent.runner.WSIReader", return_value=mock_wsi_reader):
+            with patch("giant.agent.runner.CropEngine", return_value=mock_crop_engine):
+                agent = GIANTAgent(
+                    wsi_path="/test/slide.svs",
+                    question="Is this malignant?",
+                    llm_provider=mock_llm_provider,
+                    config=AgentConfig(max_steps=5, max_retries=2),
+                )
+
+                result = await agent.run()
+
+        assert result.success is False
+        assert "max retries" in (result.error_message or "").lower()
+        assert result.answer == "not json 2"
+        assert result.total_tokens == 300
+        assert result.total_cost == pytest.approx(0.002)
+        assert len(result.trajectory.turns) == 0
 
 
 class TestGIANTAgentBudget:

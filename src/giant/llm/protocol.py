@@ -260,6 +260,7 @@ class LLMParseError(LLMError):
         raw_output: str | None = None,
         provider: str | None = None,
         model: str | None = None,
+        usage: TokenUsage | None = None,
     ) -> None:
         """Initialize parse error.
 
@@ -268,8 +269,10 @@ class LLMParseError(LLMError):
             raw_output: The raw output that failed to parse.
             provider: Provider name.
             model: Model identifier.
+            usage: Token usage/cost if known.
         """
         self.raw_output = raw_output
+        self.usage = usage
         super().__init__(message, provider=provider, model=model)
 
 

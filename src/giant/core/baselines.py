@@ -92,6 +92,7 @@ async def run_baseline_answer(
     total_tokens = 0
     total_cost = 0.0
     last_error: str | None = None
+    last_raw_output: str | None = None
 
     for attempt in range(max_attempts):
         attempt_note = ""
@@ -123,6 +124,12 @@ async def run_baseline_answer(
             response = await llm_provider.generate_response(messages)
         except (LLMError, LLMParseError) as e:
             last_error = str(e)
+            if isinstance(e, LLMParseError):
+                if e.usage is not None:
+                    total_tokens += e.usage.total_tokens
+                    total_cost += e.usage.cost_usd
+                if e.raw_output is not None:
+                    last_raw_output = e.raw_output
             continue
 
         total_tokens += response.usage.total_tokens
@@ -160,7 +167,7 @@ async def run_baseline_answer(
         question=request.question,
     )
     return RunResult(
-        answer="",
+        answer=last_raw_output or "",
         trajectory=failure_trajectory,
         total_tokens=total_tokens,
         total_cost=total_cost,

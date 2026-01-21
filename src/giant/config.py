@@ -89,6 +89,10 @@ class Settings(BaseSettings):
     OPENAI_RPM: int = 60  # Requests per minute for OpenAI
     ANTHROPIC_RPM: int = 60  # Requests per minute for Anthropic
 
+    # LLM sampling / determinism (benchmark reproducibility)
+    OPENAI_TEMPERATURE: float = 0.0
+    ANTHROPIC_TEMPERATURE: float = 0.0
+
     # Budget Guardrails
     DEFAULT_BUDGET_USD: float = 0.0  # 0 = no budget limit
 

@@ -255,6 +255,8 @@ class TestAnthropicProviderGenerate:
             assert result.usage.completion_tokens == 50
             assert result.model == DEFAULT_ANTHROPIC_MODEL
             assert result.latency_ms > 0
+            call_kwargs = mock_create.call_args.kwargs
+            assert call_kwargs["temperature"] == test_settings.ANTHROPIC_TEMPERATURE
 
     @pytest.mark.asyncio
     async def test_rate_limiter_applied_per_retry_attempt(
@@ -368,6 +370,8 @@ class TestAnthropicProviderGenerate:
                 await provider.generate_response(sample_messages)
 
             assert "No submit_step tool use" in str(exc_info.value)
+            assert exc_info.value.usage is not None
+            assert exc_info.value.usage.total_tokens == 150
 
     @pytest.mark.asyncio
     async def test_parse_error_on_none_tool_input(

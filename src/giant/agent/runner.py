@@ -42,6 +42,7 @@ from giant.llm.protocol import (
     Message,
     MessageContent,
     StepResponse,
+    TokenUsage,
 )
 from giant.utils.logging import get_logger
 from giant.vision.conch import (
@@ -208,6 +209,7 @@ class GIANTAgent:
     _total_tokens: int = field(init=False, default=0, repr=False)
     _total_cost: float = field(init=False, default=0.0, repr=False)
     _consecutive_errors: int = field(init=False, default=0, repr=False)
+    _fatal_error_answer: str | None = field(init=False, default=None, repr=False)
     _conch_scorer: ConchScorer = field(init=False, repr=False)
 
     async def run(self) -> RunResult:
@@ -238,6 +240,7 @@ class GIANTAgent:
         self._total_tokens = 0
         self._total_cost = 0.0
         self._consecutive_errors = 0
+        self._fatal_error_answer = None
         self._conch_scorer = self.config.conch_scorer or UnconfiguredConchScorer()
 
         try:
@@ -314,8 +317,13 @@ class GIANTAgent:
             self._accumulate_usage(response)
         except (LLMError, LLMParseError) as e:
             logger.warning("LLM call failed: %s", e)
+            if isinstance(e, LLMParseError):
+                if e.usage is not None:
+                    self._accumulate_token_usage(e.usage)
             self._consecutive_errors += 1
             if self._consecutive_errors >= self.config.max_retries:
+                if isinstance(e, LLMParseError) and e.raw_output is not None:
+                    self._fatal_error_answer = e.raw_output
                 return (
                     None,
                     f"Max retries ({self.config.max_retries}) exceeded: {e}",
@@ -344,7 +352,10 @@ class GIANTAgent:
 
             response, fatal_error = await self._call_llm_step(messages)
             if fatal_error is not None:
-                final_result = self._build_error_result(fatal_error)
+                final_result = self._build_error_result(
+                    fatal_error,
+                    answer=self._fatal_error_answer or "",
+                )
                 break
             if response is None:
                 continue
@@ -938,6 +949,11 @@ class GIANTAgent:
         self._total_tokens += response.usage.total_tokens
         self._total_cost += response.usage.cost_usd
 
+    def _accumulate_token_usage(self, usage: TokenUsage) -> None:
+        """Accumulate token usage from a failed parse attempt."""
+        self._total_tokens += usage.total_tokens
+        self._total_cost += usage.cost_usd
+
     def _build_observation_summary(self) -> str:
         """Build a summary of observations for the force answer prompt."""
         if not self._context.trajectory.turns:
@@ -954,10 +970,10 @@ class GIANTAgent:
 
         return "\n".join(lines)
 
-    def _build_error_result(self, error_message: str) -> RunResult:
+    def _build_error_result(self, error_message: str, *, answer: str = "") -> RunResult:
         """Build an error result with current state."""
         return RunResult(
-            answer="",
+            answer=answer,
             trajectory=self._context.trajectory,
             total_tokens=self._total_tokens,
             total_cost=self._total_cost,

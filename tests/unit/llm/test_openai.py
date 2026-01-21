@@ -268,6 +268,8 @@ class TestOpenAIProviderGenerate:
             assert result.usage.completion_tokens == 50
             assert result.model == DEFAULT_OPENAI_MODEL
             assert result.latency_ms > 0
+            call_kwargs = mock_create.call_args.kwargs
+            assert call_kwargs["temperature"] == test_settings.OPENAI_TEMPERATURE
 
     @pytest.mark.asyncio
     async def test_rate_limiter_applied_per_retry_attempt(
@@ -368,6 +370,8 @@ class TestOpenAIProviderGenerate:
 
             assert exc_info.value.provider == "openai"
             assert exc_info.value.raw_output == "not valid json"
+            assert exc_info.value.usage is not None
+            assert exc_info.value.usage.total_tokens == 150
 
     # BUG-038 B2: JSON with trailing text should parse successfully
     @pytest.mark.asyncio
