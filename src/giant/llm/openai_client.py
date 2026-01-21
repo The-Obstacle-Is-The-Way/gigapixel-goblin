@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from aiolimiter import AsyncLimiter
 from openai import APIConnectionError, AsyncOpenAI, RateLimitError
@@ -49,6 +49,31 @@ from giant.llm.schemas import step_response_json_schema_openai
 from giant.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Type Protocols
+# =============================================================================
+
+
+@runtime_checkable
+class _OpenAIResponseUsage(Protocol):
+    """Protocol for OpenAI API response usage data.
+
+    This captures the expected interface for token usage from OpenAI's
+    Responses API without coupling to the SDK's internal types.
+
+    Note: The SDK's ResponseUsage uses non-nullable int, but we keep
+    defensive None checks in case SDK behavior changes.
+    """
+
+    input_tokens: int
+    output_tokens: int
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
 
 
 def _build_json_schema() -> dict[str, Any]:
@@ -124,19 +149,18 @@ def _normalize_openai_response(data: dict[str, Any]) -> dict[str, Any]:
 
 def _calculate_openai_usage_and_cost(
     *,
-    response_usage: Any,
+    response_usage: _OpenAIResponseUsage | None,
     model: str,
     messages: list[Message],
 ) -> TokenUsage:
-    usage = response_usage
-    if usage is None:
+    if response_usage is None:
         raise LLMError(
             "API response missing usage data - cannot track costs",
             provider="openai",
             model=model,
         )
-    prompt_tokens = usage.input_tokens
-    completion_tokens = usage.output_tokens
+    prompt_tokens = response_usage.input_tokens
+    completion_tokens = response_usage.output_tokens
 
     if prompt_tokens is None or completion_tokens is None:
         raise LLMError(
