@@ -59,11 +59,13 @@ Evaluated on [MultiPathQA](https://huggingface.co/datasets/tbuckley/MultiPathQA)
 
 | Benchmark | Task | Our Result | Paper (GIANT) | Paper (GIANT x5) | Thumbnail Baseline |
 |-----------|------|:----------:|:-------------:|:----------------:|:------------------:|
-| **GTEx** | Organ Classification (20-way) | **70.3%** | 53.7% ± 3.4% | 60.7% ± 3.2% | 36.5% ± 3.4% |
+| **GTEx** | Organ Classification (20-way) | **70.3%**† | 53.7% ± 3.4% | 60.7% ± 3.2% | 36.5% ± 3.4% |
 | **ExpertVQA** | Pathologist-Authored (128 Q) | **60.1%** | 57.0% ± 4.5% | 62.5% ± 4.4% | 50.0% ± 4.4% |
 | SlideBench | Visual QA (197 Q) | **51.8%** | 58.9% ± 3.5% | 59.4% ± 3.4% | 54.8% ± 3.5% |
 | TCGA | Cancer Diagnosis (30-way) | **26.2%** | 32.3% ± 3.5% | 29.3% ± 3.3% | 9.2% ± 1.9% |
 | PANDA | Prostate Grading (6-way) | **20.3%** | 23.2% ± 2.3% | 25.4% ± 2.0% | 12.2% ± 2.2% |
+
+<sub>†GTEx: 70.3% on 185/191 scored items; 67.6% ± 3.1% paper-faithful (6 parse errors counted incorrect). Both exceed paper.</sub>
 
 All 5 MultiPathQA benchmarks complete. See `docs/results/benchmark-results.md` for detailed analysis.
 
