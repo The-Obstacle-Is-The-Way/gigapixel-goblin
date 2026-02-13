@@ -27,7 +27,7 @@ dependencies = [
     # CLI (Dec 2025: v0.20.0)
     "typer>=0.20.0",
     # Numerics
-    "numpy>=2.2.6,<2.4.0",
+    "numpy>=2.2.6,<2.5.0",
     "pillow>=12.0.0",
     # LLM APIs
     "anthropic>=0.75.0",
